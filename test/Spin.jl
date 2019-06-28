@@ -30,7 +30,7 @@ function testF1a()
     t = 2.3 # ms
     α = π/4 # rad
     θ = 0 # rad
-    Δf = -500:500 # Hz
+    Δf = -500:5:500 # Hz
     T1 = 600 # ms
     T2 = 100 # ms
     spins = map(Δf -> Spin([0,0,1.0], 1, T1, T2, Δf, [0,0,0]), Δf)
@@ -43,7 +43,7 @@ function testF1a()
     end
     sig = map(spin -> spin.signal, spins)
 
-    return sig ≈ answer["sig"]
+    return sig ≈ vec(answer["sig"])
 
 end
 
@@ -70,7 +70,7 @@ function testF1b()
     end
     sig = map(spin -> spin.signal, spins)
 
-    return sig ≈ answer["sig"]
+    return sig ≈ vec(answer["sig"])
 
 end
 
@@ -99,7 +99,7 @@ function testF1c()
     end
     sig = map(spin -> spin.signal, spins)
 
-    return sig ≈ answer["sig"]
+    return sig ≈ vec(answer["sig"])
 
 end
 
@@ -110,12 +110,12 @@ function testF2c()
     dt = 0.04 # ms
     t = 0:dt:6 # ms
     rf = 0.05 * sinc.(t .- 3) # G
-    Δf = -1000:1000 # Hz
+    Δf = -1000:20:1000 # Hz
     spins = map(Δf -> Spin([0,0,1.0], 1, Inf, Inf, Δf, [0,0,0]), Δf)
     map(spin -> excitation!(spin, rf, 0, zeros(3,length(rf)), dt), spins)
     sig = map(spin -> spin.signal, spins)
 
-    return sig ≈ answer["sig"]
+    return sig ≈ vec(answer["sig"])
 
 end
 
@@ -141,7 +141,7 @@ function testF3a()
     end
     sig = map(spin -> spin.signal, spins)
 
-    return sig ≈ answer["sig"]
+    return sig ≈ vec(answer["sig"])
 
 end
 
@@ -152,7 +152,7 @@ function testF3c()
     dt = 0.1 # ms
     t = 0:dt:6 # ms
     T = length(t)
-    xpos = -2:0.01:2 # cm
+    xpos = -2:0.1:2 # cm
     rf = 0.05 * sinc.(t .- 3) # G
     grad = [0.1ones(T)'; zeros(T)'; zeros(T)']
     T1 = 600 # ms
@@ -169,7 +169,7 @@ function testF3c()
     sig = map(spin -> spin.signal, spins)
     Mz = map(spin -> spin.M[3], spins)
 
-    return sig ≈ answer["sig"] && Mz ≈ answer["mz"]
+    return sig ≈ vec(answer["sig"]) && Mz ≈ vec(answer["mz"])
 
 end
 
@@ -180,7 +180,7 @@ function testF3d()
     dt = 0.1 # ms
     t = 0:dt:6 # ms
     T = length(t)
-    xpos = -2:0.01:2 # cm
+    xpos = -2:0.1:2 # cm
     rf = 0.05 * sinc.(t .- 3) # G
     grad = [0.1ones(T)'; zeros(T)'; zeros(T)']
     T1 = 600 # ms
@@ -193,7 +193,7 @@ function testF3d()
     sig = map(spin -> spin.signal, spins)
     Mz = map(spin -> spin.M[3], spins)
 
-    return sig ≈ answer["sig"] && Mz ≈ answer["mz"]
+    return sig ≈ vec(answer["sig"]) && Mz ≈ vec(answer["mz"])
 
 end
 
@@ -204,7 +204,7 @@ function testF3f()
     dt = 0.1 # ms
     t = 0:dt:6 # ms
     T = length(t)
-    xpos = -5:0.01:5 # cm
+    xpos = -5:0.1:5 # cm
     rf = 0.05 * sinc.(t .- 3) .* (exp.(im * 2π * 900 * t/1000) + exp.(-im * 2π * 900 * t/1000)) # G
     grad = [0.1ones(T)'; zeros(T)'; zeros(T)']
     T1 = 600 # ms
@@ -217,7 +217,7 @@ function testF3f()
     sig = map(spin -> spin.signal, spins)
     Mz = map(spin -> spin.M[3], spins)
 
-    return sig ≈ answer["sig"] && Mz ≈ answer["mz"]
+    return sig ≈ vec(answer["sig"]) && Mz ≈ vec(answer["mz"])
 
 end
 
@@ -263,7 +263,7 @@ function testF1cMC()
     map(spin -> freeprecess!(spin, t, -grad/2), spins)
     sig = map(spin -> spin.signal, spins)
 
-    return sig ≈ answer["sig"]
+    return sig ≈ vec(answer["sig"])
 
 end
 
@@ -274,12 +274,12 @@ function testF2cMC()
     dt = 0.04 # ms
     t = 0:dt:6 # ms
     rf = 0.05 * sinc.(t .- 3) # G
-    Δf = -1000:1000 # Hz
+    Δf = -1000:20:1000 # Hz
     spins = map(Δf -> SpinMC([0,0,1.0], 1, [1], [Inf], [Inf], [Δf], Vector{Int}(), [0,0,0]), Δf)
     map(spin -> excitation!(spin, rf, 0, zeros(3,length(rf)), dt), spins)
     sig = map(spin -> spin.signal, spins)
 
-    return sig ≈ answer["sig"]
+    return sig ≈ vec(answer["sig"])
 
 end
 
@@ -290,7 +290,7 @@ function testF3cMC()
     dt = 0.1 # ms
     t = 0:dt:6 # ms
     T = length(t)
-    xpos = -2:0.01:2 # cm
+    xpos = -2:0.1:2 # cm
     rf = 0.05 * sinc.(t .- 3) # G
     grad = [0.1ones(T)'; zeros(T)'; zeros(T)']
     T1 = 600 # ms
@@ -303,7 +303,7 @@ function testF3cMC()
     sig = map(spin -> spin.signal, spins)
     Mz = map(spin -> spin.M[3], spins)
 
-    return sig ≈ answer["sig"] && Mz ≈ answer["mz"]
+    return sig ≈ vec(answer["sig"]) && Mz ≈ vec(answer["mz"])
 
 end
 
@@ -314,7 +314,7 @@ function testF3dMC()
     dt = 0.1 # ms
     t = 0:dt:6 # ms
     T = length(t)
-    xpos = -2:0.01:2 # cm
+    xpos = -2:0.1:2 # cm
     rf = 0.05 * sinc.(t .- 3) # G
     grad = [0.1ones(T)'; zeros(T)'; zeros(T)']
     T1 = 600 # ms
@@ -327,7 +327,7 @@ function testF3dMC()
     sig = map(spin -> spin.signal, spins)
     Mz = map(spin -> spin.M[3], spins)
 
-    return sig ≈ answer["sig"] && Mz ≈ answer["mz"]
+    return sig ≈ vec(answer["sig"]) && Mz ≈ vec(answer["mz"])
 
 end
 
@@ -338,7 +338,7 @@ function testF3fMC()
     dt = 0.1 # ms
     t = 0:dt:6 # ms
     T = length(t)
-    xpos = -5:0.01:5 # cm
+    xpos = -5:0.1:5 # cm
     rf = 0.05 * sinc.(t .- 3) .* (exp.(im * 2π * 900 * t/1000) + exp.(-im * 2π * 900 * t/1000)) # G
     grad = [0.1ones(T)'; zeros(T)'; zeros(T)']
     T1 = 600 # ms
@@ -351,7 +351,7 @@ function testF3fMC()
     sig = map(spin -> spin.signal, spins)
     Mz = map(spin -> spin.M[3], spins)
 
-    return sig ≈ answer["sig"] && Mz ≈ answer["mz"]
+    return sig ≈ vec(answer["sig"]) && Mz ≈ vec(answer["mz"])
 
 end
 
@@ -373,12 +373,12 @@ end
 
   @testset "Multicompartment" begin
 
-      @test testA5b()
-      @test testF1c()
-      @test testF2c()
-      @test testF3c()
-      @test testF3d()
-      @test testF3f()
+      @test testA5bMC()
+      @test testF1cMC()
+      @test testF2cMC()
+      @test testF3cMC()
+      @test testF3dMC()
+      @test testF3fMC()
 
   end
 
