@@ -208,6 +208,8 @@ function gentestF2c
         M = A*M+B;				% Propagate to next pulse.
             M = throt(abs(rf(k)),angle(rf(k))) * M;	% RF Rotation.
         end;
+        [A,B] = freeprecess(dT/2,T1,T2,freq(f));
+        M = A*M+B;
         sig(f) = M(1)+i*M(2);
 
     end;

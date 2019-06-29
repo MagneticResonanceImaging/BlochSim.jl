@@ -111,8 +111,8 @@ function testF2c()
     t = 0:dt:6 # ms
     rf = 0.05 * sinc.(t .- 3) # G
     Δf = -1000:20:1000 # Hz
-    spins = map(Δf -> Spin([0,0,1.0], 1, Inf, Inf, Δf, [0,0,0]), Δf)
-    map(spin -> excitation!(spin, rf, 0, zeros(3,length(rf)), dt), spins)
+    spins = map(Δf -> Spin([0,0,1.0], 1, 600, 100, Δf, [0,0,0]), Δf)
+    map(spin -> excitation!(spin, rf, 0, zeros(3), dt), spins)
     sig = map(spin -> spin.signal, spins)
 
     return sig ≈ vec(answer["sig"])
@@ -128,13 +128,12 @@ function testF3a()
     T = length(t)
     xpos = -2:0.01:2 # cm
     rf = 0.05 * sinc.(t .- 3) # G
-    grad = [0.1ones(T)'; zeros(T)'; zeros(T)']
+    grad = [0.1, 0, 0]
     T1 = 600 # ms
     T2 = 100 # ms
     Δf = 0 # Hz
     pos = [[x, 0, 0] for x in xpos]
     spins = map(pos -> Spin([0,0,1.0], 1, T1, T2, Δf, pos), pos)
-    # map(spin -> excitation!(spin, rf, 0, grad, dt), spins)
     for i = 1:length(xpos)
       (Ae, Be) = excitation(spins[i], rf, 0, grad, dt)
       applydynamics!(spins[i], Ae, Be)
@@ -149,8 +148,8 @@ function testF3c()
 
     answer = matread("matlabtestdata/testF3c.mat")
 
-    dt = 0.1 # ms
-    t = 0:dt:6 # ms
+    dt = 0.05 # ms
+    t = 0.1:dt:6 # ms
     T = length(t)
     xpos = -2:0.1:2 # cm
     rf = 0.05 * sinc.(t .- 3) # G
@@ -160,12 +159,10 @@ function testF3c()
     Δf = 0 # Hz
     pos = [[x, 0, 0] for x in xpos]
     spins = map(pos -> Spin([0,0,1.0], 1, T1, T2, Δf, pos), pos)
-    # map(spin -> excitation!(spin, rf, 0, grad, dt), spins)
     for i = 1:length(xpos)
-      (Ae, Be) = excitation(spins[i], rf, 0, grad[:,1], dt)
-      applydynamics!(spins[i], Ae, Be)
+        (Ae, Be) = excitation(spins[i], [rf; 0rf], 0, [grad -0.52grad], dt)
+        applydynamics!(spins[i], Ae, Be)
     end
-    map(spin -> freeprecess!(spin, t[end] - t[1], -0.52grad[:,1]), spins)
     sig = map(spin -> spin.signal, spins)
     Mz = map(spin -> spin.M[3], spins)
 
@@ -177,8 +174,8 @@ function testF3d()
 
     answer = matread("matlabtestdata/testF3d.mat")
 
-    dt = 0.1 # ms
-    t = 0:dt:6 # ms
+    dt = 0.05 # ms
+    t = 0.1:dt:6 # ms
     T = length(t)
     xpos = -2:0.1:2 # cm
     rf = 0.05 * sinc.(t .- 3) # G
@@ -188,8 +185,7 @@ function testF3d()
     Δf = 100 # Hz
     pos = [[x, 0, 0] for x in xpos]
     spins = map(pos -> Spin([0,0,1.0], 1, T1, T2, Δf, pos), pos)
-    map(spin -> excitation!(spin, rf, 0, grad, dt), spins)
-    map(spin -> freeprecess!(spin, t[end] - t[1], -0.52grad[:,1]), spins)
+    map(spin -> excitation!(spin, [rf; 0rf], 0, [grad -0.52grad], dt), spins)
     sig = map(spin -> spin.signal, spins)
     Mz = map(spin -> spin.M[3], spins)
 
@@ -201,8 +197,8 @@ function testF3f()
 
     answer = matread("matlabtestdata/testF3f.mat")
 
-    dt = 0.1 # ms
-    t = 0:dt:6 # ms
+    dt = 0.05 # ms
+    t = 0.1:dt:6 # ms
     T = length(t)
     xpos = -5:0.1:5 # cm
     rf = 0.05 * sinc.(t .- 3) .* (exp.(im * 2π * 900 * t/1000) + exp.(-im * 2π * 900 * t/1000)) # G
@@ -212,8 +208,7 @@ function testF3f()
     Δf = 0 # Hz
     pos = [[x, 0, 0] for x in xpos]
     spins = map(pos -> Spin([0,0,1.0], 1, T1, T2, Δf, pos), pos)
-    map(spin -> excitation!(spin, rf, 0, grad, dt), spins)
-    map(spin -> freeprecess!(spin, t[end] - t[1], -0.52grad[:,1]), spins)
+    map(spin -> excitation!(spin, [rf; 0rf], 0, [grad -0.52grad], dt), spins)
     sig = map(spin -> spin.signal, spins)
     Mz = map(spin -> spin.M[3], spins)
 
@@ -275,7 +270,7 @@ function testF2cMC()
     t = 0:dt:6 # ms
     rf = 0.05 * sinc.(t .- 3) # G
     Δf = -1000:20:1000 # Hz
-    spins = map(Δf -> SpinMC([0,0,1.0], 1, [1], [Inf], [Inf], [Δf], Vector{Int}(), [0,0,0]), Δf)
+    spins = map(Δf -> SpinMC([0,0,1.0], 1, [1], [600], [100], [Δf], Vector{Int}(), [0,0,0]), Δf)
     map(spin -> excitation!(spin, rf, 0, zeros(3,length(rf)), dt), spins)
     sig = map(spin -> spin.signal, spins)
 
@@ -287,8 +282,8 @@ function testF3cMC()
 
     answer = matread("matlabtestdata/testF3c.mat")
 
-    dt = 0.1 # ms
-    t = 0:dt:6 # ms
+    dt = 0.05 # ms
+    t = 0.1:dt:6 # ms
     T = length(t)
     xpos = -2:0.1:2 # cm
     rf = 0.05 * sinc.(t .- 3) # G
@@ -298,8 +293,7 @@ function testF3cMC()
     Δf = 0 # Hz
     pos = [[x, 0, 0] for x in xpos]
     spins = map(pos -> SpinMC([0,0,1.0], 1, [1], [T1], [T2], [Δf], Vector{Int}(), pos), pos)
-    map(spin -> excitation!(spin, rf, 0, grad, dt), spins)
-    map(spin -> freeprecess!(spin, t[end] - t[1], -0.52grad[:,1]), spins)
+    map(spin -> excitation!(spin, [rf; 0rf], 0, [grad -0.52grad], dt), spins)
     sig = map(spin -> spin.signal, spins)
     Mz = map(spin -> spin.M[3], spins)
 
@@ -311,8 +305,8 @@ function testF3dMC()
 
     answer = matread("matlabtestdata/testF3d.mat")
 
-    dt = 0.1 # ms
-    t = 0:dt:6 # ms
+    dt = 0.05 # ms
+    t = 0.1:dt:6 # ms
     T = length(t)
     xpos = -2:0.1:2 # cm
     rf = 0.05 * sinc.(t .- 3) # G
@@ -322,8 +316,7 @@ function testF3dMC()
     Δf = 100 # Hz
     pos = [[x, 0, 0] for x in xpos]
     spins = map(pos -> SpinMC([0,0,1.0], 1, [1], [T1], [T2], [Δf], Vector{Int}(), pos), pos)
-    map(spin -> excitation!(spin, rf, 0, grad, dt), spins)
-    map(spin -> freeprecess!(spin, t[end] - t[1], -0.52grad[:,1]), spins)
+    map(spin -> excitation!(spin, [rf; 0rf], 0, [grad -0.52grad], dt), spins)
     sig = map(spin -> spin.signal, spins)
     Mz = map(spin -> spin.M[3], spins)
 
@@ -335,8 +328,8 @@ function testF3fMC()
 
     answer = matread("matlabtestdata/testF3f.mat")
 
-    dt = 0.1 # ms
-    t = 0:dt:6 # ms
+    dt = 0.05 # ms
+    t = 0.1:dt:6 # ms
     T = length(t)
     xpos = -5:0.1:5 # cm
     rf = 0.05 * sinc.(t .- 3) .* (exp.(im * 2π * 900 * t/1000) + exp.(-im * 2π * 900 * t/1000)) # G
@@ -346,8 +339,7 @@ function testF3fMC()
     Δf = 0 # Hz
     pos = [[x, 0, 0] for x in xpos]
     spins = map(pos -> SpinMC([0,0,1.0], 1, [1], [T1], [T2], [Δf], Vector{Int}(), pos), pos)
-    map(spin -> excitation!(spin, rf, 0, grad, dt), spins)
-    map(spin -> freeprecess!(spin, t[end] - t[1], -0.52grad[:,1]), spins)
+    map(spin -> excitation!(spin, [rf; 0rf], 0, [grad -0.52grad], dt), spins)
     sig = map(spin -> spin.signal, spins)
     Mz = map(spin -> spin.M[3], spins)
 
