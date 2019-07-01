@@ -13,6 +13,6 @@ export excitation, excitation!
 export spoil, spoil!
 export combine, applydynamics!
 
-export mese!
+export mese!, spgr!
 
 end

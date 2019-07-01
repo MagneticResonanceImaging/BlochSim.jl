@@ -6,8 +6,11 @@
 % account for left-handed rotations (which is what BlochSim.jl uses).
 
 % gentestA5b;
-gentestB2c;
-gentestB2d;
+% gentestB2c;
+% gentestB2d;
+gentestB3a;
+gentestB3b;
+gentestB3c;
 % gentestF1a;
 % gentestF1b;
 % gentestF1c;
@@ -68,6 +71,30 @@ function gentestB2d
     sig = fsesignal(600, 100, 50, 1000, 0, 8);
     
     save('matlabtestdata/testB2d.mat', 'sig', '-v7.3');
+    
+end
+
+function gentestB3a
+    
+    [~,M] = gssignal(pi/3,600,100,2,10,0,pi/2);
+    
+    save('matlabtestdata/testB3a.mat', 'M', '-v7.3');
+    
+end
+
+function gentestB3b
+    
+    [~,M] = gresignal(pi/3,600,100,2,10,0);
+    
+    save('matlabtestdata/testB3b.mat', 'M', '-v7.3');
+    
+end
+
+function gentestB3c
+    
+    [~,M] = srsignal(pi/3,600,100,2,10,0);
+    
+    save('matlabtestdata/testB3c.mat', 'M', '-v7.3');
     
 end
 
@@ -483,6 +510,104 @@ function [Msig,Mss] = fsesignal(T1,T2,TE,TR,dfreq,ETL)
         Mss(:,k)=M;
         Msig(k)=M(1)+i*M(2);
     end;
+
+end
+
+% http://mrsrl.stanford.edu/~brian/bloch/gssignal.m
+function [Msig,Mss] = gssignal(flip,T1,T2,TE,TR,dfreq,phi)
+    % 
+    %	function [Msig,Mss] = gssignal(flip,T1,T2,TE,TR,dfreq,phi)
+    % 
+    %	Calculate the steady state signal at TE for repeated
+    %	excitations given T1,T2,TR,TE in ms.  dfreq is the resonant
+    %	frequency in Hz.  flip is in radians.
+    %	phi is the phase twist at the end of the sequence.
+
+    Rflip = yrot(-flip);
+    [Atr,Btr] = freeprecess(TR-TE,T1,T2,dfreq);
+    [Ate,Bte] = freeprecess(TE,T1,T2,dfreq);
+
+    % 	To add the gradient spoiler twist, we just
+    %	multiply Atr by zrot(phi):
+
+    Atr = zrot(phi)*Atr;
+
+    % Let 	M1 be the magnetization just before the tip.
+    %	M2 be just after the tip.
+    %	M3 be at TE.
+    %
+    % then
+    %	M2 = Rflip * M1
+    %	M3 = Ate * M2 + Bte
+    %	M1 = Atr * M3 + Btr
+    %
+    % Solve for M3...
+    %
+    %	M3 = Ate*Rflip*Atr*M3 + (Ate*Rflip*Btr+Bte)
+
+    Mss = inv(eye(3)-Ate*Rflip*Atr) * (Ate*Rflip*Btr+Bte);
+    Msig = Mss(1)+i*Mss(2);
+
+end
+
+% http://mrsrl.stanford.edu/~brian/bloch/gresignal.m
+function [Msig,Mss] = gresignal(flip,T1,T2,TE,TR,dfreq)
+    % 
+    %	function [Msig,Mss] = gresignal(flip,T1,T2,TE,TR,dfreq)
+    % 
+    %	Calculate the steady state gradient-spoiled signal at TE for repeated
+    %	excitations given T1,T2,TR,TE in ms.  dfreq is the resonant
+    %	frequency in Hz.  flip is in radians.
+
+    N = 100;
+    M = zeros(3,N);
+    phi = ([1:N]/N-0.5 ) * 4*pi;
+
+
+    for k=1:N
+        [M1sig,M1] = gssignal(flip,T1,T2,TE,TR,dfreq,phi(k));
+        M(:,k)=M1;
+    end;
+
+
+    Mss = mean(M')';
+    Msig = Mss(1)+i*Mss(2);
+
+end
+
+% http://mrsrl.stanford.edu/~brian/bloch/srsignal.m
+function [Msig,Mss] = srsignal(flip,T1,T2,TE,TR,dfreq)
+    % 
+    %	function [Msig,Mss] = srsignal(flip,T1,T2,TE,TR,dfreq)
+    % 
+    %	Calculate the steady state signal at TE for repeated
+    %	excitations given T1,T2,TR,TE in ms.  Force the
+    %	transverse magnetization to zero before each excitation.
+    %	dfreq is the resonant frequency in Hz.  flip is in radians.
+    %
+    
+    Rflip = yrot(flip);
+    [Atr,Btr] = freeprecess(TR-TE,T1,T2,dfreq);
+    [Ate,Bte] = freeprecess(TE,T1,T2,dfreq);
+
+    % 	Force transverse magnetization to 0 before excitation.
+    Atr = [0 0 0;0 0 0;0 0 1]*Atr;
+
+    % Let 	M1 be the magnetization just before the tip.
+    %	M2 be just after the tip.
+    %	M3 be at TE.
+    %
+    % then
+    %	M2 = Rflip * M1
+    %	M3 = Ate * M2 + Bte
+    %	M1 = Atr * M3 + Btr
+    %
+    % Solve for M3...
+    %
+    %	M3 = Ate*Rflip*Atr*M3 + (Ate*Rflip*Btr+Bte)
+
+    Mss = inv(eye(3)-Ate*Rflip*Atr) * (Ate*Rflip*Btr+Bte);
+    Msig = Mss(1)+i*Mss(2);
 
 end
 
