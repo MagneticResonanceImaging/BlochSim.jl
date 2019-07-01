@@ -5,17 +5,17 @@
 % slightly to save data for plotting (rather than actually plotting) and to
 % account for left-handed rotations (which is what BlochSim.jl uses).
 
-gentestA5b;
+% gentestA5b;
 gentestB2c;
 gentestB2d;
-gentestF1a;
-gentestF1b;
-gentestF1c;
-gentestF2c;
-gentestF3a;
-gentestF3c;
-gentestF3d;
-gentestF3f;
+% gentestF1a;
+% gentestF1b;
+% gentestF1c;
+% gentestF2c;
+% gentestF3a;
+% gentestF3c;
+% gentestF3d;
+% gentestF3f;
 
 
 
@@ -403,8 +403,8 @@ function [Msig,Mss] = sesignal(T1,T2,TE,TR,dfreq)
     %	dfreq is the resonant frequency in Hz.  flip is in radians.
     %
 
-    Rflip = yrot(pi/2);	% Rotation from excitation pulse (90)
-    Rrefoc = xrot(pi);	% Rotation from refocusing pulse (usually 180)
+    Rflip = yrot(-pi/2);	% Rotation from excitation pulse (90)
+    Rrefoc = xrot(-pi);	% Rotation from refocusing pulse (usually 180)
 
     [Atr,Btr] = freeprecess(TR-TE,T1,T2,dfreq);	% Propagation TE to TR
     [Ate2,Bte2] = freeprecess(TE/2,T1,T2,dfreq);	% Propagation 0 to TE/2
@@ -444,8 +444,8 @@ function [Msig,Mss] = fsesignal(T1,T2,TE,TR,dfreq,ETL)
     %	dfreq is the resonant frequency in Hz.  flip is in radians.
     %
 
-    Rflip = yrot(pi/2);	% Rotation from Excitation  (usually 90)
-    Rrefoc = xrot(pi);	% Rotation from Refocusing (usually 180)
+    Rflip = yrot(-pi/2);	% Rotation from Excitation  (usually 90)
+    Rrefoc = xrot(-pi);	% Rotation from Refocusing (usually 180)
 
     [Atr,Btr] = freeprecess(TR-ETL*TE,T1,T2,dfreq);	% Propagation last echo to TR
     [Ate2,Bte2] = freeprecess(TE/2,T1,T2,dfreq);	% Propagation over TE/2
