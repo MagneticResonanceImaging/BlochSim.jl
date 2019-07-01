@@ -144,8 +144,8 @@ function spgr!(spin::AbstractSpin, TR, TE, α, grad, Tg; Δθinc = deg2rad(117),
         θ = 0
         Δθ = Δθinc
 
-        # Simulate nTR-1 TR's
-        for rep = 1:nTR-1
+        # Simulate nTR TR's
+        for rep = 1:nTR
 
             excitation!(spin, θ, α)
             applydynamics!(spin, D...)
@@ -154,7 +154,7 @@ function spgr!(spin::AbstractSpin, TR, TE, α, grad, Tg; Δθinc = deg2rad(117),
 
         end
 
-        # Simulate the last TR and calculate signal at echo time
+        # Calculate signal at echo time
         excitation!(spin, θ, α)
         applydynamics!(spin, Dte...)
 

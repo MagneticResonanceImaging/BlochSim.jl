@@ -76,7 +76,7 @@ function testB5a()
     zmax = 2π / (GAMMA * gradz * Tg/1000) # cm
     z = (1:100)/100 * zmax
     spins = map(z -> Spin(1, 600, 100, 0, [0,0,z]), z)
-    s = map(spin -> spgr!(spin, 10, 2, π/6, [0,0,gradz], Tg), spins)
+    s = map(spin -> spgr!(spin, 10, 2, π/6, [0,0,gradz], Tg, nTR = 99), spins)
     sig = sum(s) / 100
 
     return sig ≈ answer["sig"]
@@ -95,7 +95,7 @@ function testB5b()
     spins = map(z -> Spin(1, 600, 100, 0, [0,0,z]), z)
     srf = zeros(ComplexF64, 51)
     for i = 1:51
-        s = map(spin -> spgr!(spin, 10, 2, α[i], [0,0,gradz], Tg), spins)
+        s = map(spin -> spgr!(spin, 10, 2, α[i], [0,0,gradz], Tg, nTR = 99), spins)
         srf[i] = sum(s) / 100
     end
     spin = Spin(1, 600, 100, 0)
