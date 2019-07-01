@@ -117,7 +117,7 @@ end
     rotatetheta(θ, α)
 
 Simulate left-handed rotation about an axis in the x-y plane that makes angle
-`θ` with the positive x-axis.
+`θ` with the negative y-axis.
 
 # Arguments
 - `θ::Real`: Orientation of the axis about which to rotate (rad)
@@ -125,7 +125,7 @@ Simulate left-handed rotation about an axis in the x-y plane that makes angle
 
 # Return
 - `R::Matrix`: 3×3 matrix that describes rotation by angle `α` about an axis in
-    the x-y plane that makes angle `θ` with the positive x-axis
+    the x-y plane that makes angle `θ` with the negative y-axis
 
 ## Note
 `rotatetheta(θ, α) == rotatez(θ) * rotatey(-α) * rotatez(-θ)`
