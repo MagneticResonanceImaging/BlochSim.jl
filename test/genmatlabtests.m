@@ -5,20 +5,22 @@
 % slightly to save data for plotting (rather than actually plotting) and to
 % account for left-handed rotations (which is what BlochSim.jl uses).
 
-% gentestA5b;
-% gentestB2c;
-% gentestB2d;
+gentestA5b;
+gentestB2c;
+gentestB2d;
 gentestB3a;
 gentestB3b;
 gentestB3c;
-% gentestF1a;
-% gentestF1b;
-% gentestF1c;
-% gentestF2c;
-% gentestF3a;
-% gentestF3c;
-% gentestF3d;
-% gentestF3f;
+gentestB5a;
+gentestB5b;
+gentestF1a;
+gentestF1b;
+gentestF1c;
+gentestF2c;
+gentestF3a;
+gentestF3c;
+gentestF3d;
+gentestF3f;
 
 
 
@@ -96,6 +98,90 @@ function gentestB3c
     
     save('matlabtestdata/testB3c.mat', 'M', '-v7.3');
     
+end
+
+% http://mrsrl.stanford.edu/~brian/bloch/b5a.m
+function gentestB5a
+    % Bloch Equation Simulation, Excercise B-5a
+    % -----------------------------------------
+    % 
+
+    df = 0;		% Hz off-resonance.
+    T1 = 600;	% ms.
+    T2 = 100;	% ms.
+    TE = 2;		% ms.
+    TR = 10;
+    flip = pi/6;	% radians.
+    inc = 117/180*pi;
+
+    Nex = 100;
+
+    Nf = 100;	% Simulate 50 different gradient-spoiled spins.
+    phi = [1:Nf]/Nf*2*pi;
+
+    M=zeros(3,Nf,Nex+1);
+    sig = zeros(Nex,1);
+
+
+
+    [Ate,Bte] = freeprecess(TE,T1,T2,0);
+    [Atr,Btr] = freeprecess(TR-TE,T1,T2,0);
+
+    M = [zeros(2,Nf);ones(1,Nf)];
+    on = ones(1,Nf);
+
+    Rfph = 0;
+    Rfinc = inc;
+
+    for n=1:Nex
+
+        A = Ate * throt(flip,Rfph);
+        B = Bte;
+        M = A*M+B*on;
+
+        sig(n) = mean( squeeze(M(1,:)+i*M(2,:)) ) * exp(i*Rfph);
+
+        M=Atr*M+Btr*on;
+
+        for k=1:Nf
+            M(:,k) = zrot(phi(k))*M(:,k);
+        end;
+
+        Rfph = Rfph+Rfinc;
+        Rfinc = Rfinc+inc;
+    end;
+    
+    sig = sig(end);
+    
+    save('matlabtestdata/testB5a.mat', 'sig', '-v7.3');
+
+end
+
+% http://mrsrl.stanford.edu/~brian/bloch/b5b.m
+function gentestB5b
+    
+    % Bloch Equation Simulation, Excercise B-5b
+    % -----------------------------------------
+    % 
+
+    df = 0;		% Hz off-resonance.
+    T1 = 600;	% ms.
+    T2 = 100;	% ms.
+    TE = 2;		% ms.
+    TR = 10;
+    flip = [0:0.01:0.5 ]*pi;	% radians.
+    inc = 117/180*pi;
+    Nex = 100;
+
+
+    for k=1:length(flip)
+        sig1(k)=spgrsignal(flip(k),T1,T2,TE,TR,df,Nex,inc);
+        [Msig,M]=srsignal(flip(k),T1,T2,TE,TR,df);
+        sig2(k)=M(1)+i*M(2);
+    end;
+    
+    save('matlabtestdata/testB5b.mat', 'sig1', 'sig2', '-v7.3');
+
 end
 
 % http://mrsrl.stanford.edu/~brian/bloch/f1a.m
@@ -586,7 +672,7 @@ function [Msig,Mss] = srsignal(flip,T1,T2,TE,TR,dfreq)
     %	dfreq is the resonant frequency in Hz.  flip is in radians.
     %
     
-    Rflip = yrot(flip);
+    Rflip = yrot(-flip);
     [Atr,Btr] = freeprecess(TR-TE,T1,T2,dfreq);
     [Ate,Bte] = freeprecess(TE,T1,T2,dfreq);
 
@@ -608,6 +694,60 @@ function [Msig,Mss] = srsignal(flip,T1,T2,TE,TR,dfreq)
 
     Mss = inv(eye(3)-Ate*Rflip*Atr) * (Ate*Rflip*Btr+Bte);
     Msig = Mss(1)+i*Mss(2);
+
+end
+
+% http://mrsrl.stanford.edu/~brian/bloch/spgrsignal.m
+function [Msig,Mss]=spgrsignal(flip,T1,T2,TE,TR,df,Nex,inc)
+    %	function [Msig,Mss]=spgrsignal(flip,T1,T2,TE,TR,df,Nex,inc)
+    %
+    %	Function calculates the signal from an RF-spoiled sequence
+    %	after Nex excitations.
+    %
+
+    if (nargin < 8)
+        inc = 117/180*pi;
+    end;
+    if (nargin < 7)
+        Nex = 100;
+    end;
+    if (nargin < 6)
+        df = 0;
+    end;
+
+    Nf = 100;	% Simulate 100 different gradient-spoiled spins.
+    phi = [1:Nf]/Nf*2*pi;
+
+    M=zeros(3,Nf,Nex+1);
+
+
+    [Ate,Bte] = freeprecess(TE,T1,T2,df);
+    [Atr,Btr] = freeprecess(TR-TE,T1,T2,df);
+
+    M = [zeros(2,Nf);ones(1,Nf)];
+    on = ones(1,Nf);
+
+    Rfph = 0;
+    Rfinc = inc;
+
+    for n=1:Nex
+
+        A = Ate * throt(flip,Rfph);
+        B = Bte;
+        M = A*M+B*on;
+
+        Msig = mean( squeeze(M(1,:)+i*M(2,:)) ) * exp(i*Rfph);
+        Mss = M;
+
+        M=Atr*M+Btr*on;
+
+        for k=1:Nf
+            M(:,k) = zrot(phi(k))*M(:,k);
+        end;
+
+        Rfph = Rfph+Rfinc;
+        Rfinc = Rfinc+inc;
+    end;
 
 end
 

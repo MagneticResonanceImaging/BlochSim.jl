@@ -349,29 +349,29 @@ end
 
 @testset "Spin" begin
 
-  @testset "Single Compartment" begin
+    @testset "Single Compartment" begin
 
-    @test testA5b()
-    @test testF1a()
-    @test testF1b()
-    @test testF1c()
-    @test testF2c()
-    @test testF3a()
-    @test testF3c()
-    @test testF3d()
-    @test testF3f()
+        @test testA5b()
+        @test testF1a()
+        @test testF1b()
+        @test testF1c()
+        @test testF2c()
+        @test testF3a()
+        @test testF3c()
+        @test testF3d()
+        @test testF3f()
 
-  end
+    end
 
-  @testset "Multicompartment" begin
+    @testset "Multicompartment" begin
 
-      @test testA5bMC()
-      @test testF1cMC()
-      @test testF2cMC()
-      @test testF3cMC()
-      @test testF3dMC()
-      @test testF3fMC()
+        @test testA5bMC()
+        @test testF1cMC()
+        @test testF2cMC()
+        @test testF3cMC()
+        @test testF3dMC()
+        @test testF3fMC()
 
-  end
+    end
 
 end
