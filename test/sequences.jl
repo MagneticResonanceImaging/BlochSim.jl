@@ -92,14 +92,14 @@ function testB5b()
     Tg = 3 # ms
     zmax = 2π / (GAMMA * gradz * Tg/1000) # cm
     z = (1:100)/100 * zmax
-    spins = map(z -> Spin(1, 600, 100, 0, [0,0,z]), z)
     srf = zeros(ComplexF64, 51)
     for i = 1:51
+        spins = map(z -> Spin(1, 600, 100, 0, [0,0,z]), z)
         s = map(spin -> spgr!(spin, 10, 2, α[i], [0,0,gradz], Tg, nTR = 99), spins)
         srf[i] = sum(s) / 100
     end
     spin = Spin(1, 600, 100, 0)
-    sideal = map(α -> spgr!(spin, 10, 2, α)[end], α)
+    sideal = map(α -> spgr!(spin, 10, 2, α), α)
 
     return srf ≈ vec(answer["sig1"]) && sideal ≈ vec(answer["sig2"])
 
