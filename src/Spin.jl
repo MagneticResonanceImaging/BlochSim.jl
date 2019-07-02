@@ -216,6 +216,7 @@ julia> (A, B) = freeprecess(spin, 100, [0, 0, 1/GAMBAR]); A * spin.M + B
  -0.2601300475114444
  -0.2601300475114445
   0.09516258196404048
+```
 """
 function freeprecess(spin::Spin, t, grad)
 
