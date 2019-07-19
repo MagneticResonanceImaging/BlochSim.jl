@@ -4,3 +4,5 @@ julia:
 
 codecov: true
 sudo: required
+git:
+  depth: 99999999
