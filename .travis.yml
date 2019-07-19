@@ -3,6 +3,8 @@ julia:
   - 1.0
 
 codecov: true
-sudo: required
-git:
-  depth: 99999999
+
+addons:
+  apt:
+    packages:
+    - hdf5-tools
