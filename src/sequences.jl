@@ -110,7 +110,14 @@ pseudo steady-state when many spins are averaged together.)
 """
 function spgr!(spin::AbstractSpin, TR::Real, TE::Real, α::Real,
                grad::AbstractArray{<:Real}, Tg::Real;
-               Δθinc::Real = deg2rad(117), nTR::Real = 100)
+               Δθinc::Real = deg2rad(117), nTR::Integer = 100)
+
+    # I would prefer to split this into two functions, but it is not possible
+    # (without having multiple names like spgr_rfspoil) because I want Δθinc and
+    # nTR to be optional arguments, but doing so would case the RF-spoiled case
+    # and the non-RF-spoiled case to have the same method signature. And I like
+    # the simplicity of having just one spgr function, so I don't want to add,
+    # e.g., spgr_rfspoil.
 
     TR >= TE + Tg ||
         throw(ArgumentError("TR must be greater than or equal to TE + Tg"))
