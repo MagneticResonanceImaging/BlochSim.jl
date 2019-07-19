@@ -18,9 +18,8 @@ sequence, assuming instantaneous excitations and ideal spoiling.
 """
 function mese!(spin::AbstractSpin, TR, TE, nechoes; αex = π/2, αinv = π)
 
-    if TR < TE * nechoes
-        error("TR < TE * nechoes")
-    end
+    TR >= TE * nechoes ||
+        throw(ArgumentError("TR must be greater than or equal to TE * nechoes"))
 
     # Precompute spin dynamics
     Dex = excitation(spin, 0, αex)
@@ -66,9 +65,7 @@ sequence, assuming instantaneous excitations and ideal spoiling.
 """
 function spgr!(spin::AbstractSpin, TR, TE, α)
 
-    if TR < TE
-        error("TR < TE")
-    end
+    TR >= TE || throw(ArgumentError("TR must be greater than or equal to TE"))
 
     # Precompute spin dynamics
     Dex = excitation(spin, 0, α)
@@ -112,11 +109,8 @@ pseudo steady-state when many spins are averaged together.)
 """
 function spgr!(spin::AbstractSpin, TR, TE, α, grad, Tg; Δθinc = deg2rad(117), nTR = 100)
 
-    if TR < TE
-        error("TR < TE")
-    elseif TR < TE + Tg
-        error("TR < TE + Tg")
-    end
+    TR >= TE + Tg ||
+        throw(ArgumentError("TR must be greater than or equal to TE + Tg"))
 
     # Precompute spin dynamics
     Dte = freeprecess(spin, TE)
