@@ -50,6 +50,74 @@ function mese!(spin::AbstractSpin, TR::Real, TE::Real, nechoes::Integer;
 end
 
 """
+    mese(spin, TR, TE, nechoes; αex, αinv, nspins, ncycles)
+
+Simulate the steady-state signal acquired from a multi-echo spin echo (MESE)
+sequence, assuming instantaneous excitations and nonideal gradient spoiling.
+
+The output is a vector of `nechoes` signal values that are the complex mean of
+`nspins` copies of `spin` at slightly offset positions to induce `ncycles`
+cycles of phase across the spins.
+
+# Arguments
+- `spin::AbstractSpin`: Spin whose signal to acquire
+- `TR::Real`: Repetition time of the sequence (ms)
+- `TE::Real`: Echo time of the sequence (ms)
+- `nechoes::Integer`: Number of spin echoes to acquire
+- `αex::Real = π/2`: Flip angle for the initial excitation (rad)
+- `αinv::Real = π`: Flip angle for the refocussing (inversion) pulse (rad)
+- `nspins::Integer = 10`: Number of intra-voxel spins to simulate
+- `ncycles::Real = 1`: Number of cycles of phase across a voxel induced by each
+    spoiler gradient (typically integer-valued)
+
+# Return
+- `signal::Vector{ComplexF64}`: Ensemble steady-state signal at each of the
+    `nechoes` echo times
+"""
+function mese(spin::AbstractSpin, TR::Real, TE::Real, nechoes::Integer;
+              αex::Real = π/2, αinv::Real = π, nspins::Integer = 10,
+              ncycles::Real = 1)
+
+    # Pick an arbitrary gradient strength and duration and compute the spatial
+    # locations that will provide a uniform ncycles of phase
+    gradz = 0.3 # G/cm
+    Tg = TE / 4 # ms
+    zmax = ncycles * 2π / (GAMMA * gradz * Tg/1000) # cm
+    z = (1:nspins)/nspins  * zmax
+
+    # Make nspins copies of the provided spin at different spatial locations
+    spins = varyz(spin, z)
+
+    # Compute the MESE signal for each spin
+    signals = map(spin -> mese!(spin, TR, TE, nechoes, [0,0,gradz], Tg,
+                            αex = αex, αinv = αinv), spins) # [nspins][nechoes]
+
+    # Find the average signal for each echo
+    signal = map(s -> sum(s) / nechoes, signals)
+
+    return signal
+
+end
+
+"""
+    varyz(spin, z)
+
+Copy `spin`, offsetting the z position of each copy by elements of z.
+"""
+function varyz(spin::Spin, z)
+
+    map(z -> Spin(spin.M0, spin.T1, spin.T2, spin.Δf, spin.pos + [0,0,z]), z)
+
+end
+
+function varyz(spin::SpinMC, z)
+
+    map(z -> SpinMC(spin.M0, spin.frac, spin.T1, spin.T2, spin.Δf, spin.τ,
+                    spin.pos + [0,0,z]), z)
+
+end
+
+"""
     mese!(spin, TR, TE, nechoes, grad, Tg; αex, αinv)
 
 Simulate the steady-state signal acquired from a multi-echo spin echo (MESE)
