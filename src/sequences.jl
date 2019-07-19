@@ -93,7 +93,7 @@ function mese(spin::AbstractSpin, TR::Real, TE::Real, nechoes::Integer;
                             αex = αex, αinv = αinv), spins) # [nspins][nechoes]
 
     # Find the average signal for each echo
-    signal = map(s -> sum(s) / nechoes, signals)
+    signal = sum(signals) / nspins
 
     return signal
 
