@@ -16,7 +16,8 @@ sequence, assuming instantaneous excitations and ideal spoiling.
 - `signal::Vector{ComplexF64}`: Steady-state signal at each of the `nechoes`
     echo times
 """
-function mese!(spin::AbstractSpin, TR, TE, nechoes; αex = π/2, αinv = π)
+function mese!(spin::AbstractSpin, TR::Real, TE::Real, nechoes::Integer;
+               αex::Real = π/2, αinv::Real = π)
 
     TR >= TE * nechoes ||
         throw(ArgumentError("TR must be greater than or equal to TE * nechoes"))
@@ -63,7 +64,7 @@ sequence, assuming instantaneous excitations and ideal spoiling.
 # Return
 - `signal::ComplexF64`: Steady-state signal
 """
-function spgr!(spin::AbstractSpin, TR, TE, α)
+function spgr!(spin::AbstractSpin, TR::Real, TE::Real, α::Real)
 
     TR >= TE || throw(ArgumentError("TR must be greater than or equal to TE"))
 
@@ -107,7 +108,9 @@ pseudo steady-state when many spins are averaged together.)
 # Return
 - `signal::ComplexF64`: Steady-state signal
 """
-function spgr!(spin::AbstractSpin, TR, TE, α, grad, Tg; Δθinc = deg2rad(117), nTR = 100)
+function spgr!(spin::AbstractSpin, TR::Real, TE::Real, α::Real,
+               grad::AbstractArray{<:Real}, Tg::Real;
+               Δθinc::Real = deg2rad(117), nTR::Real = 100)
 
     TR >= TE + Tg ||
         throw(ArgumentError("TR must be greater than or equal to TE + Tg"))
