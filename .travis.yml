@@ -3,3 +3,8 @@ julia:
   - 1.0
 
 codecov: true
+
+addons:
+  apt:
+    packages:
+    - hdf5-tools

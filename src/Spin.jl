@@ -41,17 +41,19 @@ julia> spin = Spin([1.0, 2.0, 3.0], 1, 1000, 100, 3); spin.signal
 """
 struct Spin <: AbstractSpin
     M::Vector{Float64}
-    M0::Real
-    T1::Real
-    T2::Real
-    Δf::Real
-    pos::Vector{<:Real}
+    M0::Float64
+    T1::Float64
+    T2::Float64
+    Δf::Float64
+    pos::Vector{Float64}
 
     # Default constructor with optional argument pos
-    Spin(M::Vector{<:Real}, M0, T1, T2, Δf, pos = [0,0,0]) = new(M, M0, T1, T2, Δf, pos)
+    Spin(M::Vector{<:Real}, M0, T1, T2, Δf, pos = [0,0,0]) =
+        new(M, M0, T1, T2, Δf, pos)
 
     # If magnetization vector is not specified then use equilibrium
-    Spin(M0::Real, T1, T2, Δf, pos = [0,0,0]) = new([0,0,M0], M0, T1, T2, Δf, pos)
+    Spin(M0::Real, T1, T2, Δf, pos = [0,0,0]) =
+        new([0,0,M0], M0, T1, T2, Δf, pos)
 end
 
 """
@@ -90,16 +92,16 @@ julia> spin = SpinMC(M, 1, frac, [900, 400], [80, 20], [3, 13], τ); spin.signal
 ```
 """
 struct SpinMC <: AbstractSpin
-    N::Integer
+    N::Int
     M::Vector{Float64} # [3N]
     Meq::Vector{Float64} # [3N]
-    M0::Real
-    frac::Vector{<:Real} # [N]
-    T1::Vector{<:Real} # [N]
-    T2::Vector{<:Real} # [N]
-    Δf::Vector{<:Real} # [N]
-    τ::Vector{<:Real} # [N*(N-1)]
-    pos::Vector{<:Real}
+    M0::Float64
+    frac::Vector{Float64} # [N]
+    T1::Vector{Float64} # [N]
+    T2::Vector{Float64} # [N]
+    Δf::Vector{Float64} # [N]
+    τ::Vector{Float64} # [N*(N-1)]
+    pos::Vector{Float64}
     A::Matrix{Float64} # [3N,3N]
 
     SpinMC(M::Vector{<:Real}, M0, frac, T1, T2, Δf, τ, pos = [0,0,0]) = begin
@@ -173,7 +175,7 @@ Simulate free-precession for the given spin.
 # Examples
 ```jldoctest
 julia> spin = Spin([1.0, 0.0, 0.0], 1, 1000, 100, 3.75)
-Spin([1.0, 0.0, 0.0], 1, 1000, 100, 3.75, [0, 0, 0])
+Spin([1.0, 0.0, 0.0], 1.0, 1000.0, 100.0, 3.75, [0.0, 0.0, 0.0])
 
 julia> (A, B) = freeprecess(spin, 100); A * spin.M + B
 3-element Array{Float64,1}:
@@ -182,9 +184,10 @@ julia> (A, B) = freeprecess(spin, 100); A * spin.M + B
   0.09516258196404048
 ```
 """
-freeprecess(spin::Spin, t) = freeprecess(t, spin.M0, spin.T1, spin.T2, spin.Δf)
+freeprecess(spin::Spin, t::Real) =
+    freeprecess(t, spin.M0, spin.T1, spin.T2, spin.Δf)
 
-function freeprecess(spin::SpinMC, t)
+function freeprecess(spin::SpinMC, t::Real)
 
     E = exp(t * spin.A)
     B = (I - E) * spin.Meq
@@ -209,7 +212,7 @@ Simulate free-precession for the given spin in the presence of a gradient.
 # Examples
 ```jldoctest
 julia> spin = Spin([1.0, 0.0, 0.0], 1, 1000, 100, 0, [0, 0, 3.75])
-Spin([1.0, 0.0, 0.0], 1, 1000, 100, 0, [0.0, 0.0, 3.75])
+Spin([1.0, 0.0, 0.0], 1.0, 1000.0, 100.0, 0.0, [0.0, 0.0, 3.75])
 
 julia> (A, B) = freeprecess(spin, 100, [0, 0, 1/GAMBAR]); A * spin.M + B
 3-element Array{Float64,1}:
@@ -218,7 +221,7 @@ julia> (A, B) = freeprecess(spin, 100, [0, 0, 1/GAMBAR]); A * spin.M + B
   0.09516258196404048
 ```
 """
-function freeprecess(spin::Spin, t, grad)
+function freeprecess(spin::Spin, t::Real, grad::AbstractArray{<:Real,1})
 
     gradfreq = GAMBAR * sum(grad .* spin.pos) # Hz
     freeprecess(t, spin.M0, spin.T1, spin.T2, spin.Δf + gradfreq)
@@ -226,7 +229,7 @@ function freeprecess(spin::Spin, t, grad)
 end
 
 # See equation (6.9) in Gopal Nataraj's PhD thesis
-function freeprecess(spin::SpinMC, t, grad)
+function freeprecess(spin::SpinMC, t::Real, grad::AbstractArray{<:Real,1})
 
     gradfreq = GAMMA * sum(grad .* spin.pos) / 1000 # rad/ms
     ΔA = diagm(1 => repeat([gradfreq, 0, 0], spin.N), # Left-handed rotation
@@ -268,7 +271,7 @@ angle `θ` with the positive x-axis.
 # Examples
 ```jldoctest
 julia> spin = Spin(1, 1000, 100, 3.75)
-Spin([0.0, 0.0, 1.0], 1, 1000, 100, 3.75, [0, 0, 0])
+Spin([0.0, 0.0, 1.0], 1.0, 1000.0, 100.0, 3.75, [0.0, 0.0, 0.0])
 
 julia> (A, _) = excitation(spin, π/4, π/2); A * spin.M
 3-element Array{Float64,1}:
@@ -277,7 +280,7 @@ julia> (A, _) = excitation(spin, π/4, π/2); A * spin.M
   6.123233995736766e-17
 ```
 """
-function excitation(spin::Spin, θ, α)
+function excitation(spin::Spin, θ::Real, α::Real)
 
     A = rotatetheta(θ, α)
     B = zeros(length(spin.M))
@@ -285,7 +288,7 @@ function excitation(spin::Spin, θ, α)
 
 end
 
-function excitation(spin::SpinMC, θ, α)
+function excitation(spin::SpinMC, θ::Real, α::Real)
 
     A = kron(Matrix(I,spin.N,spin.N), rotatetheta(θ, α))
     B = zeros(length(spin.M))
@@ -312,7 +315,8 @@ Simulate non-instantaneous excitation using the hard pulse approximation.
 - `A::Matrix`: Matrix that describes excitation and relaxation
 - `B::Vector`: Vector that describes excitation and relaxation
 """
-function excitation(spin::AbstractSpin, rf, Δθ, grad::AbstractMatrix{<:Real}, dt)
+function excitation(spin::AbstractSpin, rf::AbstractArray{<:Number,1}, Δθ::Real,
+                    grad::AbstractArray{<:Real,2}, dt::Real)
 
     T = length(rf)
     α = GAMMA * abs.(rf) * dt/1000 # Flip angle in rad
@@ -330,7 +334,8 @@ function excitation(spin::AbstractSpin, rf, Δθ, grad::AbstractMatrix{<:Real}, 
 end
 
 # Excitation with constant gradient
-function excitation(spin::AbstractSpin, rf, Δθ, grad::AbstractVector{<:Real}, dt)
+function excitation(spin::AbstractSpin, rf::AbstractArray{<:Number,1}, Δθ::Real,
+                    grad::AbstractArray{<:Real,1}, dt::Real)
 
     T = length(rf)
     α = GAMMA * abs.(rf) * dt/1000 # Flip angle in rad
@@ -352,7 +357,7 @@ end
 
 Apply excitation to the given spin.
 """
-function excitation!(spin::AbstractSpin, θ, α)
+function excitation!(spin::AbstractSpin, θ::Real, α::Real)
 
     (A, _) = excitation(spin, θ, α)
     applydynamics!(spin, A)
@@ -362,7 +367,8 @@ end
 # Use this function if using RF spoiling (because A and B need to be
 # recalculated for each TR, so directly modifying the magnetization should be
 # faster in this case)
-function excitation!(spin::AbstractSpin, rf, Δθ, grad::AbstractMatrix{<:Real}, dt)
+function excitation!(spin::AbstractSpin, rf::AbstractArray{<:Number,1}, Δθ::Real,
+                     grad::AbstractArray{<:Real,2}, dt::Real)
 
     T = length(rf)
     α = GAMMA * abs.(rf) * dt/1000 # Flip angle in rad
@@ -379,7 +385,8 @@ function excitation!(spin::AbstractSpin, rf, Δθ, grad::AbstractMatrix{<:Real},
 
 end
 
-function excitation!(spin::AbstractSpin, rf, Δθ, grad::AbstractVector{<:Real}, dt)
+function excitation!(spin::AbstractSpin, rf::AbstractArray{<:Number,1}, Δθ::Real,
+                     grad::AbstractArray{<:Real,1}, dt::Real)
 
     T = length(rf)
     α = GAMMA * abs.(rf) * dt/1000 # Flip angle in rad
@@ -409,7 +416,7 @@ magnetization to 0).
 # Examples
 ```jldoctest
 julia> spin = Spin([1, 0.4, 5], 1, 1000, 100, 0)
-Spin([1.0, 0.4, 5.0], 1, 1000, 100, 0, [0, 0, 0])
+Spin([1.0, 0.4, 5.0], 1.0, 1000.0, 100.0, 0.0, [0.0, 0.0, 0.0])
 
 julia> S = spoil(spin); S * spin.M
 3-element Array{Float64,1}:
@@ -459,7 +466,7 @@ matrix and one vector.
 # Examples
 ```jldoctest
 julia> spin = Spin(1, 1000, 100, 3.75)
-Spin([0.0, 0.0, 1.0], 1, 1000, 100, 3.75, [0, 0, 0])
+Spin([0.0, 0.0, 1.0], 1.0, 1000.0, 100.0, 3.75, [0.0, 0.0, 0.0])
 
 julia> D1 = excitation(spin, 0, π/2);
 
@@ -472,7 +479,7 @@ julia> (A, B) = combine(D1, D2); A * spin.M + B
   0.09516258196404054
 ```
 """
-function combine(D::Tuple{<:AbstractArray{<:Real,2},<:AbstractVector{<:Real}}...)
+function combine(D::Tuple{<:AbstractArray{<:Real,2},<:AbstractArray{<:Real,1}}...)
 
   (A, B) = D[1]
   for i = 2:length(D)
@@ -497,7 +504,7 @@ Apply dynamics to the given spin.
 # Examples
 ```jldoctest
 julia> spin = Spin(1, 1000, 100, 3.75)
-Spin([0.0, 0.0, 1.0], 1, 1000, 100, 3.75, [0, 0, 0])
+Spin([0.0, 0.0, 1.0], 1.0, 1000.0, 100.0, 3.75, [0.0, 0.0, 0.0])
 
 julia> (A, _) = excitation(spin, 0, π/2); applydynamics!(spin, A)
 
@@ -510,14 +517,15 @@ julia> spin.M
   0.09516258196404054
 ```
 """
-function applydynamics!(spin::AbstractSpin, A, B)
+function applydynamics!(spin::AbstractSpin, A::AbstractArray{<:Real,2},
+                        B::AbstractArray{<:Real,1})
 
   spin.M[:] = A * spin.M + B
   return nothing
 
 end
 
-function applydynamics!(spin::AbstractSpin, A)
+function applydynamics!(spin::AbstractSpin, A::AbstractArray{<:Real,2})
 
   spin.M[:] = A * spin.M
   return nothing

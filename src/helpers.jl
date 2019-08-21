@@ -25,7 +25,7 @@ julia> (A, B) = relax(100, 1, 1000, 100); A * [1, 0, 0] + B
  0.09516258196404048
 ```
 """
-function relax(t, M0, T1, T2)
+function relax(t::Real, M0::Real, T1::Real, T2::Real)
 
     E1 = exp(-t/T1)
     E2 = exp(-t/T2)
@@ -55,7 +55,7 @@ julia> R = rotatex(π/2); R * [0, 0, 1]
  6.123233995736766e-17
 ```
 """
-function rotatex(α)
+function rotatex(α::Real)
 
     return [1 0 0; 0 cos(α) sin(α); 0 -sin(α) cos(α)]
 
@@ -81,7 +81,7 @@ julia> R = rotatey(π/2); R * [0, 0, 1]
   6.123233995736766e-17
 ```
 """
-function rotatey(α)
+function rotatey(α::Real)
 
     return [cos(α) 0 -sin(α); 0 1 0; sin(α) 0 cos(α)]
 
@@ -107,7 +107,7 @@ julia> R = rotatez(π/2); R * [0, 1, 0]
  0.0
 ```
 """
-function rotatez(ϕ)
+function rotatez(ϕ::Real)
 
     return [cos(ϕ) sin(ϕ) 0; -sin(ϕ) cos(ϕ) 0; 0 0 1]
 
@@ -139,7 +139,7 @@ julia> R = rotatetheta(π/4, π/2); R * [0, 0, 1]
   6.123233995736766e-17
 ```
 """
-function rotatetheta(θ, α)
+function rotatetheta(θ::Real, α::Real)
 
     return [ sin(θ)^2+cos(α)*cos(θ)^2           sin(θ)*cos(θ)-cos(α)*sin(θ)*cos(θ)  sin(α)*cos(θ);
              sin(θ)*cos(θ)-cos(α)*sin(θ)*cos(θ) cos(θ)^2+cos(α)*sin(θ)^2           -sin(α)*sin(θ);
@@ -172,7 +172,7 @@ julia> (A, B) = freeprecess(100, 1, 1000, 100, 3.75); A * [1, 0, 0] + B
   0.09516258196404048
 ```
 """
-function freeprecess(t, M0, T1, T2, Δf)
+function freeprecess(t::Real, M0::Real, T1::Real, T2::Real, Δf::Real)
 
     (A, B) = relax(t, M0, T1, T2)
     C = rotatez(2π * Δf * t/1000)
