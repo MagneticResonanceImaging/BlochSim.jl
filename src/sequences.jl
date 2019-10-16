@@ -36,7 +36,7 @@ function mese!(spin::AbstractSpin, TR::Real, TE::Real, nechoes::Integer;
         D = combine(D, Decho)
     end
     (A, B) = combine(D, Dtr, Dspoil, Dex)
-    spin.M[:] = (I - A) \ B
+    spin.M[:] = (Diagonal(ones(Bool, size(A, 1))) - A) \ B
 
     # Calculate steady-state signal at each echo
     signal = zeros(ComplexF64, nechoes)
@@ -163,7 +163,7 @@ function mese!(spin::AbstractSpin, TR::Real, TE::Real, nechoes::Integer,
         D = combine(D, Decho)
     end
     (A, B) = combine(D, Dtr, Dex)
-    spin.M[:] = (I - A) \ B
+    spin.M[:] = (Diagonal(ones(Bool, size(A, 1))) - A) \ B
 
     # Calculate steady-state signal at each echo
     signal = zeros(ComplexF64, nechoes)
@@ -203,7 +203,7 @@ function spgr!(spin::AbstractSpin, TR::Real, TE::Real, α::Real)
 
     # Calculate steady-state magnetization immediately following excitation
     (A, B) = combine(Dte, Dtr, Dspoil, Dex)
-    spin.M[:] = (I - A) \ B
+    spin.M[:] = (Diagonal(ones(Bool, size(A, 1))) - A) \ B
 
     # Calculate steady-state signal at echo time
     applydynamics!(spin, Dte...)
@@ -262,7 +262,7 @@ function spgr!(spin::AbstractSpin, TR::Real, TE::Real, α::Real,
 
         # Calculate steady-state magnetization immediately following excitation
         (A, B) = combine(D, Dex)
-        spin.M[:] = (I - A) \ B
+        spin.M[:] = (Diagonal(ones(Bool, size(A, 1))) - A) \ B
 
         # Calculate steady-state signal at echo time
         applydynamics!(spin, Dte...)
