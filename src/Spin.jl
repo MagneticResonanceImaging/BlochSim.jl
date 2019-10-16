@@ -126,7 +126,7 @@ struct SpinMC <: AbstractSpin
                 Δω = 2π * Δf[i] / 1000 # rad/ms
                 A[ii,jj] = [r2 Δω 0; -Δω r2 0; 0 0 r1] # Left-handed rotation
             else
-                A[ii,jj] = r[i,j] * Matrix(I,3,3)
+                A[ii,jj] = r[i,j] * Diagonal(ones(Bool, 3))
             end
         end
         new(N, M, Meq, M0, frac, T1, T2, Δf, τ, pos, A)
@@ -144,7 +144,7 @@ end
 Base.getproperty(spin::Spin, s::Symbol) = begin
     if s == :signal
         M = getfield(spin, :M)
-        return M[1] + im * M[2]
+        return complex(M[1], M[2])
     else
         return getfield(spin, s)
     end
@@ -153,7 +153,7 @@ end
 Base.getproperty(spin::SpinMC, s::Symbol) = begin
     if s == :signal
         M = getfield(spin, :M)
-        return sum(M[1:3:end]) + im * sum(M[2:3:end])
+        return complex(sum(M[1:3:end]), sum(M[2:3:end]))
     else
         return getfield(spin, s)
     end
@@ -190,7 +190,7 @@ freeprecess(spin::Spin, t::Real) =
 function freeprecess(spin::SpinMC, t::Real)
 
     E = exp(t * spin.A)
-    B = (I - E) * spin.Meq
+    B = (Diagonal(ones(Bool, size(E, 1))) - E) * spin.Meq
     return (E, B)
 
 end
@@ -235,7 +235,7 @@ function freeprecess(spin::SpinMC, t::Real, grad::AbstractArray{<:Real,1})
     ΔA = diagm(1 => repeat([gradfreq, 0, 0], spin.N), # Left-handed rotation
               -1 => repeat([-gradfreq, 0, 0], spin.N))[1:3spin.N,1:3spin.N]
     E = exp(t * (spin.A + ΔA))
-    B = (I - E) * spin.Meq
+    B = (Diagonal(ones(Bool, size(E, 1))) - E) * spin.Meq
     return (E, B)
 
 end
@@ -290,7 +290,7 @@ end
 
 function excitation(spin::SpinMC, θ::Real, α::Real)
 
-    A = kron(Matrix(I,spin.N,spin.N), rotatetheta(θ, α))
+    A = kron(Diagonal(ones(Bool, spin.N)), rotatetheta(θ, α))
     B = zeros(length(spin.M))
     return (A, B)
 
@@ -321,7 +321,7 @@ function excitation(spin::AbstractSpin, rf::AbstractArray{<:Number,1}, Δθ::Rea
     T = length(rf)
     α = GAMMA * abs.(rf) * dt/1000 # Flip angle in rad
     θ = angle.(rf) .+ Δθ # RF phase in rad
-    A = I
+    A = Diagonal(ones(Bool, length(spin.M)))
     B = zeros(length(spin.M))
     for t = 1:T
         (Af, Bf) = freeprecess(spin, dt/2, grad[:,t])
@@ -340,7 +340,7 @@ function excitation(spin::AbstractSpin, rf::AbstractArray{<:Number,1}, Δθ::Rea
     T = length(rf)
     α = GAMMA * abs.(rf) * dt/1000 # Flip angle in rad
     θ = angle.(rf) .+ Δθ # RF phase in rad
-    A = I
+    A = Diagonal(ones(Bool, length(spin.M)))
     B = zeros(length(spin.M))
     (Af, Bf) = freeprecess(spin, dt/2, grad)
     for t = 1:T
@@ -373,8 +373,6 @@ function excitation!(spin::AbstractSpin, rf::AbstractArray{<:Number,1}, Δθ::Re
     T = length(rf)
     α = GAMMA * abs.(rf) * dt/1000 # Flip angle in rad
     θ = angle.(rf) .+ Δθ # RF phase in rad
-    A = I
-    B = zeros(length(spin.M))
     for t = 1:T
         (Af, Bf) = freeprecess(spin, dt/2, grad[:,t])
         (Ae, _) = excitation(spin, θ[t], α[t])
@@ -426,7 +424,7 @@ julia> S = spoil(spin); S * spin.M
 ```
 """
 spoil(spin::Spin) = [0 0 0; 0 0 0; 0 0 1]
-spoil(spin::SpinMC) = kron(Matrix(I,spin.N,spin.N), [0 0 0; 0 0 0; 0 0 1])
+spoil(spin::SpinMC) = kron(Diagonal(ones(Bool, spin.N)), [0 0 0; 0 0 0; 0 0 1])
 
 """
     spoil!(spin)

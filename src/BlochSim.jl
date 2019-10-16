@@ -1,6 +1,6 @@
 module BlochSim
 
-using LinearAlgebra: I, diagm
+using LinearAlgebra: Diagonal, diagm
 
 include("helpers.jl")
 include("Spin.jl")
