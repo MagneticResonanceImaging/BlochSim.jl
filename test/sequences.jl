@@ -1,5 +1,9 @@
 using BlochSim, Test, MAT
 
+# ------------------------------------------------------------------------------
+# Begin tests for comparing to Brian Hargreaves' MATLAB code
+# ------------------------------------------------------------------------------
+
 function testB2c()
 
     answer = matread("matlabtestdata/testB2c.mat")
@@ -105,12 +109,34 @@ function testB5b()
 
 end
 
+# ------------------------------------------------------------------------------
+# End tests for comparing to Brian Hargreaves' MATLAB code
+# ------------------------------------------------------------------------------
+
+function mese1()
+
+    s = Spin(1, 1000, 100, 0)
+    signal = mese(s, 3000, 10, 32)
+    return signal isa AbstractVector{<:Number}
+
+end
+
+function mese2()
+
+    s = SpinMC(1, [0.2, 0.8], [400, 1000], [20, 100], [15, 0], [20, 40])
+    signal = mese(s, 3000, 10, 32)
+    return signal isa AbstractVector{<:Number}
+
+end
+
 @testset "Sequences" begin
 
     @testset "MESE" begin
 
         @test testB2c()
         @test testB2d()
+        @test mese1()
+        @test mese2()
 
     end
 
