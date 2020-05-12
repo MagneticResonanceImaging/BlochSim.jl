@@ -1,5 +1,3 @@
-using BlochSim, Test, MAT
-
 # ------------------------------------------------------------------------------
 # Begin tests for comparing to Brian Hargreaves' MATLAB code
 # ------------------------------------------------------------------------------
@@ -537,7 +535,7 @@ function combine1()
     s = Spin(1, 1000, 100, 3.75)
     D1 = excitation(s, 0, π/2)
     D2 = freeprecess(s, 100)
-    (A, B) = combine(D1, D2)
+    (A, B) = BlochSim.combine(D1, D2)
     M = A * s.M + B
     M_correct = [-0.2601300475114444, -0.2601300475114445, 0.09516258196404054]
     return M ≈ M_correct

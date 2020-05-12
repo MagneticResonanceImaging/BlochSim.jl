@@ -1,8 +1,8 @@
-tests = [
-    "helpers",
-    "Spin",
-    "sequences"
-]
-for t in tests
-  include("$(t).jl")
+using BlochSim
+using MAT
+using Test
+@testset "BlochSim.jl" begin
+    include("helpers.jl")
+    include("Spin.jl")
+    include("sequences.jl")
 end
