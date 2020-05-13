@@ -91,23 +91,24 @@ julia> spin = SpinMC(M, 1, frac, [900, 400], [80, 20], [3, 13], τ); spin.signal
 1.2 + 2.1im
 ```
 """
-struct SpinMC <: AbstractSpin
+struct SpinMC{T<:Union{Float64,<:ForwardDiff.Dual}} <: AbstractSpin
     N::Int
-    M::Vector{Float64} # [3N]
-    Meq::Vector{Float64} # [3N]
-    M0::Float64
-    frac::Vector{Float64} # [N]
-    T1::Vector{Float64} # [N]
-    T2::Vector{Float64} # [N]
-    Δf::Vector{Float64} # [N]
-    τ::Vector{Float64} # [N*(N-1)]
-    pos::Vector{Float64}
-    A::Matrix{Float64} # [3N,3N]
+    M::Vector{T} # [3N]
+    Meq::Vector{T} # [3N]
+    M0::T
+    frac::Vector{T} # [N]
+    T1::Vector{T} # [N]
+    T2::Vector{T} # [N]
+    Δf::Vector{T} # [N]
+    τ::Vector{T} # [N*(N-1)]
+    pos::Vector{T}
+    A::Matrix{T} # [3N,3N]
 
     SpinMC(M::Vector{<:Real}, M0, frac, T1, T2, Δf, τ, pos = [0,0,0]) = begin
+        T = eltype(frac) isa ForwardDiff.Dual ? ForwardDiff.Dual : Float64
         N = length(frac)
         Meq = vcat([[0, 0, frac[n] * M0] for n = 1:N]...)
-        r = zeros(N, N) # 1/ms
+        r = zeros(T, N, N) # 1/ms
         itmp = 1
         for j = 1:N, i = 1:N
             if i != j
@@ -115,7 +116,7 @@ struct SpinMC <: AbstractSpin
                 itmp += 1
             end
         end
-        A = zeros(3N, 3N)
+        A = zeros(T, 3N, 3N)
         for j = 1:N, i = 1:N
             ii = 3i-2:3i
             jj = 3j-2:3j
@@ -129,7 +130,7 @@ struct SpinMC <: AbstractSpin
                 A[ii,jj] = r[i,j] * Diagonal(ones(Bool, 3))
             end
         end
-        new(N, M, Meq, M0, frac, T1, T2, Δf, τ, pos, A)
+        new{T}(N, M, Meq, M0, frac, T1, T2, Δf, τ, pos, A)
     end
 
     # If magnetization vector is not specified then use equilibrium

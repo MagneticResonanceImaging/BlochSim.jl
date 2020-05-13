@@ -5,6 +5,7 @@ using LinearAlgebra
 
 export GAMMA
 export GAMBAR
+export AbstractSpin
 export Spin
 export SpinMC
 export freeprecess
