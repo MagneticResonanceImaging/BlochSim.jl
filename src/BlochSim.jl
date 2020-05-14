@@ -20,6 +20,7 @@ export mese!
 export spgr!
 
 include("helpers.jl")
+include("expm.jl")
 include("Spin.jl")
 include("sequences.jl")
 

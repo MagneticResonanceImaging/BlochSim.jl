@@ -105,7 +105,7 @@ struct SpinMC{T<:Union{Float64,<:ForwardDiff.Dual}} <: AbstractSpin
     A::Matrix{T} # [3N,3N]
 
     SpinMC(M::Vector{<:Real}, M0, frac, T1, T2, Δf, τ, pos = [0,0,0]) = begin
-        T = eltype(frac) isa ForwardDiff.Dual ? ForwardDiff.Dual : Float64
+        T = eltype(frac) <: ForwardDiff.Dual ? eltype(frac) : Float64
         N = length(frac)
         Meq = vcat([[0, 0, frac[n] * M0] for n = 1:N]...)
         r = zeros(T, N, N) # 1/ms
@@ -190,7 +190,7 @@ freeprecess(spin::Spin, t::Real) =
 
 function freeprecess(spin::SpinMC, t::Real)
 
-    E = exp(t * spin.A)
+    E = expm(t * spin.A)
     B = (Diagonal(ones(Bool, size(E, 1))) - E) * spin.Meq
     return (E, B)
 
@@ -235,7 +235,7 @@ function freeprecess(spin::SpinMC, t::Real, grad::AbstractArray{<:Real,1})
     gradfreq = GAMMA * sum(grad .* spin.pos) / 1000 # rad/ms
     ΔA = diagm(1 => repeat([gradfreq, 0, 0], spin.N), # Left-handed rotation
               -1 => repeat([-gradfreq, 0, 0], spin.N))[1:3spin.N,1:3spin.N]
-    E = exp(t * (spin.A + ΔA))
+    E = expm(t * (spin.A + ΔA))
     B = (Diagonal(ones(Bool, size(E, 1))) - E) * spin.Meq
     return (E, B)
 
