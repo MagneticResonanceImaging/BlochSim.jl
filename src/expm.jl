@@ -70,18 +70,20 @@ function PadeApproximantOfDegree(A,m)
 
         F = (V-U)\(V+U)
 
-else # m == 3, 5, 7, 9
-        Apowers = Array{Matrix{Float64}}(undef,ceil(Int,(m+1)/2))
+    else # m == 3, 5, 7, 9
+        T = eltype(A)
+        Apowers = Array{Matrix{T}}(undef,ceil(Int,(m+1)/2))
 
-        Apowers[1] = Matrix{Float64}(I,n,n)
+        Apowers[1] = Matrix{T}(I,n,n)
         Apowers[2] = A*A
 
         for j = 3:ceil(Int,(m+1)/2)
             Apowers[j] = Apowers[j-1]*Apowers[2]
         end
 
-        U = zeros(n,n)
-        V = zeros(n,n)
+        T = T <: ForwardDiff.Dual ? T : Float64
+        U = zeros(T,n,n)
+        V = zeros(T,n,n)
 
         for j = m+1:-2:2
             U = U + c[j]*Apowers[convert(Int,j/2)]
