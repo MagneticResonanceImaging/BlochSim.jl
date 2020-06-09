@@ -39,21 +39,25 @@ julia> spin = Spin([1.0, 2.0, 3.0], 1, 1000, 100, 3); spin.signal
 1.0 + 2.0im
 ```
 """
-struct Spin <: AbstractSpin
-    M::Vector{Float64}
-    M0::Float64
-    T1::Float64
-    T2::Float64
-    Δf::Float64
-    pos::Vector{Float64}
+struct Spin{T<:Union{Float64,<:ForwardDiff.Dual}} <: AbstractSpin
+    M::Vector{T}
+    M0::T
+    T1::T
+    T2::T
+    Δf::T
+    pos::Vector{T}
 
     # Default constructor with optional argument pos
-    Spin(M::Vector{<:Real}, M0, T1, T2, Δf, pos = [0,0,0]) =
-        new(M, M0, T1, T2, Δf, pos)
+    Spin(M::Vector{<:Real}, M0, T1, T2, Δf, pos = [0,0,0]) = begin
+        T = promote_type(eltype(M), typeof(M0), typeof(T1), typeof(T2),
+                         typeof(Δf), eltype(pos))
+        T = T <: ForwardDiff.Dual ? float(T) : Float64
+        new{T}(M, M0, T1, T2, Δf, pos)
+    end
 
     # If magnetization vector is not specified then use equilibrium
     Spin(M0::Real, T1, T2, Δf, pos = [0,0,0]) =
-        new([0,0,M0], M0, T1, T2, Δf, pos)
+        Spin([0,0,M0], M0, T1, T2, Δf, pos)
 end
 
 """
@@ -91,23 +95,26 @@ julia> spin = SpinMC(M, 1, frac, [900, 400], [80, 20], [3, 13], τ); spin.signal
 1.2 + 2.1im
 ```
 """
-struct SpinMC <: AbstractSpin
+struct SpinMC{T<:Union{Float64,<:ForwardDiff.Dual}} <: AbstractSpin
     N::Int
-    M::Vector{Float64} # [3N]
-    Meq::Vector{Float64} # [3N]
-    M0::Float64
-    frac::Vector{Float64} # [N]
-    T1::Vector{Float64} # [N]
-    T2::Vector{Float64} # [N]
-    Δf::Vector{Float64} # [N]
-    τ::Vector{Float64} # [N*(N-1)]
-    pos::Vector{Float64}
-    A::Matrix{Float64} # [3N,3N]
+    M::Vector{T} # [3N]
+    Meq::Vector{T} # [3N]
+    M0::T
+    frac::Vector{T} # [N]
+    T1::Vector{T} # [N]
+    T2::Vector{T} # [N]
+    Δf::Vector{T} # [N]
+    τ::Vector{T} # [N*(N-1)]
+    pos::Vector{T}
+    A::Matrix{T} # [3N,3N]
 
     SpinMC(M::Vector{<:Real}, M0, frac, T1, T2, Δf, τ, pos = [0,0,0]) = begin
+        T = promote_type(eltype(M), typeof(M0), eltype(frac), eltype(T1),
+                         eltype(T2), eltype(Δf), eltype(τ), eltype(pos))
+        T = T <: ForwardDiff.Dual ? float(T) : Float64
         N = length(frac)
         Meq = vcat([[0, 0, frac[n] * M0] for n = 1:N]...)
-        r = zeros(N, N) # 1/ms
+        r = zeros(T, N, N) # 1/ms
         itmp = 1
         for j = 1:N, i = 1:N
             if i != j
@@ -115,7 +122,7 @@ struct SpinMC <: AbstractSpin
                 itmp += 1
             end
         end
-        A = zeros(3N, 3N)
+        A = zeros(T, 3N, 3N)
         for j = 1:N, i = 1:N
             ii = 3i-2:3i
             jj = 3j-2:3j
@@ -129,7 +136,7 @@ struct SpinMC <: AbstractSpin
                 A[ii,jj] = r[i,j] * Diagonal(ones(Bool, 3))
             end
         end
-        new(N, M, Meq, M0, frac, T1, T2, Δf, τ, pos, A)
+        new{T}(N, M, Meq, M0, frac, T1, T2, Δf, τ, pos, A)
     end
 
     # If magnetization vector is not specified then use equilibrium
@@ -189,7 +196,7 @@ freeprecess(spin::Spin, t::Real) =
 
 function freeprecess(spin::SpinMC, t::Real)
 
-    E = exp(t * spin.A)
+    E = expm(t * spin.A)
     B = (Diagonal(ones(Bool, size(E, 1))) - E) * spin.Meq
     return (E, B)
 
@@ -234,7 +241,7 @@ function freeprecess(spin::SpinMC, t::Real, grad::AbstractArray{<:Real,1})
     gradfreq = GAMMA * sum(grad .* spin.pos) / 1000 # rad/ms
     ΔA = diagm(1 => repeat([gradfreq, 0, 0], spin.N), # Left-handed rotation
               -1 => repeat([-gradfreq, 0, 0], spin.N))[1:3spin.N,1:3spin.N]
-    E = exp(t * (spin.A + ΔA))
+    E = expm(t * (spin.A + ΔA))
     B = (Diagonal(ones(Bool, size(E, 1))) - E) * spin.Meq
     return (E, B)
 

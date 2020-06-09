@@ -1,5 +1,3 @@
-using BlochSim, Test
-
 function relax1()
 
     (A, B) = BlochSim.relax(100, 1, 1000, 100)

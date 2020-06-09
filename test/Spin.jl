@@ -1,5 +1,3 @@
-using BlochSim, Test, MAT
-
 # ------------------------------------------------------------------------------
 # Begin tests for comparing to Brian Hargreaves' MATLAB code
 # ------------------------------------------------------------------------------
@@ -537,7 +535,7 @@ function combine1()
     s = Spin(1, 1000, 100, 3.75)
     D1 = excitation(s, 0, π/2)
     D2 = freeprecess(s, 100)
-    (A, B) = combine(D1, D2)
+    (A, B) = BlochSim.combine(D1, D2)
     M = A * s.M + B
     M_correct = [-0.2601300475114444, -0.2601300475114445, 0.09516258196404054]
     return M ≈ M_correct
@@ -697,6 +695,98 @@ end
 # End multicompartment tests
 # ------------------------------------------------------------------------------
 
+# ------------------------------------------------------------------------------
+# Begin automatic differentiation tests
+# ------------------------------------------------------------------------------
+
+function autodiff1()
+
+    grad = ForwardDiff.gradient([1000.0, 100.0]) do x
+        T1, T2 = x
+        s = Spin(1, T1, T2, 10)
+        excitation!(s, 0, π/2)
+        freeprecess!(s, 10)
+        abs.(s.signal)
+    end
+    correct = [0.0, 0.0009048374180359595]
+    return grad ≈ correct
+
+end
+
+function autodiff2()
+
+    grad = ForwardDiff.gradient([1000.0, 100.0]) do x
+        T1, T2 = x
+        s = SpinMC(1, [0.15, 0.85], [400, T1], [20, T2], [25, 10], [Inf, Inf])
+        excitation!(s, 0, π/2)
+        freeprecess!(s, 10)
+        abs.(s.signal)
+    end
+    correct = [0.0, 0.0007660512555728833]
+    return grad ≈ correct
+
+end
+
+function autodiff3()
+
+    grad = ForwardDiff.gradient([1000.0, 100.0]) do x
+        T1, T2 = x
+        s = SpinMC(1, [0.15, 0.85], [400, T1], [20, T2], [25, 10], [Inf, Inf])
+        excitation!(s, 0, π/2)
+        freeprecess!(s, 2)
+        abs.(s.signal)
+    end
+    correct = [0.0, 0.00016657611260161996]
+    return grad ≈ correct
+
+end
+
+function autodiff4()
+
+    grad = ForwardDiff.gradient([1000.0, 100.0]) do x
+        T1, T2 = x
+        s = SpinMC(1, [0.15, 0.85], [400, T1], [20, T2], [25, 10], [Inf, Inf])
+        excitation!(s, 0, π/2)
+        freeprecess!(s, 1)
+        abs.(s.signal)
+    end
+    correct = [0.0, 8.414639502122038e-5]
+    return grad ≈ correct
+
+end
+
+function autodiff5()
+
+    grad = ForwardDiff.gradient([1000.0, 100.0]) do x
+        T1, T2 = x
+        s = SpinMC(1, [0.15, 0.85], [400, T1], [20, T2], [25, 10], [Inf, Inf])
+        excitation!(s, 0, π/2)
+        freeprecess!(s, 0.1)
+        abs.(s.signal)
+    end
+    correct = [0.0, 8.491495820718459e-6]
+    return grad ≈ correct
+
+end
+
+function autodiff6()
+
+    grad = ForwardDiff.gradient([1000.0, 100.0]) do x
+        T1, T2 = x
+        s = SpinMC(1, [0.15, 0.85], [400, T1], [20, T2], [25, 10], [Inf, Inf])
+        excitation!(s, 0, π/2)
+        freeprecess!(s, 0.01)
+        abs.(s.signal)
+    end
+    correct = [0.0, 8.499149957624547e-7]
+    return grad ≈ correct
+
+end
+
+# ------------------------------------------------------------------------------
+# End automatic differentiation tests
+# ------------------------------------------------------------------------------
+
 @testset "Spin" begin
 
     @testset "Compare to MATLAB" begin
@@ -761,6 +851,17 @@ end
         @test excitationMC1()
         @test spoilMC1()
         @test spoilMC2()
+
+    end
+
+    @testset "Automatic Differentiation" begin
+
+        @test autodiff1()
+        @test autodiff2()
+        @test autodiff3()
+        @test autodiff4()
+        @test autodiff5()
+        @test autodiff6()
 
     end
 

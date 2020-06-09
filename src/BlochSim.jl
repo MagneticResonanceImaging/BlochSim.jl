@@ -1,18 +1,27 @@
 module BlochSim
 
-using LinearAlgebra: Diagonal, diagm
+using ForwardDiff
+using LinearAlgebra
+
+export GAMMA
+export GAMBAR
+export AbstractSpin
+export Spin
+export SpinMC
+export freeprecess
+export freeprecess!
+export excitation
+export excitation!
+export spoil
+export spoil!
+export applydynamics!
+export mese
+export mese!
+export spgr!
 
 include("helpers.jl")
+include("expm.jl")
 include("Spin.jl")
 include("sequences.jl")
-
-export GAMMA, GAMBAR
-export AbstractSpin, Spin, SpinMC
-export freeprecess, freeprecess!
-export excitation, excitation!
-export spoil, spoil!
-export combine, applydynamics!
-
-export mese!, mese, spgr!
 
 end

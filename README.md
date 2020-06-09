@@ -19,7 +19,8 @@ functions. To access the documentation for, e.g., `freeprecess`, simply type
 `?freeprecess` at the Julia REPL after loading the package.
 
 For examples of how to simulate full MRI sequences, see
-[src/sequences.jl](https://github.com/StevenWhitaker/BlochSim.jl/blob/master/src/sequences.jl).
+[src/sequences.jl](https://github.com/StevenWhitaker/BlochSim.jl/blob/master/src/sequences.jl)
+and [STFR.jl](https://github.com/StevenWhitaker/STFR.jl).
 
 ## Acknowledgement
 This package was developed based on
