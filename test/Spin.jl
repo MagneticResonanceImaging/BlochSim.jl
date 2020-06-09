@@ -727,6 +727,62 @@ function autodiff2()
 
 end
 
+function autodiff3()
+
+    grad = ForwardDiff.gradient([1000.0, 100.0]) do x
+        T1, T2 = x
+        s = SpinMC(1, [0.15, 0.85], [400, T1], [20, T2], [25, 10], [Inf, Inf])
+        excitation!(s, 0, π/2)
+        freeprecess!(s, 2)
+        abs.(s.signal)
+    end
+    correct = [0.0, 0.00016657611260161996]
+    return grad ≈ correct
+
+end
+
+function autodiff4()
+
+    grad = ForwardDiff.gradient([1000.0, 100.0]) do x
+        T1, T2 = x
+        s = SpinMC(1, [0.15, 0.85], [400, T1], [20, T2], [25, 10], [Inf, Inf])
+        excitation!(s, 0, π/2)
+        freeprecess!(s, 1)
+        abs.(s.signal)
+    end
+    correct = [0.0, 8.414639502122038e-5]
+    return grad ≈ correct
+
+end
+
+function autodiff5()
+
+    grad = ForwardDiff.gradient([1000.0, 100.0]) do x
+        T1, T2 = x
+        s = SpinMC(1, [0.15, 0.85], [400, T1], [20, T2], [25, 10], [Inf, Inf])
+        excitation!(s, 0, π/2)
+        freeprecess!(s, 0.1)
+        abs.(s.signal)
+    end
+    correct = [0.0, 8.491495820718459e-6]
+    return grad ≈ correct
+
+end
+
+function autodiff6()
+
+    grad = ForwardDiff.gradient([1000.0, 100.0]) do x
+        T1, T2 = x
+        s = SpinMC(1, [0.15, 0.85], [400, T1], [20, T2], [25, 10], [Inf, Inf])
+        excitation!(s, 0, π/2)
+        freeprecess!(s, 0.01)
+        abs.(s.signal)
+    end
+    correct = [0.0, 8.499149957624547e-7]
+    return grad ≈ correct
+
+end
+
 # ------------------------------------------------------------------------------
 # End automatic differentiation tests
 # ------------------------------------------------------------------------------
@@ -802,6 +858,10 @@ end
 
         @test autodiff1()
         @test autodiff2()
+        @test autodiff3()
+        @test autodiff4()
+        @test autodiff5()
+        @test autodiff6()
 
     end
 
