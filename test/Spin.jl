@@ -695,6 +695,42 @@ end
 # End multicompartment tests
 # ------------------------------------------------------------------------------
 
+# ------------------------------------------------------------------------------
+# Begin automatic differentiation tests
+# ------------------------------------------------------------------------------
+
+function autodiff1()
+
+    grad = ForwardDiff.gradient([1000.0, 100.0]) do x
+        T1, T2 = x
+        s = Spin(1, T1, T2, 10)
+        excitation!(s, 0, π/2)
+        freeprecess!(s, 10)
+        abs.(s.signal)
+    end
+    correct = [0.0, 0.0009048374180359595]
+    return grad ≈ correct
+
+end
+
+function autodiff2()
+
+    grad = ForwardDiff.gradient([1000.0, 100.0]) do x
+        T1, T2 = x
+        s = SpinMC(1, [0.15, 0.85], [400, T1], [20, T2], [25, 10], [Inf, Inf])
+        excitation!(s, 0, π/2)
+        freeprecess!(s, 10)
+        abs.(s.signal)
+    end
+    correct = [0.0, 0.0007660512555728833]
+    return grad ≈ correct
+
+end
+
+# ------------------------------------------------------------------------------
+# End automatic differentiation tests
+# ------------------------------------------------------------------------------
+
 @testset "Spin" begin
 
     @testset "Compare to MATLAB" begin
@@ -759,6 +795,13 @@ end
         @test excitationMC1()
         @test spoilMC1()
         @test spoilMC2()
+
+    end
+
+    @testset "Automatic Differentiation" begin
+
+        @test autodiff1()
+        @test autodiff2()
 
     end
 

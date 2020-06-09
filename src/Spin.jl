@@ -39,21 +39,25 @@ julia> spin = Spin([1.0, 2.0, 3.0], 1, 1000, 100, 3); spin.signal
 1.0 + 2.0im
 ```
 """
-struct Spin <: AbstractSpin
-    M::Vector{Float64}
-    M0::Float64
-    T1::Float64
-    T2::Float64
-    Δf::Float64
-    pos::Vector{Float64}
+struct Spin{T<:Union{Float64,<:ForwardDiff.Dual}} <: AbstractSpin
+    M::Vector{T}
+    M0::T
+    T1::T
+    T2::T
+    Δf::T
+    pos::Vector{T}
 
     # Default constructor with optional argument pos
-    Spin(M::Vector{<:Real}, M0, T1, T2, Δf, pos = [0,0,0]) =
-        new(M, M0, T1, T2, Δf, pos)
+    Spin(M::Vector{<:Real}, M0, T1, T2, Δf, pos = [0,0,0]) = begin
+        T = promote_type(eltype(M), typeof(M0), typeof(T1), typeof(T2),
+                         typeof(Δf), eltype(pos))
+        T = T <: ForwardDiff.Dual ? float(T) : Float64
+        new{T}(M, M0, T1, T2, Δf, pos)
+    end
 
     # If magnetization vector is not specified then use equilibrium
     Spin(M0::Real, T1, T2, Δf, pos = [0,0,0]) =
-        new([0,0,M0], M0, T1, T2, Δf, pos)
+        Spin([0,0,M0], M0, T1, T2, Δf, pos)
 end
 
 """
@@ -105,7 +109,9 @@ struct SpinMC{T<:Union{Float64,<:ForwardDiff.Dual}} <: AbstractSpin
     A::Matrix{T} # [3N,3N]
 
     SpinMC(M::Vector{<:Real}, M0, frac, T1, T2, Δf, τ, pos = [0,0,0]) = begin
-        T = eltype(frac) <: ForwardDiff.Dual ? eltype(frac) : Float64
+        T = promote_type(eltype(M), typeof(M0), eltype(frac), eltype(T1),
+                         eltype(T2), eltype(Δf), eltype(τ), eltype(pos))
+        T = T <: ForwardDiff.Dual ? float(T) : Float64
         N = length(frac)
         Meq = vcat([[0, 0, frac[n] * M0] for n = 1:N]...)
         r = zeros(T, N, N) # 1/ms

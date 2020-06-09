@@ -101,7 +101,10 @@ function PadeApproximantOfDegree(A,m)
     return F
 end
 
-function expm(A)
+expm(A) = exp(A)
+
+# Only use expm when automatic differentiation is needed
+function expm(A::AbstractMatrix{<:ForwardDiff.Dual})
 # EXPM   Matrix exponential.
 #   EXPM(X) is the matrix exponential of X.  EXPM is computed using
 #   a scaling and squaring algorithm with a Pade approximation.
