@@ -166,6 +166,50 @@ Base.getproperty(spin::SpinMC, s::Symbol) = begin
     end
 end
 
+# TODO: Use Position for pos in Spin and SpinMC
+struct Position{T<:Real}
+    x::T
+    y::T
+    z::T
+end
+
+struct Gradient{T<:Real}
+    x::T
+    y::T
+    z::T
+end
+
+function gradient_frequency(grad::Gradient, pos::Position)
+
+    return GAMBAR * (grad.x * pos.x + grad.y * pos.y + grad.z * pos.z) # Hz
+
+end
+
+abstract type AbstractSpoiling end
+
+struct GradientSpoiling{T<:Real} <: AbstractSpoiling
+    gradient::Gradient{T}
+end
+
+struct RFSpoiling{T<:Real} <: AbstractSpoiling
+    Δθ::T
+end
+
+struct RFandGradientSpoiling{T1<:Real,T2<:Real} <: AbstractSpoiling
+    gradient::GradientSpoiling{T1}
+    rf::RFSpoiling{T2}
+end
+
+spoiler_gradient(s::GradientSpoiling) = s.gradient
+spoiler_gradient(s::RFandGradientSpoiling) = spoiler_gradient(s.gradient)
+rfspoiling_increment(s::RFSpoiling) = s.Δθ
+rfspoiling_increment(s::RFandGradientSpoiling) = rfspoiling_increment(s.rf)
+
+# TODO: Remove A from SpinMC
+struct BlochMcConnellWorkspace{T<:Real}
+    A::Matrix{T}
+end
+
 """
     freeprecess(spin, t)
 
@@ -202,6 +246,20 @@ function freeprecess(spin::SpinMC, t::Real)
 
 end
 
+function freeprecess!(A, B, spin::Spin, t, workspace::Nothing = nothing)
+
+    freeprecess!(A, B, t, spin.M0, spin.T1, spin.T2, spin.Δf)
+
+end
+
+function freeprecess!(A, B, spin::SpinMC, t, workspace)
+
+    expm!(A, workspace, spin, t)
+    mul!(B, Diagonal(ones(Bool, size(A, 1))) - A, spin.Meq)
+    return nothing
+
+end
+
 """
     freeprecess(spin, t, grad)
 
@@ -230,20 +288,117 @@ julia> (A, B) = freeprecess(spin, 100, [0, 0, 1/GAMBAR]); A * spin.M + B
 """
 function freeprecess(spin::Spin, t::Real, grad::AbstractArray{<:Real,1})
 
-    gradfreq = GAMBAR * sum(grad .* spin.pos) # Hz
+    gradfreq = GAMBAR * sum(grad[i] * spin.pos[i] for i = 1:3) # Hz
     freeprecess(t, spin.M0, spin.T1, spin.T2, spin.Δf + gradfreq)
+
+end
+
+function freeprecess!(A, B, spin::Spin, t, grad::Gradient, workspace::Nothing = nothing)
+
+    gradfreq = gradient_frequency(grad, spin.pos) # Hz
+    freeprecess!(A, B, t, spin.M0, spin.T1, spin.T2, spin.Δf + gradfreq)
 
 end
 
 # See equation (6.9) in Gopal Nataraj's PhD thesis
 function freeprecess(spin::SpinMC, t::Real, grad::AbstractArray{<:Real,1})
 
-    gradfreq = GAMMA * sum(grad .* spin.pos) / 1000 # rad/ms
+    gradfreq = GAMMA * sum(grad[i] * spin.pos[i] for i = 1:3) / 1000 # rad/ms
     ΔA = diagm(1 => repeat([gradfreq, 0, 0], spin.N), # Left-handed rotation
               -1 => repeat([-gradfreq, 0, 0], spin.N))[1:3spin.N,1:3spin.N]
     E = expm(t * (spin.A + ΔA))
     B = (Diagonal(ones(Bool, size(E, 1))) - E) * spin.Meq
     return (E, B)
+
+end
+
+function freeprecess!(A, B, spin::SpinMC, t, grad, workspace)
+
+    gradfreq = gradient_frequency(grad, spin.pos) # Hz
+    expm!(A, workspace, spin, t, gradfreq)
+    mul!(B, Diagonal(ones(Bool, size(A, 1))) - A, spin.Meq)
+    return nothing
+
+end
+
+function expm!(expAt, workspace, spin, t, gradfreq = 0)
+
+    for j = 1:spin.N, i = 1:spin.N
+
+        if i == j
+
+            r_out = sum(spin.r[k,i] for k = 1:spin.N) # 1/ms
+            r1 = -1 / spin.T1[i] - r_out # 1/ms
+            r2 = -1 / spin.T2[i] - r_out # 1/ms
+            Δω = 2π * (spin.Δf[i] + gradfreq) / 1000 # rad/ms
+
+            workspace.A[3i-2,3j-2] = r2
+            workspace.A[3i-1,3j-2] = -Δω
+            workspace.A[3i,  3j-2] = 0
+            workspace.A[3i-2,3j-1] = Δω
+            workspace.A[3i-1,3j-1] = r2
+            workspace.A[3i,  3j-1] = 0
+            workspace.A[3i-2,3j]   = 0
+            workspace.A[3i-1,3j]   = 0
+            workspace.A[3i,  3j]   = r1
+
+        else
+
+            workspace.A[3i-2,3j-2] = spin.r[i,j]
+            workspace.A[3i-1,3j-2] = 0
+            workspace.A[3i,  3j-2] = 0
+            workspace.A[3i-2,3j-1] = 0
+            workspace.A[3i-1,3j-1] = spin.r[i,j]
+            workspace.A[3i,  3j-1] = 0
+            workspace.A[3i-2,3j]   = 0
+            workspace.A[3i-1,3j]   = 0
+            workspace.A[3i,  3j]   = spin.r[i,j]
+
+        end
+
+    end
+
+    expAt .= expm(t * workspace.A)
+    return nothing
+
+end
+
+function expm!(expAt, ::Nothing, spin, t, gradfreq = 0)
+
+    for j = 1:spin.N, i = 1:spin.N
+
+        if i == j
+
+            r_out = sum(spin.r[k,i] for k = 1:spin.N) # 1/ms
+            E1 = exp(-t * (1 / spin.T1[i] + r_out))
+            E2 = exp(-t * (1 / spin.T2[i] + r_out))
+            θ = 2π * (spin.Δf[i] + gradfreq) * t / 1000 # rad
+            (s, c) = sincos(θ)
+
+            expAt[3i-2,3j-2] = E2 * c
+            expAt[3i-1,3j-2] = -E2 * s
+            expAt[3i,  3j-2] = 0
+            expAt[3i-2,3j-1] = E2 * s
+            expAt[3i-1,3j-1] = E2 * c
+            expAt[3i,  3j-1] = 0
+            expAt[3i-2,3j]   = 0
+            expAt[3i-1,3j]   = 0
+            expAt[3i,  3j]   = E1
+
+        else
+
+            r_out_i = sum(spin.r[k,i] for k = 1:spin.N) # 1/ms
+            r_out_j = sum(spin.r[k,j] for k = 1:spin.N) # 1/ms
+            r1i = 1 / spin.T1[i] + r_out_i # 1/ms
+            r1j = 1 / spin.T1[j] + r_out_j # 1/ms
+            r2i = 1 / spin.T2[i] + r_out_i # 1/ms
+            r2j = 1 / spin.T2[j] + r_out_j # 1/ms
+
+        end
+
+    end
+
+    return nothing
 
 end
 
@@ -534,5 +689,14 @@ function applydynamics!(spin::AbstractSpin, A::AbstractArray{<:Real,2})
 
   spin.M[:] = A * spin.M
   return nothing
+
+end
+
+function applydynamics!(spin::AbstractSpin, BtoM, A, B)
+
+    BtoM .= B
+    mul!(BtoM, A, spin.M, 1, 1) # BtoM .= A * spin.M + BtoM
+    spin.M .= BtoM
+    return nothing
 
 end
