@@ -321,6 +321,7 @@ function freeprecess!(A, B, spin::SpinMC, t, grad, workspace)
 
 end
 
+# Exact matrix exponential
 function expm!(expAt, workspace, spin, t, gradfreq = 0)
 
     for j = 1:spin.N, i = 1:spin.N
@@ -363,6 +364,9 @@ function expm!(expAt, workspace, spin, t, gradfreq = 0)
 
 end
 
+# Approximate matrix exponential
+# See page 2 of http://doi.org/10.1137/0714065
+# (unnumbered equation with o(||E||) term)
 function expm!(expAt, ::Nothing, spin, t, gradfreq = 0)
 
     for j = 1:spin.N, i = 1:spin.N
@@ -374,12 +378,14 @@ function expm!(expAt, ::Nothing, spin, t, gradfreq = 0)
             E2 = exp(-t * (1 / spin.T2[i] + r_out))
             θ = 2π * (spin.Δf[i] + gradfreq) * t / 1000 # rad
             (s, c) = sincos(θ)
+            E2c = E2 * c
+            E2s = E2 * s
 
-            expAt[3i-2,3j-2] = E2 * c
-            expAt[3i-1,3j-2] = -E2 * s
+            expAt[3i-2,3j-2] = E2c
+            expAt[3i-1,3j-2] = -E2s
             expAt[3i,  3j-2] = 0
-            expAt[3i-2,3j-1] = E2 * s
-            expAt[3i-1,3j-1] = E2 * c
+            expAt[3i-2,3j-1] = E2s
+            expAt[3i-1,3j-1] = E2c
             expAt[3i,  3j-1] = 0
             expAt[3i-2,3j]   = 0
             expAt[3i-1,3j]   = 0
@@ -389,10 +395,34 @@ function expm!(expAt, ::Nothing, spin, t, gradfreq = 0)
 
             r_out_i = sum(spin.r[k,i] for k = 1:spin.N) # 1/ms
             r_out_j = sum(spin.r[k,j] for k = 1:spin.N) # 1/ms
-            r1i = 1 / spin.T1[i] + r_out_i # 1/ms
-            r1j = 1 / spin.T1[j] + r_out_j # 1/ms
-            r2i = 1 / spin.T2[i] + r_out_i # 1/ms
-            r2j = 1 / spin.T2[j] + r_out_j # 1/ms
+            R1i = 1 / spin.T1[i] + r_out_i # 1/ms
+            R1j = 1 / spin.T1[j] + r_out_j # 1/ms
+            R2i = 1 / spin.T2[i] + r_out_i # 1/ms
+            R2j = 1 / spin.T2[j] + r_out_j # 1/ms
+            rji = spin.r[i,j]
+
+            R2ji = R2j - R2i
+            R2ji² = R2ji^2
+            E2i = exp(-t * R2i)
+            E2ji = exp(-t * R2ji)
+            Δωji = 2π * (spin.Δf[j] - spin.Δf[i]) / 1000 # rad/ms
+            Δωji² = Δωji^2
+            θi = 2π * (spin.Δf[i] + gradfreq) * t / 1000 # rad
+            θj = 2π * (spin.Δf[j] + gradfreq) * t / 1000 # rad
+            (si, ci) = sincos(θi)
+            (sj, cj) = sincos(θj)
+            tmpc = rji * E2i * ((ci - E2ji * cj) / R2ji + Δωji * (E2ji * sj - si) / R2ji²) / (1 + Δωji² / R2ji²)
+            tmps = rji * E2i * ((si - E2ji * sj) / R2ji + Δωji * (ci - E2ji * cj) / R2ji²) / (1 + Δωji² / R2ji²)
+
+            expAt[3i-2,3j-2] = tmpc
+            expAt[3i-1,3j-2] = -tmps
+            expAt[3i,  3j-2] = 0
+            expAt[3i-2,3j-1] = tmps
+            expAt[3i-1,3j-1] = tmpc
+            expAt[3i,  3j-1] = 0
+            expAt[3i-2,3j]   = 0
+            expAt[3i-1,3j]   = 0
+            expAt[3i,  3j]   = rji * E2i * (1 - E2ji) / R2ji
 
         end
 
