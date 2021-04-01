@@ -5,6 +5,8 @@ using LinearAlgebra
 
 export GAMMA
 export GAMBAR
+export Magnetization
+export Position
 export AbstractSpin
 export Spin
 export SpinMC

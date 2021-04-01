@@ -4,8 +4,9 @@ using MAT
 using Test
 
 @testset "BlochSim.jl" begin
-    include("helpers.jl")
-    include("expm.jl")
-    include("Spin.jl")
-    include("sequences.jl")
+#    include("helpers.jl")
+#    include("expm.jl")
+#    include("Spin.jl")
+#    include("sequences.jl")
+    include("AbstractSpin.jl")
 end
