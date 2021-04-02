@@ -16,9 +16,9 @@ function freeprecess2()
     spin = SpinMC(1, (0.8, 0.2), (1000, 400), (100, 20), (0, 15), (100, 25))
     (A1, B1) = freeprecess(spin, t)
     A2 = similar(A1)
-    B2 = copy(B1)
+    B2 = zero(B1)
     freeprecess!(A2, B2, spin, t)
-    return A1 == A2 && B1 ≈ B2
+    return A1 == A2 && B1 == B2
 
 end
 
@@ -37,7 +37,7 @@ function freeprecess3()
     Ab = Array{Float64}(undef, 3, 3)
     Bb = Array{Float64}(undef, 3)
     Amc = Array{Float64}(undef, 6, 6)
-    Bmc = (Magnetization(0.0, 0.0, 0.0), Magnetization(0.0, 0.0, 0.0))
+    Bmc = MagnetizationMC(Magnetization(0.0, 0.0, 0.0), Magnetization(0.0, 0.0, 0.0))
     freeprecess!(Aa, Ba, spina, t)
     freeprecess!(Ab, Bb, spinb, t)
     freeprecess!(Amc, Bmc, spinmc, t)
@@ -65,7 +65,7 @@ function freeprecess5()
     spin = SpinMC(1, (0.8, 0.2), (1000, 400), (100, 20), (0, 15), (100, 25), Position(0, 0, 1))
     (A1, B1) = freeprecess(spin, t, [grad.x, grad.y, grad.z])
     A2 = similar(A1)
-    B2 = copy(B1)
+    B2 = zero(B1)
     freeprecess!(A2, B2, spin, t, grad)
     return A1 ≈ A2 && B1 ≈ B2
 

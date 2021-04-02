@@ -28,6 +28,8 @@ mutable struct Magnetization{T<:Real}
     end
 end
 
+Base.zero(::Magnetization{T}) where {T} = Magnetization(zero(T), zero(T), zero(T))
+
 Base.eltype(::Magnetization{T}) where {T} = T
 Base.convert(::Type{Magnetization{T}}, M::Magnetization) where {T} = Magnetization(T(M.x), T(M.y), T(M.z))
 
@@ -40,20 +42,8 @@ function Base.promote(M1::Magnetization{T1}, M2::Magnetization{T2}) where {T1,T2
 
 end
 
-Base.copy(M::Magnetization) = Magnetization(M.x, M.y, M.z)
-Base.copy(M::NTuple{N,Magnetization}) where {N} = ntuple(i -> copy(M[i]), N)
 Base.isapprox(M1::Magnetization, M2::Magnetization; kwargs...) =
-    isapprox(M1.x, M2.x; kwargs...) && isapprox(M1.y, M2.y; kwargs...) && isapprox(M1.z, M2.z; kwargs...)
-
-function Base.isapprox(M1::NTuple{N,Magnetization}, M2::NTuple{N,Magnetization}; kwargs...) where {N}
-
-    result = true
-    for i = 1:N
-        result = result && isapprox(M1[i], M2[i]; kwargs...)
-    end
-    return result
-
-end
+    isapprox([M1.x, M1.y, M1.z], [M2.x, M2.y, M2.z]; kwargs...)
 
 struct MagnetizationMC{T<:Real,N}
     M::NTuple{N,Magnetization{T}}
@@ -79,9 +69,13 @@ function MagnetizationMC(M::Real...)
 
 end
 
+Base.zero(::MagnetizationMC{T,N}) where {T,N} = MagnetizationMC((Magnetization(zero(T), zero(T), zero(T)) for i = 1:N)...)
+
 Base.eltype(::MagnetizationMC{T,N}) where {T,N} = T
+Base.getindex(M::MagnetizationMC, i) = M.M[i]
 Base.iterate(M::MagnetizationMC{T,N}, i = 1) where {T,N} =  i > N ? nothing : (M.M[i], i + 1)
 Base.convert(::Type{MagnetizationMC{T,N}}, M::MagnetizationMC{S,N}) where {S,T,N} = MagnetizationMC((convert(Magnetization{T}, Mi) for Mi in M)...)
+# This next definition of convert prevents StackOverflowErrors
 Base.convert(::Type{MagnetizationMC{T,N}}, M::MagnetizationMC{T,N}) where {T,N} = M
 
 # TODO: Make BlochMatrix type for A
@@ -105,13 +99,13 @@ function Base.:*(A::AbstractMatrix, M::Magnetization)
 
 end
 
-Base.:*(A::AbstractMatrix, M::NTuple{N,Magnetization}) where {N} = ntuple(N) do i
+Base.:*(A::AbstractMatrix, M::MagnetizationMC{T,N}) where {T,N} = MagnetizationMC(ntuple(N) do i
     Mtmp = view(A, 3i-2:3i, 1:3) * M[1]
     for j = 2:N
         add!(Mtmp, view(A, 3i-2:3i, 3j-2:3j) * M[j])
     end
     Mtmp
-end
+end...)
 
 # M2 = A * M1
 function LinearAlgebra.mul!(M2::Magnetization, A::AbstractMatrix, M1::Magnetization)
@@ -134,7 +128,7 @@ function muladd!(M2::Magnetization, A::AbstractMatrix, M1::Magnetization)
 end
 
 # M2 = A * M1
-function LinearAlgebra.mul!(M2::NTuple{N,Magnetization}, A::AbstractMatrix, M1::NTuple{N,Magnetization}) where {N}
+function LinearAlgebra.mul!(M2::MagnetizationMC{T,N}, A::AbstractMatrix, M1::MagnetizationMC{S,N}) where {S,T,N}
 
     for i = 1:N
         M = M2[i]
@@ -148,7 +142,7 @@ function LinearAlgebra.mul!(M2::NTuple{N,Magnetization}, A::AbstractMatrix, M1::
 end
 
 # M2 = A * M1 + M2
-function LinearAlgebra.mul!(M2::NTuple{N,Magnetization}, A::AbstractMatrix, M1::NTuple{N,Magnetization}) where {N}
+function muladd!(M2::MagnetizationMC{T,N}, A::AbstractMatrix, M1::MagnetizationMC{S,N}) where {S,T,N}
 
     for i = 1:N
         M = M2[i]

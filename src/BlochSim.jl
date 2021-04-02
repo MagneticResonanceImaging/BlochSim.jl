@@ -7,6 +7,7 @@ export GAMMA
 export GAMBAR
 
 export Magnetization
+export MagnetizationMC
 export Position
 export AbstractSpin
 export Spin
