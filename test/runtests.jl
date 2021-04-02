@@ -10,4 +10,5 @@ using Test
 #    include("sequences.jl")
     include("AbstractSpin.jl")
     include("AbstractSpoiling.jl")
+    include("freeprecess.jl")
 end

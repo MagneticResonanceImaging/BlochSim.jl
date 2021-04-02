@@ -14,7 +14,7 @@ function SpinMC1()
 
     SpinMC(1, (0.8, 0.2), (1000, 100), (100, 10), (0, 0), (100, 25))
     SpinMC(1, [0.8, 0.2], (1000f0, 100), (100, Int16(10)), (0, 0), (100, 25))
-    SpinMC((Magnetization(0, 0, 1), Magnetization(0, 0, 1)), 1, (1, 1),
+    SpinMC((Magnetization(0, 0, 1.0), Magnetization(0, 0, 1)), 1, (1, 1),
            [100, 100], (10.0, 10), [0, 0.0], (1f0, 1.0))
     return true
 

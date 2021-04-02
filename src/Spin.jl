@@ -14,7 +14,7 @@ const GAMMA  = 2π * GAMBAR
 
 const DualFloat64 = Union{Float64,<:ForwardDiff.Dual{T,Float64,N} where {T,N}}
 
-struct Magnetization{T<:Real}
+mutable struct Magnetization{T<:Real}
     x::T
     y::T
     z::T
@@ -29,7 +29,135 @@ struct Magnetization{T<:Real}
 end
 
 Base.eltype(::Magnetization{T}) where {T} = T
-Base.convert(::Type{Magnetization{T}}, m::Magnetization) where {T} = Magnetization(T.((m.x, m.y, m.z))...)
+Base.convert(::Type{Magnetization{T}}, M::Magnetization) where {T} = Magnetization(T(M.x), T(M.y), T(M.z))
+
+function Base.promote(M1::Magnetization{T1}, M2::Magnetization{T2}) where {T1,T2}
+
+    T = promote_type(T1, T2)
+    Ma = T1 === T ? M1 : convert(Magnetization{T}, M1)
+    Mb = T2 === T ? M2 : convert(Magnetization{T}, M2)
+    return (Ma, Mb)
+
+end
+
+Base.copy(M::Magnetization) = Magnetization(M.x, M.y, M.z)
+Base.copy(M::NTuple{N,Magnetization}) where {N} = ntuple(i -> copy(M[i]), N)
+Base.isapprox(M1::Magnetization, M2::Magnetization; kwargs...) =
+    isapprox(M1.x, M2.x; kwargs...) && isapprox(M1.y, M2.y; kwargs...) && isapprox(M1.z, M2.z; kwargs...)
+
+function Base.isapprox(M1::NTuple{N,Magnetization}, M2::NTuple{N,Magnetization}; kwargs...) where {N}
+
+    result = true
+    for i = 1:N
+        result = result && isapprox(M1[i], M2[i]; kwargs...)
+    end
+    return result
+
+end
+
+struct MagnetizationMC{T<:Real,N}
+    M::NTuple{N,Magnetization{T}}
+
+    function MagnetizationMC(M::Magnetization...)
+
+        N = length(M)
+        N > 1 || error(sprint(print, "MagnetizationMC expects 2 or more compartments, got ", N))
+        args = promote(M...)
+        T = eltype(args[1])
+        new{T,N}(args)
+
+    end
+end
+
+MagnetizationMC(M::NTuple{3,Real}...) = MagnetizationMC((Magnetization(Mi...) for Mi in M)...)
+
+function MagnetizationMC(M::Real...)
+
+    N = length(M)
+    N % 3 == 0 || error("must specify Mx, My, and Mz for each magnetization vector")
+    MagnetizationMC((Magnetization(M[i], M[i+1], M[i+2]) for i = 1:3:N)...)
+
+end
+
+Base.eltype(::MagnetizationMC{T,N}) where {T,N} = T
+Base.iterate(M::MagnetizationMC{T,N}, i = 1) where {T,N} =  i > N ? nothing : (M.M[i], i + 1)
+Base.convert(::Type{MagnetizationMC{T,N}}, M::MagnetizationMC{S,N}) where {S,T,N} = MagnetizationMC((convert(Magnetization{T}, Mi) for Mi in M)...)
+
+# TODO: Make BlochMatrix type for A
+
+#Base.:+(M1::Magnetization, M2::Magnetization) = Magnetization(M1.x + M2.x, M1.y + M2.y, M1.z + M2.z)
+function add!(M1::Magnetization, M2::Magnetization)
+
+    M1.x += M2.x
+    M1.y += M2.y
+    M1.z += M2.z
+    return nothing
+
+end
+
+function Base.:*(A::AbstractMatrix, M::Magnetization)
+
+    Mx = A[1,1] * M.x + A[1,2] * M.y + A[1,3] * M.z
+    My = A[2,1] * M.x + A[2,2] * M.y + A[2,3] * M.z
+    Mz = A[3,1] * M.x + A[3,2] * M.y + A[3,3] * M.z
+    return Magnetization(Mx, My, Mz)
+
+end
+
+Base.:*(A::AbstractMatrix, M::NTuple{N,Magnetization}) where {N} = ntuple(N) do i
+    Mtmp = view(A, 3i-2:3i, 1:3) * M[1]
+    for j = 2:N
+        add!(Mtmp, view(A, 3i-2:3i, 3j-2:3j) * M[j])
+    end
+    Mtmp
+end
+
+# M2 = A * M1
+function LinearAlgebra.mul!(M2::Magnetization, A::AbstractMatrix, M1::Magnetization)
+
+    M2.x = A[1,1] * M1.x + A[1,2] * M1.y + A[1,3] * M1.z
+    M2.y = A[2,1] * M1.x + A[2,2] * M1.y + A[2,3] * M1.z
+    M2.z = A[3,1] * M1.x + A[3,2] * M1.y + A[3,3] * M1.z
+    return nothing
+
+end
+
+# M2 = A * M1 + M2
+function muladd!(M2::Magnetization, A::AbstractMatrix, M1::Magnetization)
+
+    M2.x += A[1,1] * M1.x + A[1,2] * M1.y + A[1,3] * M1.z
+    M2.y += A[2,1] * M1.x + A[2,2] * M1.y + A[2,3] * M1.z
+    M2.z += A[3,1] * M1.x + A[3,2] * M1.y + A[3,3] * M1.z
+    return nothing
+
+end
+
+# M2 = A * M1
+function LinearAlgebra.mul!(M2::NTuple{N,Magnetization}, A::AbstractMatrix, M1::NTuple{N,Magnetization}) where {N}
+
+    for i = 1:N
+        M = M2[i]
+        mul!(M, view(A, 3i-2:3i, 1:3), M1[1])
+        for j = 2:N
+            muladd!(M, view(A, 3i-2:3i, 3j-2:3j), M1[j])
+        end
+    end
+    return nothing
+
+end
+
+# M2 = A * M1 + M2
+function LinearAlgebra.mul!(M2::NTuple{N,Magnetization}, A::AbstractMatrix, M1::NTuple{N,Magnetization}) where {N}
+
+    for i = 1:N
+        M = M2[i]
+        for j = 1:N
+            muladd!(M, view(A, 3i-2:3i, 3j-2:3j), M1[j])
+        end
+    end
+    return nothing
+
+end
 
 struct Position{T<:Real}
     x::T
@@ -211,8 +339,8 @@ julia> spin = SpinMC(M, 1, frac, [900, 400], [80, 20], [3, 13], τ); spin.signal
 #end
 
 struct SpinMC{T<:DualFloat64,N} <: AbstractSpin
-    M::NTuple{N,Magnetization{T}}
-    Meq::NTuple{N,Magnetization{T}}
+    M::MagnetizationMC{T,N}
+    Meq::MagnetizationMC{T,N}
     M0::T
     frac::NTuple{N,T}
     T1::NTuple{N,T}
@@ -222,7 +350,7 @@ struct SpinMC{T<:DualFloat64,N} <: AbstractSpin
     pos::Position{Float64}
 
     function SpinMC(
-        M::NTuple{N,Magnetization},
+        M::MagnetizationMC{S,N},
         M0,
         frac,
         T1,
@@ -230,15 +358,18 @@ struct SpinMC{T<:DualFloat64,N} <: AbstractSpin
         Δf,
         τ,
         pos::Position = Position(0, 0, 0)
-    ) where {N}
+    ) where {S,N}
 
         N > 1 || error(sprint(print, "SpinMC expects 2 or more compartments, got ", N))
-        Meq = ntuple(i -> Magnetization(0, 0, frac[i] * M0), Val(N))
-        (frac, T1, T2, Δf) = Tuple.((frac, T1, T2, Δf))
+        Meq = MagnetizationMC((Magnetization(0, 0, frac[i] * M0) for i = 1:N)...)
+        frac = promote(frac...)
+        T1 = promote(T1...)
+        T2 = promote(T2...)
+        Δf = promote(Δf...)
         τ = promote(τ...)
         itmp = 1
-        r = ntuple(Val(N)) do j
-            ntuple(Val(N)) do i
+        r = ntuple(N) do j
+            ntuple(N) do i
                 out = 1 / τ[min(itmp, N * (N - 1))]
                 if i == j
                     out = zero(out)
@@ -248,16 +379,18 @@ struct SpinMC{T<:DualFloat64,N} <: AbstractSpin
                 out
             end
         end
-        T = promote_type(Float64, eltype(M[1]), eltype(Meq[1]), typeof(M0),
-            typeof.(frac)..., typeof.(T1)..., typeof.(T2)..., typeof.(Δf)...,
-            eltype(eltype(r)))
+        T = promote_type(Float64, eltype(M), eltype(Meq), typeof(M0),
+            eltype(frac), eltype(T1), eltype(T2), eltype(Δf), eltype(eltype(r)))
         new{T,N}(M, Meq, M0, frac, T1, T2, Δf, r, pos)
 
     end
 end
 
+SpinMC(M::NTuple{N,Magnetization}, args...) where {N} = SpinMC(MagnetizationMC(M...), args...)
+SpinMC(M::NTuple{N,NTuple{3,Real}}, args...) where {N} = SpinMC(MagnetizationMC(M...), args...)
+SpinMC(M::NTuple{N,Real}, args...) where {N} = SpinMC(MagnetizationMC(M...), args...)
 SpinMC(M0::Real, frac, T1, T2, Δf, τ, pos::Position = Position(0.0, 0.0, 0.0)) =
-    SpinMC(ntuple(i -> Magnetization(0, 0, frac[i] * M0), length(frac)), M0, frac, T1, T2, Δf, τ, pos)
+    SpinMC(MagnetizationMC((Magnetization(0, 0, frac[i] * M0) for i = 1:length(frac))...), M0, frac, T1, T2, Δf, τ, pos)
 
 # Override Base.getproperty to allow users to type spin.signal to compute the
 # signal generated by the spin
@@ -270,10 +403,12 @@ Base.getproperty(spin::Spin, s::Symbol) = begin
     end
 end
 
-Base.getproperty(spin::SpinMC, s::Symbol) = begin
+Base.getproperty(spin::SpinMC{T,N}, s::Symbol) where {T,N} = begin
     if s == :signal
         M = getfield(spin, :M)
         return complex(sum(M[1:3:end]), sum(M[2:3:end]))
+    elseif s == :N
+        return N
     else
         return getfield(spin, s)
     end
@@ -330,7 +465,12 @@ rfspoiling_increment(s::RFandGradientSpoiling) = rfspoiling_increment(s.rf)
 
 struct BlochMcConnellWorkspace{T<:Real}
     A::Matrix{T}
+
+    # N is number of compartments
+    BlochMcConnellWorkspace(T::Type{<:Real}, N) = new{T}(Array{T}(undef, 3N, 3N))
 end
+
+BlochMcConnellWorkspace(::SpinMC{T,N}) where{T,N} = BlochMcConnellWorkspace(T, N)
 
 """
     freeprecess(spin, t)
@@ -360,9 +500,23 @@ julia> (A, B) = freeprecess(spin, 100); A * spin.M + B
 freeprecess(spin::Spin, t::Real) =
     freeprecess(t, spin.M0, spin.T1, spin.T2, spin.Δf)
 
-function freeprecess(spin::SpinMC, t::Real)
+function freeprecess(spin::SpinMC{T,N}, t::Real) where {T,N}
 
-    E = expm(t * spin.A)
+    A = Array{T}(undef, 3N, 3N)
+    for j = 1:N, i = 1:N
+        ii = 3i-2:3i
+        jj = 3j-2:3j
+        if i == j
+            tmp = sum(spin.r[i][k] for k = 1:N) # 1/ms
+            r1 = -1 / spin.T1[i] - tmp # 1/ms
+            r2 = -1 / spin.T2[i] - tmp # 1/ms
+            Δω = 2π * spin.Δf[i] / 1000 # rad/ms
+            A[ii,jj] = [r2 Δω 0; -Δω r2 0; 0 0 r1] # Left-handed rotation
+        else
+            A[ii,jj] = spin.r[j][i] * Diagonal(ones(Bool, 3))
+        end
+    end
+    E = expm(t * A)
     B = (Diagonal(ones(Bool, size(E, 1))) - E) * spin.Meq
     return (E, B)
 
@@ -374,7 +528,7 @@ function freeprecess!(A, B, spin::Spin, t, workspace::Nothing = nothing)
 
 end
 
-function freeprecess!(A, B, spin::SpinMC, t, workspace)
+function freeprecess!(A, B, spin::SpinMC, t, workspace::Union{Nothing,<:BlochMcConnellWorkspace} = BlochMcConnellWorkspace(spin))
 
     expm!(A, workspace, spin, t)
     mul!(B, Diagonal(ones(Bool, size(A, 1))) - A, spin.Meq)
@@ -410,18 +564,32 @@ julia> (A, B) = freeprecess(spin, 100, [0, 0, 1/GAMBAR]); A * spin.M + B
 """
 function freeprecess(spin::Spin, t::Real, grad::AbstractArray{<:Real,1})
 
-    gradfreq = GAMBAR * sum(grad[i] * spin.pos[i] for i = 1:3) # Hz
+    gradfreq = GAMBAR * (grad[1] * spin.pos.x + grad[2] * spin.pos.y + grad[3] * spin.pos.z) # Hz
     freeprecess(t, spin.M0, spin.T1, spin.T2, spin.Δf + gradfreq)
 
 end
 
 # See equation (6.9) in Gopal Nataraj's PhD thesis
-function freeprecess(spin::SpinMC, t::Real, grad::AbstractArray{<:Real,1})
+function freeprecess(spin::SpinMC{T,N}, t::Real, grad::AbstractArray{<:Real,1}) where {T,N}
 
-    gradfreq = GAMMA * sum(grad[i] * spin.pos[i] for i = 1:3) / 1000 # rad/ms
+    A = Array{T}(undef, 3N, 3N)
+    for j = 1:N, i = 1:N
+        ii = 3i-2:3i
+        jj = 3j-2:3j
+        if i == j
+            tmp = sum(spin.r[i][k] for k = 1:N) # 1/ms
+            r1 = -1 / spin.T1[i] - tmp # 1/ms
+            r2 = -1 / spin.T2[i] - tmp # 1/ms
+            Δω = 2π * spin.Δf[i] / 1000 # rad/ms
+            A[ii,jj] = [r2 Δω 0; -Δω r2 0; 0 0 r1] # Left-handed rotation
+        else
+            A[ii,jj] = spin.r[j][i] * Diagonal(ones(Bool, 3))
+        end
+    end
+    gradfreq = GAMMA * (grad[1] * spin.pos.x + grad[2] * spin.pos.y + grad[3] * spin.pos.z) / 1000 # rad/ms
     ΔA = diagm(1 => repeat([gradfreq, 0, 0], spin.N), # Left-handed rotation
               -1 => repeat([-gradfreq, 0, 0], spin.N))[1:3spin.N,1:3spin.N]
-    E = expm(t * (spin.A + ΔA))
+    E = expm(t * (A + ΔA))
     B = (Diagonal(ones(Bool, size(E, 1))) - E) * spin.Meq
     return (E, B)
 
@@ -434,7 +602,7 @@ function freeprecess!(A, B, spin::Spin, t, grad::Gradient, workspace::Nothing = 
 
 end
 
-function freeprecess!(A, B, spin::SpinMC, t, grad, workspace)
+function freeprecess!(A, B, spin::SpinMC, t, grad::Gradient, workspace::Union{Nothing,<:BlochMcConnellWorkspace} = BlochMcConnellWorkspace(spin))
 
     gradfreq = gradient_frequency(grad, spin.pos) # Hz
     expm!(A, workspace, spin, t, gradfreq)
@@ -450,7 +618,7 @@ function expm!(expAt, workspace, spin, t, gradfreq = 0)
 
         if i == j
 
-            r_out = sum(spin.r[k,i] for k = 1:spin.N) # 1/ms
+            r_out = sum(spin.r[i][k] for k = 1:spin.N) # 1/ms
             r1 = -1 / spin.T1[i] - r_out # 1/ms
             r2 = -1 / spin.T2[i] - r_out # 1/ms
             Δω = 2π * (spin.Δf[i] + gradfreq) / 1000 # rad/ms
@@ -467,15 +635,15 @@ function expm!(expAt, workspace, spin, t, gradfreq = 0)
 
         else
 
-            workspace.A[3i-2,3j-2] = spin.r[i,j]
+            workspace.A[3i-2,3j-2] = spin.r[j][i]
             workspace.A[3i-1,3j-2] = 0
             workspace.A[3i,  3j-2] = 0
             workspace.A[3i-2,3j-1] = 0
-            workspace.A[3i-1,3j-1] = spin.r[i,j]
+            workspace.A[3i-1,3j-1] = spin.r[j][i]
             workspace.A[3i,  3j-1] = 0
             workspace.A[3i-2,3j]   = 0
             workspace.A[3i-1,3j]   = 0
-            workspace.A[3i,  3j]   = spin.r[i,j]
+            workspace.A[3i,  3j]   = spin.r[j][i]
 
         end
 
@@ -847,7 +1015,7 @@ end
 function applydynamics!(spin::AbstractSpin, BtoM, A, B)
 
     BtoM .= B
-    mul!(BtoM, A, spin.M, 1, 1) # BtoM .= A * spin.M + BtoM
+    mul!(BtoM, A, spin.M, true, true) # BtoM .= A * spin.M + BtoM
     spin.M .= BtoM
     return nothing
 
