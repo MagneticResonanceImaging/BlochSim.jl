@@ -5,11 +5,22 @@ using LinearAlgebra
 
 export GAMMA
 export GAMBAR
+
 export Magnetization
 export Position
 export AbstractSpin
 export Spin
 export SpinMC
+
+export Gradient
+export AbstractSpoiling
+export GradientSpoiling
+export RFSpoiling
+export RFandGradientSpoiling
+export spoiler_gradient
+export rfspoiling_increment
+
+export BlochMcConnellWorkspace
 export freeprecess
 export freeprecess!
 export excitation

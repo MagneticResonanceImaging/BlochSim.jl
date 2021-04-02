@@ -9,4 +9,5 @@ using Test
 #    include("Spin.jl")
 #    include("sequences.jl")
     include("AbstractSpin.jl")
+    include("AbstractSpoiling.jl")
 end
