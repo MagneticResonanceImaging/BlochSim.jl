@@ -28,6 +28,10 @@ mutable struct Magnetization{T<:Real}
     end
 end
 
+Base.show(io::IO, M::Magnetization) = print(io, "[", M.x, ", ", M.y, ", ", M.z, "]")
+Base.show(io::IO, ::MIME"text/plain", M::Magnetization{T}) where {T} =
+    print(io, "Magnetization vector with eltype $T:\n Mx = ", M.x, "\n My = ", M.y, "\n Mz = ", M.z)
+
 Base.zero(::Magnetization{T}) where {T} = Magnetization(zero(T), zero(T), zero(T))
 
 Base.eltype(::Magnetization{T}) where {T} = T
@@ -67,6 +71,28 @@ function MagnetizationMC(M::Real...)
     N = length(M)
     N % 3 == 0 || error("must specify Mx, My, and Mz for each magnetization vector")
     MagnetizationMC((Magnetization(M[i], M[i+1], M[i+2]) for i = 1:3:N)...)
+
+end
+
+function Base.show(io::IO, M::MagnetizationMC{T,N}) where {T,N}
+
+    print(io, "[", M[1].x, ", ", M[1].y, ", ", M[1].z, ", ")
+    for i = 2:N-1
+        print(io, M[i].x, ", ", M[i].y, ", ", M[i].z, ", ")
+    end
+    print(io, M[N].x, ", ", M[N].y, ", ", M[N].z, "]")
+
+end
+
+function Base.show(io::IO, ::MIME"text/plain", M::MagnetizationMC{T,N}) where {T,N}
+
+    print(io, "$N-compartment Magnetization vector with eltype $T:")
+    for i = 1:N
+        print(io, "\n Compartment ", i, ":")
+        print(io, "\n  Mx = ", M[i].x)
+        print(io, "\n  My = ", M[i].y)
+        print(io, "\n  Mz = ", M[i].z)
+    end
 
 end
 
