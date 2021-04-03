@@ -42,6 +42,7 @@ function Base.promote(M1::Magnetization{T1}, M2::Magnetization{T2}) where {T1,T2
 
 end
 
+Base.:(==)(M1::Magnetization, M2::Magnetization) = M1.x == M2.x && M1.y == M2.y && M1.z == M2.z
 Base.isapprox(M1::Magnetization, M2::Magnetization; kwargs...) =
     isapprox([M1.x, M1.y, M1.z], [M2.x, M2.y, M2.z]; kwargs...)
 
@@ -77,6 +78,9 @@ Base.iterate(M::MagnetizationMC{T,N}, i = 1) where {T,N} =  i > N ? nothing : (M
 Base.convert(::Type{MagnetizationMC{T,N}}, M::MagnetizationMC{S,N}) where {S,T,N} = MagnetizationMC((convert(Magnetization{T}, Mi) for Mi in M)...)
 # This next definition of convert prevents StackOverflowErrors
 Base.convert(::Type{MagnetizationMC{T,N}}, M::MagnetizationMC{T,N}) where {T,N} = M
+
+Base.:(==)(M1::MagnetizationMC{T,N}, M2::MagnetizationMC{S,N}) where {S,T,N} = all(M1[i] == M2[i] for i = 1:N)
+Base.isapprox(M1::MagnetizationMC{T,N}, M2::MagnetizationMC{S,N}; kwargs...) where {S,T,N} = all(isapprox(M1[i], M2[i]; kwargs...) for i = 1:N)
 
 # TODO: Make BlochMatrix type for A
 

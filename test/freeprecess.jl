@@ -41,7 +41,7 @@ function freeprecess3()
     freeprecess!(Aa, Ba, spina, t)
     freeprecess!(Ab, Bb, spinb, t)
     freeprecess!(Amc, Bmc, spinmc, t)
-    return Amc ≈ [Aa zeros(3, 3); zeros(3, 3) Ab] && Bmc ≈ (Magnetization(Ba...), Magnetization(Bb...))
+    return Amc ≈ [Aa zeros(3, 3); zeros(3, 3) Ab] && Bmc ≈ MagnetizationMC(Magnetization(Ba...), Magnetization(Bb...))
 
 end
 
@@ -67,7 +67,7 @@ function freeprecess5()
     A2 = similar(A1)
     B2 = zero(B1)
     freeprecess!(A2, B2, spin, t, grad)
-    return A1 ≈ A2 && B1 ≈ B2
+    return A1 ≈ A2 && B1 == B2
 
 end
 
