@@ -108,7 +108,52 @@ Base.convert(::Type{MagnetizationMC{T,N}}, M::MagnetizationMC{T,N}) where {T,N} 
 Base.:(==)(M1::MagnetizationMC{T,N}, M2::MagnetizationMC{S,N}) where {S,T,N} = all(M1[i] == M2[i] for i = 1:N)
 Base.isapprox(M1::MagnetizationMC{T,N}, M2::MagnetizationMC{S,N}; kwargs...) where {S,T,N} = all(isapprox(M1[i], M2[i]; kwargs...) for i = 1:N)
 
-# TODO: Make BlochMatrix type for A
+abstract type AbstractBlochMatrix{T<:Real} end
+
+mutable struct BlochMatrix{T<:Real} <: AbstractBlochMatrix{T}
+    a11::T
+    a21::T
+    a31::T
+    a12::T
+    a22::T
+    a32::T
+    a13::T
+    a23::T
+    a33::T
+end
+
+BlochMatrix(a...) = BlochMatrix(promote(a...)...)
+
+mutable struct BlochDynamicsMatrix{T<:Real} <: AbstractBlochMatrix{T}
+    R1::T
+    R2::T
+    Δω::T
+end
+
+BlochDynamicsMatrix(R1, R2, Δω) = BlochDynamicsMatrix(promote(R1, R2, Δω)...)
+
+mutable struct FreePrecessionMatrix{T<:Real} <: AbstractBlochMatrix{T}
+    E1::T
+    E2cosθ::T
+    E2sinθ::T
+end
+
+FreePrecessionMatrix(E1, E2cosθ, E2sinθ) = FreePrecessionMatrix(promote(E1, E2cosθ, E2sinθ)...)
+
+function FreePrecessionMatrix(A::BlochDynamicsMatrix, t)
+
+    E1 = exp(-t * A.R1)
+    E2 = exp(-t * A.R2)
+    (s, c) = sincos(A.Δω * t)
+    E2cosθ = E2 * c
+    E2sinθ = E2 * s
+    FreePrecessionMatrix(E1, E2cosθ, E2sinθ)
+
+end
+
+mutable struct ExchangeDynamicsMatrix{T<:Real} <: AbstractBlochMatrix{T}
+    r::T
+end
 
 #Base.:+(M1::Magnetization, M2::Magnetization) = Magnetization(M1.x + M2.x, M1.y + M2.y, M1.z + M2.z)
 function add!(M1::Magnetization, M2::Magnetization)
