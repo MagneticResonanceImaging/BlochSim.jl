@@ -3,8 +3,8 @@ function freeprecess1()
     t = 100
     spin = Spin(1, 1000, 100, 1.25)
     (A1, B1) = freeprecess(spin, t)
-    A2 = similar(A1)
-    B2 = similar(B1)
+    A2 = FreePrecessionMatrix()
+    B2 = Magnetization(0.0, 0.0, 0.0)
     freeprecess!(A2, B2, spin, t)
     return A1 == A2 && B1 == B2
 

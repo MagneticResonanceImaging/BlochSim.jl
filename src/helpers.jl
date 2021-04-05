@@ -182,27 +182,17 @@ end
 
 function freeprecess!(A, B, t, M0, T1, T2, Δf)
 
-    E1 = exp(-t / T1)
     E2 = exp(-t / T2)
-
     θ = 2π * Δf * t / 1000
     (s, c) = sincos(θ)
 
-    # Assigning elements one-by-one like this is an order of magnitude faster
-    # than A .= [ ... ], which must allocate memory for the temporary matrix
-    A[1,1] = E2 * c
-    A[2,1] = -E2 * s
-    A[3,1] = 0
-    A[1,2] = E2 * s
-    A[2,2] = E2 * c
-    A[3,2] = 0
-    A[1,3] = 0
-    A[2,3] = 0
-    A[3,3] = E1
+    A.E1 = exp(-t / T1)
+    A.E2cosθ = E2 * c
+    A.E2sinθ = E2 * s
 
-    B[1] = 0
-    B[2] = 0
-    B[3] = M0 * (1 - E1)
+    B.x = 0
+    B.y = 0
+    B.z = M0 * (1 - A.E1)
 
     return nothing
 

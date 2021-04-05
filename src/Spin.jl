@@ -130,6 +130,8 @@ mutable struct BlochDynamicsMatrix{T<:Real} <: AbstractBlochMatrix{T}
     Δω::T
 end
 
+BlochDynamicsMatrix{T}() where {T} = BlochDynamicsMatrix(zero(T), zero(T), zero(T))
+BlochDynamicsMatrix() = BlochDynamicsMatrix{Float64}()
 BlochDynamicsMatrix(R1, R2, Δω) = BlochDynamicsMatrix(promote(R1, R2, Δω)...)
 
 mutable struct FreePrecessionMatrix{T<:Real} <: AbstractBlochMatrix{T}
@@ -138,22 +140,43 @@ mutable struct FreePrecessionMatrix{T<:Real} <: AbstractBlochMatrix{T}
     E2sinθ::T
 end
 
+FreePrecessionMatrix{T}() where {T} = FreePrecessionMatrix(zero(T), zero(T), zero(T))
+FreePrecessionMatrix() = FreePrecessionMatrix{Float64}()
 FreePrecessionMatrix(E1, E2cosθ, E2sinθ) = FreePrecessionMatrix(promote(E1, E2cosθ, E2sinθ)...)
-
-function FreePrecessionMatrix(A::BlochDynamicsMatrix, t)
-
-    E1 = exp(-t * A.R1)
-    E2 = exp(-t * A.R2)
-    (s, c) = sincos(A.Δω * t)
-    E2cosθ = E2 * c
-    E2sinθ = E2 * s
-    FreePrecessionMatrix(E1, E2cosθ, E2sinθ)
-
-end
 
 mutable struct ExchangeDynamicsMatrix{T<:Real} <: AbstractBlochMatrix{T}
     r::T
 end
+
+ExchangeDynamicsMatrix{T}() where {T} = ExchangeDynamicsMatrix(zero(T))
+ExchangeDynamicsMatrix() = ExchangeDynamicsMatrix{Float64}()
+
+mutable struct BlochMcConnellDynamicsMatrix{T<:Real,N,M} <: AbstractBlochMatrix{T}
+    A::NTuple{N,BlochDynamicsMatrix{T}}
+    E::NTuple{M,ExchangeDynamicsMatrix{T}}
+
+    function BlochMcConnellDynamicsMatrix(
+        A::NTuple{N,BlochDynamicsMatrix{T}},
+        E::NTuple{M,ExchangeDynamicsMatrix{S}}
+    ) where {M,N,S,T}
+
+        M == N * (N - 1) || error("exchange rates must be defined for each pair of compartments")
+        (A, E) = promote(A..., E...)
+        Tnew = eltype(A[1])
+        new{Tnew,N,M}(A, E)
+
+    end
+end
+
+function BlochMcConnellDynamicsMatrix{T}(N) where {T}
+
+    A = ntuple(i -> BlochDynamicsMatrix{T}(), N)
+    E = ntuple(i -> ExchangeDynamicsMatrix{T}(), N * (N - 1))
+    BlochMcConnellDynamicsMatrix(A, E)
+
+end
+
+BlochMcConnellDynamicsMatrix(N) = BlochMcConnellDynamicsMatrix{Float64}(N)
 
 #Base.:+(M1::Magnetization, M2::Magnetization) = Magnetization(M1.x + M2.x, M1.y + M2.y, M1.z + M2.z)
 function add!(M1::Magnetization, M2::Magnetization)
@@ -247,7 +270,7 @@ Base.show(io::IO, pos::Position) = print(io, "(", pos.x, ", ", pos.y, ", ", pos.
 Base.show(io::IO, ::MIME"text/plain", pos::Magnetization{T}) where {T} =
     print(io, "Position{$T}:\n x = ", pos.x, "\n y = ", pos.y, "\n z = ", pos.z)
 
-Base.convert(::Type{Position{T}}, p::Position) where {T} = Position(T.((p.x, p.y, p.z))...)
+Base.convert(::Type{Position{T}}, p::Position) where {T} = Position(T(p.x), T(p.y), T(p.z))
 
 """
     AbstractSpin
@@ -541,6 +564,10 @@ struct Gradient{T<:Real}
     end
 end
 
+Base.show(io::IO, grad::Gradient) = print(io, "[", grad.x, ", ", grad.y, ", ", grad.z, "]")
+Base.show(io::IO, ::MIME"text/plain", grad::Gradient{T}) where {T} =
+    print(io, "Gradient{$T}:\n Gx = ", grad.x, " G/cm\n Gy = ", grad.y, " G/cm\n Gz = ", grad.z, " G/cm")
+
 function gradient_frequency(grad::Gradient, pos::Position)
 
     return GAMBAR * (grad.x * pos.x + grad.y * pos.y + grad.z * pos.z) # Hz
@@ -576,11 +603,11 @@ spoiler_gradient(s::RFandGradientSpoiling) = spoiler_gradient(s.gradient)
 rfspoiling_increment(s::RFSpoiling) = s.Δθ
 rfspoiling_increment(s::RFandGradientSpoiling) = rfspoiling_increment(s.rf)
 
-struct BlochMcConnellWorkspace{T<:Real}
-    A::Matrix{T}
+struct BlochMcConnellWorkspace{T<:Real,N}
+    A::BlochMcConnellDynamicsMatrix{T,N}
 
     # N is number of compartments
-    BlochMcConnellWorkspace(T::Type{<:Real}, N) = new{T}(Array{T}(undef, 3N, 3N))
+    BlochMcConnellWorkspace(T::Type{<:Real}, N) = new{T,N}(BlochMcConnellDynamicsMatrix{T}(N))
 end
 
 BlochMcConnellWorkspace(::SpinMC{T,N}) where{T,N} = BlochMcConnellWorkspace(T, N)
