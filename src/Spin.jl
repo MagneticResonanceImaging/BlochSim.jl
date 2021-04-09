@@ -32,23 +32,17 @@ Base.show(io::IO, M::Magnetization) = print(io, "[", M.x, ", ", M.y, ", ", M.z, 
 Base.show(io::IO, ::MIME"text/plain", M::Magnetization{T}) where {T} =
     print(io, "Magnetization vector with eltype $T:\n Mx = ", M.x, "\n My = ", M.y, "\n Mz = ", M.z)
 
-Base.zero(::Magnetization{T}) where {T} = Magnetization(zero(T), zero(T), zero(T))
+Base.zero(::Union{Magnetization{T},Type{Magnetization{T}}}) where {T} = Magnetization(zero(T), zero(T), zero(T))
 
 Base.eltype(::Magnetization{T}) where {T} = T
 Base.convert(::Type{Magnetization{T}}, M::Magnetization) where {T} = Magnetization(T(M.x), T(M.y), T(M.z))
+Base.convert(::Type{Magnetization{T}}, M::Magnetization{T}) where {T} = M
 
-function Base.promote(M1::Magnetization{T1}, M2::Magnetization{T2}) where {T1,T2}
-
-    T = promote_type(T1, T2)
-    Ma = T1 === T ? M1 : convert(Magnetization{T}, M1)
-    Mb = T2 === T ? M2 : convert(Magnetization{T}, M2)
-    return (Ma, Mb)
-
-end
+Base.Vector(M::Magnetization) = [M.x, M.y, M.z]
 
 Base.:(==)(M1::Magnetization, M2::Magnetization) = M1.x == M2.x && M1.y == M2.y && M1.z == M2.z
 Base.isapprox(M1::Magnetization, M2::Magnetization; kwargs...) =
-    isapprox([M1.x, M1.y, M1.z], [M2.x, M2.y, M2.z]; kwargs...)
+    isapprox(Vector(M1), Vector(M2); kwargs...)
 
 struct MagnetizationMC{T<:Real,N}
     M::NTuple{N,Magnetization{T}}
@@ -57,8 +51,8 @@ struct MagnetizationMC{T<:Real,N}
 
         N = length(M)
         N > 1 || error(sprint(print, "MagnetizationMC expects 2 or more compartments, got ", N))
-        args = promote(M...)
-        T = eltype(args[1])
+        T = promote_type(eltype.(M)...)
+        args = convert.(Magnetization{T}, M)
         new{T,N}(args)
 
     end
@@ -96,7 +90,8 @@ function Base.show(io::IO, ::MIME"text/plain", M::MagnetizationMC{T,N}) where {T
 
 end
 
-Base.zero(::MagnetizationMC{T,N}) where {T,N} = MagnetizationMC((Magnetization(zero(T), zero(T), zero(T)) for i = 1:N)...)
+Base.zero(::Union{MagnetizationMC{T,N},Type{MagnetizationMC{T,N}}}) where {T,N} =
+    MagnetizationMC((zero(Magnetization{T}) for i = 1:N)...)
 
 Base.eltype(::MagnetizationMC{T,N}) where {T,N} = T
 Base.getindex(M::MagnetizationMC, i) = M.M[i]
@@ -110,6 +105,7 @@ Base.isapprox(M1::MagnetizationMC{T,N}, M2::MagnetizationMC{S,N}; kwargs...) whe
 
 abstract type AbstractBlochMatrix{T<:Real} end
 
+# TODO: Not sure if needed
 mutable struct BlochMatrix{T<:Real} <: AbstractBlochMatrix{T}
     a11::T
     a21::T
@@ -134,6 +130,10 @@ BlochDynamicsMatrix{T}() where {T} = BlochDynamicsMatrix(zero(T), zero(T), zero(
 BlochDynamicsMatrix() = BlochDynamicsMatrix{Float64}()
 BlochDynamicsMatrix(R1, R2, Δω) = BlochDynamicsMatrix(promote(R1, R2, Δω)...)
 
+Base.convert(::Type{BlochDynamicsMatrix{T}}, A::BlochDynamicsMatrix) where {T} =
+    BlochDynamicsMatrix(T(A.R1), T(A.R2), T(A.Δω))
+Base.convert(::Type{BlochDynamicsMatrix{T}}, A::BlochDynamicsMatrix{T}) where {T} = A
+
 mutable struct FreePrecessionMatrix{T<:Real} <: AbstractBlochMatrix{T}
     E1::T
     E2cosθ::T
@@ -144,12 +144,33 @@ FreePrecessionMatrix{T}() where {T} = FreePrecessionMatrix(zero(T), zero(T), zer
 FreePrecessionMatrix() = FreePrecessionMatrix{Float64}()
 FreePrecessionMatrix(E1, E2cosθ, E2sinθ) = FreePrecessionMatrix(promote(E1, E2cosθ, E2sinθ)...)
 
+function Base.Matrix(A::FreePrecessionMatrix{T}) where {T}
+
+    mat = Matrix{T}(undef, 3, 3)
+    mat[1,1] = A.E2cosθ
+    mat[2,1] = -A.E2sinθ
+    mat[3,1] = zero(T)
+    mat[1,2] = A.E2sinθ
+    mat[2,2] = A.E2cosθ
+    mat[3,2] = zero(T)
+    mat[1,3] = zero(T)
+    mat[2,3] = zero(T)
+    mat[3,3] = A.E1
+
+    return mat
+
+end
+
 mutable struct ExchangeDynamicsMatrix{T<:Real} <: AbstractBlochMatrix{T}
     r::T
 end
 
 ExchangeDynamicsMatrix{T}() where {T} = ExchangeDynamicsMatrix(zero(T))
 ExchangeDynamicsMatrix() = ExchangeDynamicsMatrix{Float64}()
+
+Base.convert(::Type{ExchangeDynamicsMatrix{T}}, A::ExchangeDynamicsMatrix) where {T} =
+    ExchangeDynamicsMatrix(T(A.r))
+Base.convert(::Type{ExchangeDynamicsMatrix{T}}, A::ExchangeDynamicsMatrix{T}) where {T} = A
 
 mutable struct BlochMcConnellDynamicsMatrix{T<:Real,N,M} <: AbstractBlochMatrix{T}
     A::NTuple{N,BlochDynamicsMatrix{T}}
@@ -161,8 +182,9 @@ mutable struct BlochMcConnellDynamicsMatrix{T<:Real,N,M} <: AbstractBlochMatrix{
     ) where {M,N,S,T}
 
         M == N * (N - 1) || error("exchange rates must be defined for each pair of compartments")
-        (A, E) = promote(A..., E...)
-        Tnew = eltype(A[1])
+        Tnew = promote_type(T, S)
+        A = convert.(BlochDynamicsMatrix{Tnew}, A)
+        E = convert.(ExchangeDynamicsMatrix{Tnew}, E)
         new{Tnew,N,M}(A, E)
 
     end
@@ -177,6 +199,45 @@ function BlochMcConnellDynamicsMatrix{T}(N) where {T}
 end
 
 BlochMcConnellDynamicsMatrix(N) = BlochMcConnellDynamicsMatrix{Float64}(N)
+
+function Base.Matrix(A::BlochMcConnellDynamicsMatrix{T,N,M}) where {T,N,M}
+
+    mat = Matrix{T}(undef, 3N, 3N)
+    index = 0
+    for j = 1:N, i = 1:N
+
+        if i == j
+
+            mat[3i-2,3j-2] = A.A[i].R2
+            mat[3i-1,3j-2] = -A.A[i].Δω
+            mat[3i  ,3j-2] = zero(T)
+            mat[3i-2,3j-1] = A.A[i].Δω
+            mat[3i-1,3j-1] = A.A[i].R2
+            mat[3i  ,3j-1] = zero(T)
+            mat[3i-2,3j]   = zero(T)
+            mat[3i-1,3j]   = zero(T)
+            mat[3i  ,3j]   = A.A[i].R1
+
+        else
+
+            index += 1
+            mat[3i-2,3j-2] = A.E[index].r
+            mat[3i-1,3j-2] = zero(T)
+            mat[3i  ,3j-2] = zero(T)
+            mat[3i-2,3j-1] = zero(T)
+            mat[3i-1,3j-1] = A.E[index].r
+            mat[3i  ,3j-1] = zero(T)
+            mat[3i-2,3j]   = zero(T)
+            mat[3i-1,3j]   = zero(T)
+            mat[3i  ,3j]   = A.E[index].r
+
+        end
+
+    end
+
+    return mat
+
+end
 
 #Base.:+(M1::Magnetization, M2::Magnetization) = Magnetization(M1.x + M2.x, M1.y + M2.y, M1.z + M2.z)
 function add!(M1::Magnetization, M2::Magnetization)
@@ -477,8 +538,8 @@ struct SpinMC{T<:DualFloat64,N} <: AbstractSpin
         Δf = promote(Δf...)
         τ = promote(τ...)
         itmp = 1
-        r = ntuple(N) do j
-            ntuple(N) do i
+        r = ntuple(N) do i
+            ntuple(N) do j
                 out = 1 / τ[min(itmp, N * (N - 1))]
                 if i == j
                     out = zero(out)
@@ -754,42 +815,29 @@ end
 # Exact matrix exponential
 function expm!(expAt, workspace, spin, t, gradfreq = 0)
 
-    for j = 1:spin.N, i = 1:spin.N
+    index = 0
+    for i = 1:spin.N, j = 1:spin.N
 
         if i == j
 
             r_out = sum(spin.r[i][k] for k = 1:spin.N) # 1/ms
-            r1 = -1 / spin.T1[i] - r_out # 1/ms
-            r2 = -1 / spin.T2[i] - r_out # 1/ms
-            Δω = 2π * (spin.Δf[i] + gradfreq) / 1000 # rad/ms
 
-            workspace.A[3i-2,3j-2] = r2
-            workspace.A[3i-1,3j-2] = -Δω
-            workspace.A[3i,  3j-2] = 0
-            workspace.A[3i-2,3j-1] = Δω
-            workspace.A[3i-1,3j-1] = r2
-            workspace.A[3i,  3j-1] = 0
-            workspace.A[3i-2,3j]   = 0
-            workspace.A[3i-1,3j]   = 0
-            workspace.A[3i,  3j]   = r1
+            A = workspace.A.A[i]
+            A.R1 = -1 / spin.T1[i] - r_out # 1/ms
+            A.R2 = -1 / spin.T2[i] - r_out # 1/ms
+            A.Δω = 2π * (spin.Δf[i] + gradfreq) / 1000 # rad/ms
 
         else
 
-            workspace.A[3i-2,3j-2] = spin.r[j][i]
-            workspace.A[3i-1,3j-2] = 0
-            workspace.A[3i,  3j-2] = 0
-            workspace.A[3i-2,3j-1] = 0
-            workspace.A[3i-1,3j-1] = spin.r[j][i]
-            workspace.A[3i,  3j-1] = 0
-            workspace.A[3i-2,3j]   = 0
-            workspace.A[3i-1,3j]   = 0
-            workspace.A[3i,  3j]   = spin.r[j][i]
+            index += 1
+            workspace.A.E[index].r = spin.r[i][j] # 1/ms
 
         end
 
     end
 
-    expAt .= expm(t * workspace.A)
+    # TODO: Make expm(t, A) to work directly with AbstractBlochMatrix
+    expAt .= expm(t * Matrix(workspace.A))
     return nothing
 
 end

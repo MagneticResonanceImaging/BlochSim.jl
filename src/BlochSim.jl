@@ -21,6 +21,8 @@ export RFandGradientSpoiling
 export spoiler_gradient
 export rfspoiling_increment
 
+export FreePrecessionMatrix
+
 export BlochMcConnellWorkspace
 export freeprecess
 export freeprecess!
