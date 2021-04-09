@@ -34,6 +34,15 @@ Base.show(io::IO, ::MIME"text/plain", M::Magnetization{T}) where {T} =
 
 Base.zero(::Union{Magnetization{T},Type{Magnetization{T}}}) where {T} = Magnetization(zero(T), zero(T), zero(T))
 
+function Base.copyto!(dst::Magnetization, src::Magnetization)
+
+    dst.x = src.x
+    dst.y = src.y
+    dst.z = src.z
+    return nothing
+
+end
+
 Base.eltype(::Magnetization{T}) where {T} = T
 Base.convert(::Type{Magnetization{T}}, M::Magnetization) where {T} = Magnetization(T(M.x), T(M.y), T(M.z))
 Base.convert(::Type{Magnetization{T}}, M::Magnetization{T}) where {T} = M
@@ -92,6 +101,9 @@ end
 
 Base.zero(::Union{MagnetizationMC{T,N},Type{MagnetizationMC{T,N}}}) where {T,N} =
     MagnetizationMC((zero(Magnetization{T}) for i = 1:N)...)
+
+Base.copyto!(dst::MagnetizationMC{T,N}, src::MagnetizationMC{S,N}) where {S,T,N} =
+    foreach(i -> copyto!(dst[i], src[i]), 1:N)
 
 Base.eltype(::MagnetizationMC{T,N}) where {T,N} = T
 Base.getindex(M::MagnetizationMC, i) = M.M[i]
@@ -328,7 +340,7 @@ struct Position{T<:Real}
 end
 
 Base.show(io::IO, pos::Position) = print(io, "(", pos.x, ", ", pos.y, ", ", pos.z, ")")
-Base.show(io::IO, ::MIME"text/plain", pos::Magnetization{T}) where {T} =
+Base.show(io::IO, ::MIME"text/plain", pos::Position{T}) where {T} =
     print(io, "Position{$T}:\n x = ", pos.x, "\n y = ", pos.y, "\n z = ", pos.z)
 
 Base.convert(::Type{Position{T}}, p::Position) where {T} = Position(T(p.x), T(p.y), T(p.z))
@@ -594,7 +606,7 @@ end
 Base.getproperty(spin::Spin, s::Symbol) = begin
     if s == :signal
         M = getfield(spin, :M)
-        return complex(M[1], M[2])
+        return complex(M.x, M.y)
     else
         return getfield(spin, s)
     end
@@ -603,7 +615,7 @@ end
 Base.getproperty(spin::SpinMC{T,N}, s::Symbol) where {T,N} = begin
     if s == :signal
         M = getfield(spin, :M)
-        return complex(sum(M[1:3:end]), sum(M[2:3:end]))
+        return complex(sum(M[i].x for i = 1:N), sum(M[i].y for i = 1:N))
     elseif s == :N
         return N
     else
@@ -851,7 +863,7 @@ function expm!(expAt, ::Nothing, spin, t, gradfreq = 0)
 
         if i == j
 
-            r_out = sum(spin.r[k,i] for k = 1:spin.N) # 1/ms
+            r_out = sum(spin.r[i][k] for k = 1:spin.N) # 1/ms
             E1 = exp(-t * (1 / spin.T1[i] + r_out))
             E2 = exp(-t * (1 / spin.T2[i] + r_out))
             θ = 2π * (spin.Δf[i] + gradfreq) * t / 1000 # rad
@@ -871,13 +883,13 @@ function expm!(expAt, ::Nothing, spin, t, gradfreq = 0)
 
         else
 
-            r_out_i = sum(spin.r[k,i] for k = 1:spin.N) # 1/ms
-            r_out_j = sum(spin.r[k,j] for k = 1:spin.N) # 1/ms
+            r_out_i = sum(spin.r[i][k] for k = 1:spin.N) # 1/ms
+            r_out_j = sum(spin.r[j][k] for k = 1:spin.N) # 1/ms
             R1i = 1 / spin.T1[i] + r_out_i # 1/ms
             R1j = 1 / spin.T1[j] + r_out_j # 1/ms
             R2i = 1 / spin.T2[i] + r_out_i # 1/ms
             R2j = 1 / spin.T2[j] + r_out_j # 1/ms
-            rji = spin.r[i,j]
+            rji = spin.r[j][i]
 
             R2ji = R2j - R2i
             R2ji² = R2ji^2
@@ -1202,9 +1214,9 @@ end
 
 function applydynamics!(spin::AbstractSpin, BtoM, A, B)
 
-    BtoM .= B
-    mul!(BtoM, A, spin.M, true, true) # BtoM .= A * spin.M + BtoM
-    spin.M .= BtoM
+    copyto!(BtoM, B)
+    muladd!(BtoM, A, spin.M) # BtoM .= A * spin.M + BtoM
+    copyto!(spin.M, BtoM)
     return nothing
 
 end
