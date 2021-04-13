@@ -159,36 +159,118 @@ for (f, df) in ((:frexp1, :dfrexp1), (:frexp2, :dfrexp2))
 end
 end
 
+struct MatrixExponentialWorkspace{T<:Real,N}
+    expA2::BlochMcConnellMatrix{T,N}
+    A2::BlochMcConnellMatrix{T,N}
+    A4::BlochMcConnellMatrix{T,N}
+    A6::BlochMcConnellMatrix{T,N}
+    A8::BlochMcConnellMatrix{T,N}
+    tmp1::BlochMcConnellMatrix{T,N}
+    tmp2::BlochMcConnellMatrix{T,N}
+    U::BlochMcConnellMatrix{T,N}
+    V::BlochMcConnellMatrix{T,N}
+    mat1::Matrix{T}
+    mat2::Matrix{T}
+end
+
 function expm!(
-    expAt::BlochMcConnellMatrix,
-    At::BlochMcConnellDynamicsMatrix
-)
+    expA::BlochMcConnellMatrix{T1,N},
+    A::BlochMcConnellDynamicsMatrix{T2,N,M},
+    workspace::MatrixExponentialWorkspace{T3,N}
+) where {T1,T2,T3,N,M}
 
     # Initialization
     m_vals, theta = expmchk()
 
-    normAt = absolutesum(At)
+    normA = absolutesum(A)
 
-    if normAt <= theta[end]
+    if normA <= theta[end]
         # no scaling and squaring is required
         for i = 1:length(m_vals)
-            if normAt <= theta[i]
-                PadeApproximantOfDegree!(expAt, At, m_vals[i])
+            if normA <= theta[i]
+                PadeApproximantOfDegree!(expA, A, workspace, m_vals[i])
                 break
             end
         end
     else
-        tmp = normAt / theta[end]
+        tmp = normA / theta[end]
         t = frexp1(tmp)
         s = frexp2(tmp)
-        s = s - (t == 0.5) # adjust s if normAt / theta[end] is a power of 2
-        mul!(At, 1 / 2^s)  # Scaling
-        PadeApproximantOfDegree!(expAt, At, m_vals[end])
+        s = s - (t == 0.5) # adjust s if normA / theta[end] is a power of 2
+        mul!(A, 1 / 2^s)  # Scaling
+        PadeApproximantOfDegree!(expA, A, workspace, m_vals[end])
 
         for i = 1:s
-            # TODO: Need tmp matrix
-            mul!(expAt, expAt)
+            mul!(workspace.expA2, expA, expA) # Squaring
+            copyto!(expA, workspace.expA2)
         end
     end
+
+end
+
+function PadeApproximantOfDegree!(
+    expA::BlochMcConnellMatrix{T1,N},
+    A::BlochMcConnellDynamicsMatrix{T2,N,M},
+    workspace::MatrixExponentialWorkspace{T3,N},
+    m::Integer
+) where {T1,T2,T3,N,M}
+
+    n = 3N
+    c = getPadeCoefficients(m)
+
+    mul!(workspace.A2, A, A)
+    mul!(workspace.A4, workspace.A2, workspace.A2)
+    mul!(workspace.A6, workspace.A2, workspace.A4)
+
+    # Evaluate Pade approximant
+    if m == 13
+        # For optimal evaluation need different formula for m >= 12
+        mul!(workspace.tmp1, workspace.A6, c[14])
+        muladd!(workspace.tmp1, workspace.A4, c[12])
+        muladd!(workspace.tmp1, workspace.A2, c[10])
+        mul!(workspace.tmp2, workspace.A6, workspace.tmp1)
+        muladd!(workspace.tmp2, workspace.A6, c[8])
+        muladd!(workspace.tmp2, workspace.A4, c[6])
+        muladd!(workspace.tmp2, workspace.A2, c[4])
+        muladd!(workspace.tmp2, I, c[2])
+        mul!(workspace.U, A, workspace.tmp2)
+
+        mul!(workspace.tmp1, workspace.A6, c[13])
+        muladd!(workspace.tmp1, workspace.A4, c[11])
+        muladd!(workspace.tmp1, workspace.A2, c[9])
+        mul!(workspace.V, workspace.A6, workspace.tmp1)
+        muladd!(workspace.V, workspace.A6, c[7])
+        muladd!(workspace.V, workspace.A4, c[5])
+        muladd!(workspace.V, workspace.A2, c[3])
+        muladd!(workspace.V, I, c[1])
+    else # m == 3, 5, 7, 9
+        fill!(workspace.tmp1, zero(T))
+        fill!(workspace.V, zero(T))
+
+        if m >= 9
+            mul!(workspace.A8, workspace.A2, workspace.A6)
+            muladd!(workspace.tmp1, workspace.A8, c[10])
+            muladd!(workspace.V, workspace.A8, c[9])
+        end
+        if m >= 7
+            muladd!(workspace.tmp1, workspace.A6, c[8])
+            muladd!(workspace.V, workspace.A6, c[7])
+        end
+        if m >= 5
+            muladd!(workspace.tmp1, workspace.A4, c[6])
+            muladd!(workspace.V, workspace.A4, c[5])
+        end
+        muladd!(workspace.tmp1, workspace.A2, c[4])
+        muladd!(workspace.V, workspace.A2, c[3])
+        muladd!(workspace.tmp1, I, c[2])
+        muladd!(workspace.V, I, c[1])
+        mul!(workspace.U, A, workspace.tmp1)
+    end
+
+    subtractcopyto!(workspace.mat1, workspace.V, workspace.U)
+    addcopyto!(workspace.mat2, workspace.V, workspace.U)
+    F = lu!(workspace.mat1)
+    ldiv!(F, workspace.mat2)
+    copyto!(expA, workspace.mat2)
 
 end
