@@ -117,7 +117,6 @@ Base.isapprox(M1::MagnetizationMC{T,N}, M2::MagnetizationMC{S,N}; kwargs...) whe
 
 abstract type AbstractBlochMatrix{T<:Real} end
 
-# TODO: Not sure if needed
 mutable struct BlochMatrix{T<:Real} <: AbstractBlochMatrix{T}
     a11::T
     a21::T
@@ -131,6 +130,9 @@ mutable struct BlochMatrix{T<:Real} <: AbstractBlochMatrix{T}
 end
 
 BlochMatrix(a...) = BlochMatrix(promote(a...)...)
+BlochMatrix{T}() where {T} = BlochMatrix(zero(T), zero(T), zero(T), zero(T),
+                                    zero(T), zero(T), zero(T), zero(T), zero(T))
+BlochMatrix() = BlochMatrix{Float64}()
 
 mutable struct BlochDynamicsMatrix{T<:Real} <: AbstractBlochMatrix{T}
     R1::T
@@ -251,6 +253,19 @@ function Base.Matrix(A::BlochMcConnellDynamicsMatrix{T,N,M}) where {T,N,M}
 
 end
 
+struct BlochMcConnellMatrix{T<:Real,N} <: AbstractBlochMatrix{T}
+    A::NTuple{N,NTuple{N,BlochMatrix{T}}}
+end
+
+function BlochMcConnellMatrix{T}(N) where {T}
+
+    A = ntuple(i -> ntuple(i -> BlochMatrix{T}(), N), N)
+    BlochMcConnellMatrix(A)
+
+end
+
+BlochMcConnellMatrix(N) = BlochMcConnellMatrix{Float64}(N)
+
 #Base.:+(M1::Magnetization, M2::Magnetization) = Magnetization(M1.x + M2.x, M1.y + M2.y, M1.z + M2.z)
 function add!(M1::Magnetization, M2::Magnetization)
 
@@ -325,6 +340,43 @@ function muladd!(M2::MagnetizationMC{T,N}, A::AbstractMatrix, M1::MagnetizationM
 
 end
 
+# A = A * t
+function LinearAlgebra.mul!(A::BlochDynamicsMatrix, t::Real)
+
+    A.R1 *= t
+    A.R2 *= t
+    A.Δω *= t
+    return nothing
+
+end
+
+# A = A * t
+function LinearAlgebra.mul!(E::ExchangeDynamicsMatrix, t::Real)
+
+    E.r *= t
+    return nothing
+
+end
+
+# A = A * t
+function LinearAlgebra.mul!(A::BlochMcConnellDynamicsMatrix, t::Real)
+
+    for A in A.A
+        mul!(A, t)
+    end
+    for E in A.E
+        mul!(E, t)
+    end
+
+end
+
+# Vector 1-norm
+function absolutesum(A::BlochMcConnellDynamicsMatrix)
+
+
+
+end
+
 struct Position{T<:Real}
     x::T
     y::T
@@ -341,7 +393,7 @@ end
 
 Base.show(io::IO, pos::Position) = print(io, "(", pos.x, ", ", pos.y, ", ", pos.z, ")")
 Base.show(io::IO, ::MIME"text/plain", pos::Position{T}) where {T} =
-    print(io, "Position{$T}:\n x = ", pos.x, "\n y = ", pos.y, "\n z = ", pos.z)
+    print(io, "Position{$T}:\n x = ", pos.x, " cm\n y = ", pos.y, " cm\n z = ", pos.z, " cm")
 
 Base.convert(::Type{Position{T}}, p::Position) where {T} = Position(T(p.x), T(p.y), T(p.z))
 
@@ -735,15 +787,28 @@ function freeprecess(spin::SpinMC{T,N}, t::Real) where {T,N}
 
 end
 
-function freeprecess!(A, B, spin::Spin, t, workspace::Nothing = nothing)
+function freeprecess!(
+    A::FreePrecessionMatrix,
+    B::Magnetization,
+    spin::Spin,
+    t::Real,
+    workspace::Nothing = nothing
+)
 
     freeprecess!(A, B, t, spin.M0, spin.T1, spin.T2, spin.Δf)
 
 end
 
-function freeprecess!(A, B, spin::SpinMC, t, workspace::Union{Nothing,<:BlochMcConnellWorkspace} = BlochMcConnellWorkspace(spin))
+function freeprecess!(
+    A::BlochMcConnellMatrix,
+    B::MagnetizationMC,
+    spin::SpinMC,
+    t::Real,
+    workspace::Union{Nothing,<:BlochMcConnellWorkspace} = BlochMcConnellWorkspace(spin)
+)
 
     expm!(A, workspace, spin, t)
+    # TODO: Don't explicitly create identity matrix
     mul!(B, Diagonal(ones(Bool, size(A, 1))) - A, spin.Meq)
     return nothing
 
@@ -808,14 +873,28 @@ function freeprecess(spin::SpinMC{T,N}, t::Real, grad::AbstractArray{<:Real,1}) 
 
 end
 
-function freeprecess!(A, B, spin::Spin, t, grad::Gradient, workspace::Nothing = nothing)
+function freeprecess!(
+    A::FreePrecessionMatrix,
+    B::Magnetization,
+    spin::Spin,
+    t::Real,
+    grad::Gradient,
+    workspace::Nothing = nothing
+)
 
     gradfreq = gradient_frequency(grad, spin.pos) # Hz
     freeprecess!(A, B, t, spin.M0, spin.T1, spin.T2, spin.Δf + gradfreq)
 
 end
 
-function freeprecess!(A, B, spin::SpinMC, t, grad::Gradient, workspace::Union{Nothing,<:BlochMcConnellWorkspace} = BlochMcConnellWorkspace(spin))
+function freeprecess!(
+    A::BlochMcConnellMatrix,
+    B::MagnetizationMC,
+    spin::SpinMC,
+    t::Real,
+    grad::Gradient,
+    workspace::Union{Nothing,<:BlochMcConnellWorkspace} = BlochMcConnellWorkspace(spin)
+)
 
     gradfreq = gradient_frequency(grad, spin.pos) # Hz
     expm!(A, workspace, spin, t, gradfreq)
@@ -848,8 +927,8 @@ function expm!(expAt, workspace, spin, t, gradfreq = 0)
 
     end
 
-    # TODO: Make expm(t, A) to work directly with AbstractBlochMatrix
-    expAt .= expm(t * Matrix(workspace.A))
+    mul!(workspace.A, t)
+    expm!(expAt, workspace.A)
     return nothing
 
 end
@@ -861,6 +940,8 @@ function expm!(expAt, ::Nothing, spin, t, gradfreq = 0)
 
     for j = 1:spin.N, i = 1:spin.N
 
+        A = expAt.A[i][j]
+
         if i == j
 
             r_out = sum(spin.r[i][k] for k = 1:spin.N) # 1/ms
@@ -871,15 +952,15 @@ function expm!(expAt, ::Nothing, spin, t, gradfreq = 0)
             E2c = E2 * c
             E2s = E2 * s
 
-            expAt[3i-2,3j-2] = E2c
-            expAt[3i-1,3j-2] = -E2s
-            expAt[3i,  3j-2] = 0
-            expAt[3i-2,3j-1] = E2s
-            expAt[3i-1,3j-1] = E2c
-            expAt[3i,  3j-1] = 0
-            expAt[3i-2,3j]   = 0
-            expAt[3i-1,3j]   = 0
-            expAt[3i,  3j]   = E1
+            A.a11 = E2c
+            A.a21 = -E2s
+            A.a31 = 0
+            A.a12 = E2s
+            A.a22 = E2c
+            A.a32 = 0
+            A.a13 = 0
+            A.a23 = 0
+            A.a33 = E1
 
         else
 
@@ -904,15 +985,15 @@ function expm!(expAt, ::Nothing, spin, t, gradfreq = 0)
             tmpc = rji * E2i * ((ci - E2ji * cj) / R2ji + Δωji * (E2ji * sj - si) / R2ji²) / (1 + Δωji² / R2ji²)
             tmps = rji * E2i * ((si - E2ji * sj) / R2ji + Δωji * (ci - E2ji * cj) / R2ji²) / (1 + Δωji² / R2ji²)
 
-            expAt[3i-2,3j-2] = tmpc
-            expAt[3i-1,3j-2] = -tmps
-            expAt[3i,  3j-2] = 0
-            expAt[3i-2,3j-1] = tmps
-            expAt[3i-1,3j-1] = tmpc
-            expAt[3i,  3j-1] = 0
-            expAt[3i-2,3j]   = 0
-            expAt[3i-1,3j]   = 0
-            expAt[3i,  3j]   = rji * E2i * (1 - E2ji) / R2ji
+            A.a11 = tmpc
+            A.a21 = -tmps
+            A.a31 = 0
+            A.a12 = tmps
+            A.a22 = tmpc
+            A.a32 = 0
+            A.a13 = 0
+            A.a23 = 0
+            A.a33 = rji * E2i * (1 - E2ji) / R2ji
 
         end
 

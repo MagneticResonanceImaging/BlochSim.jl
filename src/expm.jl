@@ -158,3 +158,37 @@ for (f, df) in ((:frexp1, :dfrexp1), (:frexp2, :dfrexp2))
     end
 end
 end
+
+function expm!(
+    expAt::BlochMcConnellMatrix,
+    At::BlochMcConnellDynamicsMatrix
+)
+
+    # Initialization
+    m_vals, theta = expmchk()
+
+    normAt = absolutesum(At)
+
+    if normAt <= theta[end]
+        # no scaling and squaring is required
+        for i = 1:length(m_vals)
+            if normAt <= theta[i]
+                PadeApproximantOfDegree!(expAt, At, m_vals[i])
+                break
+            end
+        end
+    else
+        tmp = normAt / theta[end]
+        t = frexp1(tmp)
+        s = frexp2(tmp)
+        s = s - (t == 0.5) # adjust s if normAt / theta[end] is a power of 2
+        mul!(At, 1 / 2^s)  # Scaling
+        PadeApproximantOfDegree!(expAt, At, m_vals[end])
+
+        for i = 1:s
+            # TODO: Need tmp matrix
+            mul!(expAt, expAt)
+        end
+    end
+
+end
