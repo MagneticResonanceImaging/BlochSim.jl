@@ -350,7 +350,6 @@ function LinearAlgebra.mul!(A::BlochDynamicsMatrix, t::Real)
 
 end
 
-# A = A * t
 function LinearAlgebra.mul!(E::ExchangeDynamicsMatrix, t::Real)
 
     E.r *= t
@@ -358,7 +357,6 @@ function LinearAlgebra.mul!(E::ExchangeDynamicsMatrix, t::Real)
 
 end
 
-# A = A * t
 function LinearAlgebra.mul!(A::BlochMcConnellDynamicsMatrix, t::Real)
 
     for A in A.A
@@ -370,10 +368,76 @@ function LinearAlgebra.mul!(A::BlochMcConnellDynamicsMatrix, t::Real)
 
 end
 
+# C = A * B
+function LinearAlgebra.mul!(C::BlochMatrix, A::BlochMatrix, B::BlochMatrix)
+
+    C.a11 = A.a11 * B.a11 + A.a12 * B.a21 + A.a13 * B.a31
+    C.a21 = A.a21 * B.a11 + A.a22 * B.a21 + A.a23 * B.a31
+    C.a31 = A.a31 * B.a11 + A.a32 * B.a21 + A.a33 * B.a31
+    C.a12 = A.a11 * B.a12 + A.a12 * B.a22 + A.a13 * B.a32
+    C.a22 = A.a21 * B.a12 + A.a22 * B.a22 + A.a23 * B.a32
+    C.a32 = A.a31 * B.a12 + A.a32 * B.a22 + A.a33 * B.a32
+    C.a13 = A.a11 * B.a13 + A.a12 * B.a23 + A.a13 * B.a33
+    C.a23 = A.a21 * B.a13 + A.a22 * B.a23 + A.a23 * B.a33
+    C.a33 = A.a31 * B.a13 + A.a32 * B.a23 + A.a33 * B.a33
+    return nothing
+
+end
+
+# C = A * B + C
+function muladd!(C::BlochMatrix, A::BlochMatrix, B::BlochMatrix)
+
+    C.a11 += A.a11 * B.a11 + A.a12 * B.a21 + A.a13 * B.a31
+    C.a21 += A.a21 * B.a11 + A.a22 * B.a21 + A.a23 * B.a31
+    C.a31 += A.a31 * B.a11 + A.a32 * B.a21 + A.a33 * B.a31
+    C.a12 += A.a11 * B.a12 + A.a12 * B.a22 + A.a13 * B.a32
+    C.a22 += A.a21 * B.a12 + A.a22 * B.a22 + A.a23 * B.a32
+    C.a32 += A.a31 * B.a12 + A.a32 * B.a22 + A.a33 * B.a32
+    C.a13 += A.a11 * B.a13 + A.a12 * B.a23 + A.a13 * B.a33
+    C.a23 += A.a21 * B.a13 + A.a22 * B.a23 + A.a23 * B.a33
+    C.a33 += A.a31 * B.a13 + A.a32 * B.a23 + A.a33 * B.a33
+    return nothing
+
+end
+
+function LinearAlgebra.mul!(
+    C::BlochMcConnellMatrix{T1,N},
+    A::BlochMcConnellMatrix{T2,N},
+    B::BlochMcConnellMatrix{T3,N}
+) where {T1,T2,T3,N}
+
+    for j = 1:N, i = 1:N
+        mul!(C.A[i][j], A.A[i][1], B.A[1][j])
+        for k = 2:N
+            muladd!(C.A[i][j], A.A[i][k], B.A[k][j])
+        end
+    end
+
+end
+
 # Vector 1-norm
-function absolutesum(A::BlochMcConnellDynamicsMatrix)
+function absolutesum(A::BlochDynamicsMatrix)
 
+    return 2 * abs(A.E2cosθ) + 2 * abs(A.E2sinθ) + abs(A.E1)
 
+end
+
+function absolutesum(E::ExchangeDynamicsMatrix)
+
+    return 3 * abs(E.r)
+
+end
+
+function absolutesum(A::BlochMcConnellDynamicsMatrix{T,N,M}) where {T,N,M}
+
+    result = absolutesum(A.A[1])
+    for i = 2:N
+        result += absolutesum(A.A[i])
+    end
+    for E in A.E
+        result += absolutesum(E)
+    end
+    return result
 
 end
 
