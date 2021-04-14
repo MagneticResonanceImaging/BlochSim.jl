@@ -96,5 +96,17 @@ Base.convert(::Type{MagnetizationMC{T,N}}, M::MagnetizationMC{S,N}) where {S,T,N
 # This next definition of convert prevents StackOverflowErrors
 Base.convert(::Type{MagnetizationMC{T,N}}, M::MagnetizationMC{T,N}) where {T,N} = M
 
+function Base.Vector(M::MagnetizationMC{T,N}) where {T,N}
+
+    v = Vector{T}(undef, 3N)
+    for i = 1:N
+        v[3i-2] = M[i].x
+        v[3i-1] = M[i].y
+        v[3i]   = M[i].z
+    end
+    return v
+
+end
+
 Base.:(==)(M1::MagnetizationMC{T,N}, M2::MagnetizationMC{S,N}) where {S,T,N} = all(M1[i] == M2[i] for i = 1:N)
 Base.isapprox(M1::MagnetizationMC{T,N}, M2::MagnetizationMC{S,N}; kwargs...) where {S,T,N} = all(isapprox(M1[i], M2[i]; kwargs...) for i = 1:N)

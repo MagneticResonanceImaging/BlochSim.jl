@@ -1,13 +1,4 @@
-function compare_to_exp1()
-
-    A = randn(200, 200)
-    correct = exp(A)
-    result = BlochSim.expm(A)
-    return result ≈ correct
-
-end
-
-function compare_to_exp2()
+function PadeApproximantOfDegree1(m)
 
     T11 = 1
     T12 = 0.4
@@ -15,14 +6,50 @@ function compare_to_exp2()
     T22 = 0.02
     τ12 = 0.05
     τ21 = 0.1
-    B1 = [-1/T21-1/τ12 2π 0.1; -2π -1/T21-1/τ12 0.1; -0.1 -0.1 -1/T11-1/τ12]
-    B2 = [-1/T22-1/τ21 2π 0.1; -2π -1/T22-1/τ21 0.1; -0.1 -0.1 -1/T12-1/τ21]
-    E12 = [1/τ12 0 0; 0 1/τ12 0; 0 0 1/τ12]
-    E21 = [1/τ21 0 0; 0 1/τ21 0; 0 0 1/τ21]
-    A = [B1 E21; E12 B2]
-    correct = exp(A)
-    result = BlochSim.expm(A)
-    return result ≈ correct
+
+    expA = BlochMcConnellMatrix(2)
+    A = BlochSim.BlochMcConnellDynamicsMatrix(2)
+    A.A[1].R2 = -1 / T21 - 1 / τ12
+    A.A[1].Δω = 2π
+    A.A[1].R1 = -1 / T11 - 1 / τ12
+    A.A[2].R2 = -1 / T22 - 1 / τ21
+    A.A[2].Δω = 2π
+    A.A[2].R1 = -1 / T12 - 1 / τ21
+    A.E[1].r = 1 / τ12
+    A.E[2].r = 1 / τ21
+    workspace = BlochSim.MatrixExponentialWorkspace{Float64}(2)
+
+    correct = BlochSim.PadeApproximantOfDegree(Matrix(A), m)
+    BlochSim.PadeApproximantOfDegree!(expA, A, workspace, m)
+
+    return Matrix(expA) ≈ correct
+
+end
+
+function expm1()
+
+    T11 = 1
+    T12 = 0.4
+    T21 = 0.08
+    T22 = 0.02
+    τ12 = 0.05
+    τ21 = 0.1
+
+    expA = BlochMcConnellMatrix(2)
+    A = BlochSim.BlochMcConnellDynamicsMatrix(2)
+    A.A[1].R2 = -1 / T21 - 1 / τ12
+    A.A[1].Δω = 2π
+    A.A[1].R1 = -1 / T11 - 1 / τ12
+    A.A[2].R2 = -1 / T22 - 1 / τ21
+    A.A[2].Δω = 2π
+    A.A[2].R1 = -1 / T12 - 1 / τ21
+    A.E[1].r = 1 / τ12
+    A.E[2].r = 1 / τ21
+
+    correct = exp(Matrix(A))
+    BlochSim.expm!(expA, A)
+
+    return Matrix(expA) ≈ correct
 
 end
 
@@ -48,10 +75,11 @@ end
 
 @testset "Matrix Exponential" begin
 
-    @testset "Compare to exp" begin
+    @testset "expm Accuracy" begin
 
-        @test compare_to_exp1()
-        @test compare_to_exp2()
+        @test PadeApproximantOfDegree1(9)
+        @test PadeApproximantOfDegree1(13)
+        @test expm1()
 
     end
 

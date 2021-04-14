@@ -189,7 +189,7 @@ MatrixExponentialWorkspace{T}(N) where {T} =
 function expm!(
     expA::BlochMcConnellMatrix{T1,N},
     A::BlochMcConnellDynamicsMatrix{T2,N,M},
-    workspace::MatrixExponentialWorkspace{T3,N}
+    workspace::MatrixExponentialWorkspace{T3,N} = MatrixExponentialWorkspace{T1}(N)
 ) where {T1,T2,T3,N,M}
 
     # Initialization
@@ -257,8 +257,8 @@ function PadeApproximantOfDegree!(
         muladd!(workspace.V, workspace.A2, c[3])
         muladd!(workspace.V, I, c[1])
     else # m == 3, 5, 7, 9
-        fill!(workspace.tmp1, zero(T))
-        fill!(workspace.V, zero(T))
+        fill!(workspace.tmp1, zero(T3))
+        fill!(workspace.V, zero(T3))
 
         if m >= 9
             mul!(workspace.A8, workspace.A2, workspace.A6)

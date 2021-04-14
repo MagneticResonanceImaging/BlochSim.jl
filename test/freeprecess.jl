@@ -18,7 +18,7 @@ function freeprecess2()
     A2 = BlochMcConnellMatrix(3)
     B2 = zero(B1)
     freeprecess!(A2, B2, spin, t)
-    return A1 == Matrix(A2) && B1 == B2
+    return A1 ≈ Matrix(A2) && B1 ≈ B2
 
 end
 
@@ -67,7 +67,7 @@ function freeprecess5()
     A2 = BlochMcConnellMatrix(2)
     B2 = zero(B1)
     freeprecess!(A2, B2, spin, t, grad)
-    return A1 ≈ Matrix(A2) && B1 == B2
+    return A1 ≈ Matrix(A2) && B1 ≈ B2
 
 end
 

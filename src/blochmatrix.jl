@@ -32,6 +32,23 @@ function Base.fill!(A::BlochMatrix, v)
 
 end
 
+function Base.Matrix(A::BlochMatrix{T}) where {T}
+
+    mat = Matrix{T}(undef, 3, 3)
+    mat[1,1] = A.a11
+    mat[2,1] = A.a21
+    mat[3,1] = A.a31
+    mat[1,2] = A.a12
+    mat[2,2] = A.a22
+    mat[3,2] = A.a32
+    mat[1,3] = A.a13
+    mat[2,3] = A.a23
+    mat[3,3] = A.a33
+
+    return mat
+
+end
+
 mutable struct BlochDynamicsMatrix{T<:Real} <: AbstractBlochMatrix{T}
     R1::T
     R2::T
@@ -45,6 +62,23 @@ BlochDynamicsMatrix(R1, R2, Δω) = BlochDynamicsMatrix(promote(R1, R2, Δω)...
 Base.convert(::Type{BlochDynamicsMatrix{T}}, A::BlochDynamicsMatrix) where {T} =
     BlochDynamicsMatrix(T(A.R1), T(A.R2), T(A.Δω))
 Base.convert(::Type{BlochDynamicsMatrix{T}}, A::BlochDynamicsMatrix{T}) where {T} = A
+
+function Base.Matrix(A::BlochDynamicsMatrix{T}) where {T}
+
+    mat = Matrix{T}(undef, 3, 3)
+    mat[1,1] = A.R2
+    mat[2,1] = -A.Δω
+    mat[3,1] = zero(T)
+    mat[1,2] = A.Δω
+    mat[2,2] = A.R2
+    mat[3,2] = zero(T)
+    mat[1,3] = zero(T)
+    mat[2,3] = zero(T)
+    mat[3,3] = A.R1
+
+    return mat
+
+end
 
 mutable struct FreePrecessionMatrix{T<:Real} <: AbstractBlochMatrix{T}
     E1::T
@@ -83,6 +117,23 @@ ExchangeDynamicsMatrix() = ExchangeDynamicsMatrix{Float64}()
 Base.convert(::Type{ExchangeDynamicsMatrix{T}}, A::ExchangeDynamicsMatrix) where {T} =
     ExchangeDynamicsMatrix(T(A.r))
 Base.convert(::Type{ExchangeDynamicsMatrix{T}}, A::ExchangeDynamicsMatrix{T}) where {T} = A
+
+function Base.Matrix(A::ExchangeDynamicsMatrix{T}) where {T}
+
+    mat = Matrix{T}(undef, 3, 3)
+    mat[1,1] = A.r
+    mat[2,1] = zero(T)
+    mat[3,1] = zero(T)
+    mat[1,2] = zero(T)
+    mat[2,2] = A.r
+    mat[3,2] = zero(T)
+    mat[1,3] = zero(T)
+    mat[2,3] = zero(T)
+    mat[3,3] = A.r
+
+    return mat
+
+end
 
 abstract type AbstractBlochMcConnellMatrix{T<:Real,N} end
 
@@ -538,7 +589,7 @@ function LinearAlgebra.mul!(
     for j = 1:N, i = 1:N
         mul!(getblock(C, i, j), getblock(A, i, 1), getblock(B, 1, j))
         for k = 2:N
-            mul!(getblock(C, i, j), getblock(A, i, k), getblock(B, k, j))
+            muladd!(getblock(C, i, j), getblock(A, i, k), getblock(B, k, j))
         end
     end
 
@@ -557,6 +608,73 @@ function muladd!(C::BlochMatrix, A::BlochMatrix, B::BlochMatrix)
     C.a23 += A.a21 * B.a13 + A.a22 * B.a23 + A.a23 * B.a33
     C.a33 += A.a31 * B.a13 + A.a32 * B.a23 + A.a33 * B.a33
     return nothing
+
+end
+
+function muladd!(C::BlochMatrix, A::BlochDynamicsMatrix, B::BlochMatrix)
+
+    C.a11 += A.R2 * B.a11 + A.Δω * B.a21
+    C.a21 += A.R2 * B.a21 - A.Δω * B.a11
+    C.a31 += A.R1 * B.a31
+    C.a12 += A.R2 * B.a12 + A.Δω * B.a22
+    C.a22 += A.R2 * B.a22 - A.Δω * B.a12
+    C.a32 += A.R1 * B.a32
+    C.a13 += A.R2 * B.a13 + A.Δω * B.a23
+    C.a23 += A.R2 * B.a23 - A.Δω * B.a13
+    C.a33 += A.R1 * B.a33
+    return nothing
+
+end
+
+function muladd!(C::BlochMatrix, A::ExchangeDynamicsMatrix, B::BlochMatrix)
+
+    C.a11 += A.r * B.a11
+    C.a21 += A.r * B.a21
+    C.a31 += A.r * B.a31
+    C.a12 += A.r * B.a12
+    C.a22 += A.r * B.a22
+    C.a32 += A.r * B.a32
+    C.a13 += A.r * B.a13
+    C.a23 += A.r * B.a23
+    C.a33 += A.r * B.a33
+    return nothing
+
+end
+
+function muladd!(C::BlochMatrix, A::BlochDynamicsMatrix, B::BlochDynamicsMatrix)
+
+    C.a11 += A.R2 * B.R2 - A.Δω * B.Δω
+    C.a21 -= A.Δω * B.R2 + A.R2 * B.Δω
+    C.a12 += A.R2 * B.Δω + A.Δω * B.R2
+    C.a22 += A.R2 * B.R2 - A.Δω * B.Δω
+    C.a33 += A.R1 * B.R1
+    return nothing
+
+end
+
+function muladd!(C::BlochMatrix, A::ExchangeDynamicsMatrix, B::ExchangeDynamicsMatrix)
+
+    C.a11 += A.r * B.r
+    C.a22 += A.r * B.r
+    C.a33 += A.r * B.r
+    return nothing
+
+end
+
+function muladd!(C::BlochMatrix, A::BlochDynamicsMatrix, B::ExchangeDynamicsMatrix)
+
+    C.a11 += A.R2 * B.r
+    C.a21 -= A.Δω * B.r
+    C.a12 += A.Δω * B.r
+    C.a22 += A.R2 * B.r
+    C.a33 += A.R1 * B.r
+    return nothing
+
+end
+
+function muladd!(C::BlochMatrix, A::ExchangeDynamicsMatrix, B::BlochDynamicsMatrix)
+
+    muladd!(C, B, A)
 
 end
 
@@ -598,6 +716,21 @@ function addcopyto!(C::AbstractMatrix, A::BlochMcConnellMatrix{T,N}, B::BlochMcC
 
 end
 
+# M2 = -A * M1
+function subtractmul!(
+    M2::Magnetization,
+    ::Nothing,
+    A::BlochMatrix,
+    M1::Magnetization
+)
+
+    M2.x = -A.a11 * M1.x - A.a12 * M1.y - A.a13 * M1.z
+    M2.y = -A.a21 * M1.x - A.a22 * M1.y - A.a23 * M1.z
+    M2.z = -A.a31 * M1.x - A.a32 * M1.y - A.a33 * M1.z
+    return nothing
+
+end
+
 # M2 = (I - A) * M1
 function subtractmul!(
     M2::Magnetization,
@@ -625,16 +758,31 @@ function subtractmul!(
         if i == 1
             subtractmul!(M, I, getblock(A, i, 1), M1[1])
         else
-            mul!(M, getblock(A, i, 1), M1[1])
+            subtractmul!(M, nothing, getblock(A, i, 1), M1[1])
         end
         for j = 2:N
             if j == i
                 subtractmuladd!(M, I, getblock(A, i, j), M1[j])
             else
-                muladd!(M, getblock(A, i, j), M1[j])
+                subtractmuladd!(M, nothing, getblock(A, i, j), M1[j])
             end
         end
     end
+
+end
+
+# M2 = -A * M1 + M2
+function subtractmuladd!(
+    M2::Magnetization,
+    ::Nothing,
+    A::BlochMatrix,
+    M1::Magnetization
+)
+
+    M2.x -= A.a11 * M1.x + A.a12 * M1.y + A.a13 * M1.z
+    M2.y -= A.a21 * M1.x + A.a22 * M1.y + A.a23 * M1.z
+    M2.z -= A.a31 * M1.x + A.a32 * M1.y + A.a33 * M1.z
+    return nothing
 
 end
 
