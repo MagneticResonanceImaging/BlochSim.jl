@@ -81,7 +81,6 @@ function freeprecess!(
 )
 
     expm!(A, workspace, spin, t)
-    # TODO: B = (I - A) * Meq
     subtractmul!(B, I, A, spin.Meq)
     return nothing
 

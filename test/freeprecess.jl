@@ -18,7 +18,7 @@ function freeprecess2()
     A2 = BlochMcConnellMatrix(3)
     B2 = zero(B1)
     freeprecess!(A2, B2, spin, t)
-    return A1 == A2 && B1 == B2
+    return A1 == Matrix(A2) && B1 == B2
 
 end
 
@@ -41,7 +41,7 @@ function freeprecess3()
     freeprecess!(Aa, Ba, spina, t)
     freeprecess!(Ab, Bb, spinb, t)
     freeprecess!(Amc, Bmc, spinmc, t)
-    return Amc ≈ [Matrix(Aa) zeros(3, 3); zeros(3, 3) Matrix(Ab)] && Bmc ≈ MagnetizationMC(Ba, Bb)
+    return Matrix(Amc) ≈ [Matrix(Aa) zeros(3, 3); zeros(3, 3) Matrix(Ab)] && Bmc ≈ MagnetizationMC(Ba, Bb)
 
 end
 
@@ -67,7 +67,7 @@ function freeprecess5()
     A2 = BlochMcConnellMatrix(2)
     B2 = zero(B1)
     freeprecess!(A2, B2, spin, t, grad)
-    return A1 ≈ A2 && B1 == B2
+    return A1 ≈ Matrix(A2) && B1 == B2
 
 end
 
