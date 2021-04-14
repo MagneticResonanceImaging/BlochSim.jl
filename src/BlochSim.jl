@@ -22,6 +22,7 @@ export spoiler_gradient
 export rfspoiling_increment
 
 export FreePrecessionMatrix
+export BlochMcConnellMatrix
 
 export BlochMcConnellWorkspace
 export freeprecess
@@ -35,6 +36,8 @@ export mese
 export mese!
 export spgr!
 
+include("magnetization.jl")
+include("blochmatrix.jl")
 include("spin.jl")
 include("spoiling.jl")
 include("expm.jl")

@@ -173,6 +173,19 @@ struct MatrixExponentialWorkspace{T<:Real,N}
     mat2::Matrix{T}
 end
 
+MatrixExponentialWorkspace{T}(N) where {T} =
+    MatrixExponentialWorkspace(BlochMcConnellMatrix{T}(N),
+                               BlochMcConnellMatrix{T}(N),
+                               BlochMcConnellMatrix{T}(N),
+                               BlochMcConnellMatrix{T}(N),
+                               BlochMcConnellMatrix{T}(N),
+                               BlochMcConnellMatrix{T}(N),
+                               BlochMcConnellMatrix{T}(N),
+                               BlochMcConnellMatrix{T}(N),
+                               BlochMcConnellMatrix{T}(N),
+                               Matrix{T}(undef, 3N, 3N),
+                               Matrix{T}(undef, 3N, 3N))
+
 function expm!(
     expA::BlochMcConnellMatrix{T1,N},
     A::BlochMcConnellDynamicsMatrix{T2,N,M},

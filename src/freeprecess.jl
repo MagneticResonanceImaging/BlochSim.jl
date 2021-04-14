@@ -1,8 +1,11 @@
 struct BlochMcConnellWorkspace{T<:Real,N}
     A::BlochMcConnellDynamicsMatrix{T,N}
+    expmworkspace::MatrixExponentialWorkspace{T,N}
 
     # N is number of compartments
-    BlochMcConnellWorkspace(T::Type{<:Real}, N) = new{T,N}(BlochMcConnellDynamicsMatrix{T}(N))
+    BlochMcConnellWorkspace(T::Type{<:Real}, N) =
+        new{T,N}(BlochMcConnellDynamicsMatrix{T}(N),
+                 MatrixExponentialWorkspace{T}(N))
 end
 
 BlochMcConnellWorkspace(::SpinMC{T,N}) where{T,N} = BlochMcConnellWorkspace(T, N)
@@ -78,8 +81,8 @@ function freeprecess!(
 )
 
     expm!(A, workspace, spin, t)
-    # TODO: Don't explicitly create identity matrix
-    mul!(B, Diagonal(ones(Bool, size(A, 1))) - A, spin.Meq)
+    # TODO: B = (I - A) * Meq
+    subtractmul!(B, I, A, spin.Meq)
     return nothing
 
 end
@@ -168,7 +171,7 @@ function freeprecess!(
 
     gradfreq = gradient_frequency(grad, spin.pos) # Hz
     expm!(A, workspace, spin, t, gradfreq)
-    mul!(B, Diagonal(ones(Bool, size(A, 1))) - A, spin.Meq)
+    subtractmul!(B, I, A, spin.Meq)
     return nothing
 
 end
@@ -198,7 +201,7 @@ function expm!(expAt, workspace, spin, t, gradfreq = 0)
     end
 
     mul!(workspace.A, t)
-    expm!(expAt, workspace.A)
+    expm!(expAt, workspace.A, workspace.expmworkspace)
     return nothing
 
 end
