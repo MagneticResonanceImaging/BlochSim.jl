@@ -35,9 +35,11 @@ export mese
 export mese!
 export spgr!
 
-include("helpers.jl")
+include("spin.jl")
+include("spoiling.jl")
 include("expm.jl")
-include("Spin.jl")
+include("helpers.jl")
+include("freeprecess.jl")
 include("sequences.jl")
 
 end
