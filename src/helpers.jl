@@ -147,6 +147,25 @@ function rotatetheta(θ::Real, α::Real)
 
 end
 
+function rotatetheta!(A, θ, α)
+
+    (sinθ, cosθ) = sincos(θ)
+    (sinα, cosα) = sincos(α)
+
+    A.a11 = sinθ^2 + cosα * cosθ^2
+    A.a21 = sinθ * cosθ - cosα * sinθ * cosθ
+    A.a31 = -sinα * cosθ
+    A.a12 = sinθ * cosθ - cosα * sinθ * cosθ
+    A.a22 = cosθ^2 + cosα * sinθ^2
+    A.a32 = sinα * sinθ
+    A.a13 = sinα * cosθ
+    A.a23 = -sinα * sinθ
+    A.a33 = cosα
+
+    return nothing
+
+end
+
 """
     freeprecess(t, M0, T1, T2, Δf)
 

@@ -50,3 +50,50 @@ spoiler_gradient(s::GradientSpoiling) = s.gradient
 spoiler_gradient(s::RFandGradientSpoiling) = spoiler_gradient(s.gradient)
 rfspoiling_increment(s::RFSpoiling) = s.Δθ
 rfspoiling_increment(s::RFandGradientSpoiling) = rfspoiling_increment(s.rf)
+
+"""
+    spoil(spin)
+
+Simulate ideal spoiling (i.e., setting the transverse component of the spin's
+magnetization to 0).
+
+# Arguments
+- `spin::AbstractSpin`: Spin to spoil
+
+# Return
+- `S::Matrix`: Matrix that describes ideal spoiling
+
+# Examples
+```jldoctest
+julia> spin = Spin([1, 0.4, 5], 1, 1000, 100, 0)
+Spin([1.0, 0.4, 5.0], 1.0, 1000.0, 100.0, 0.0, [0.0, 0.0, 0.0])
+
+julia> S = spoil(spin); S * spin.M
+3-element Array{Float64,1}:
+ 0.0
+ 0.0
+ 5.0
+```
+"""
+spoil(spin::Spin) = [0 0 0; 0 0 0; 0 0 1]
+spoil(spin::SpinMC) = kron(Diagonal(ones(Bool, spin.N)), [0 0 0; 0 0 0; 0 0 1])
+
+"""
+    spoil!(spin)
+
+Apply ideal spoiling to the given spin.
+"""
+function spoil!(spin::Spin)
+
+    spin.M[1:2] .= 0
+    return nothing
+
+end
+
+function spoil!(spin::SpinMC)
+
+    spin.M[1:3:end] .= 0
+    spin.M[2:3:end] .= 0
+    return nothing
+
+end
