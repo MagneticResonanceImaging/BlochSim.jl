@@ -38,6 +38,14 @@ julia> (A, B) = freeprecess(spin, 100); A * spin.M + B
 freeprecess(spin::Spin, t::Real) =
     freeprecess(t, spin.M0, spin.T1, spin.T2, spin.Δf)
 
+function freeprecess_old(spin::SpinMC_old, t::Real)
+
+    E = expm(t * spin.A)
+    B = (Diagonal(ones(Bool, size(E, 1))) - E) * spin.Meq
+    return (E, B)
+
+end
+
 function freeprecess(spin::SpinMC{T,N}, t::Real) where {T,N}
 
     A = Array{T}(undef, 3N, 3N)

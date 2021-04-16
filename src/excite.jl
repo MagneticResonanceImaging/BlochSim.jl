@@ -84,14 +84,14 @@ function ExcitationWorkspace(
     ::Nothing
 ) where {T,N}
 
-    ExcitationWorkspaceMC(BlochMcConnellMatrix{T}(N),
-                          MagnetizationMC{T}(N),
-                          ExcitationMatrix{T}(),
-                          BlochMcConnellMatrix{T}(N),
-                          BlochMcConnellMatrix{T}(N),
-                          MagnetizationMC{T}(N),
-                          MagnetizationMC{T}(N),
-                          nothing)
+    ExcitationWorkspaceMCApproximate(BlochMcConnellMatrix{T}(N),
+                                     MagnetizationMC{T}(N),
+                                     ExcitationMatrix{T}(),
+                                     BlochMcConnellMatrix{T}(N),
+                                     BlochMcConnellMatrix{T}(N),
+                                     MagnetizationMC{T}(N),
+                                     MagnetizationMC{T}(N),
+                                     nothing)
 
 end
 
