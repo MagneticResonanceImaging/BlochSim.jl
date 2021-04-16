@@ -28,6 +28,8 @@ Base.show(io::IO, ::MIME"text/plain", pos::Position{T}) where {T} =
 
 Base.convert(::Type{Position{T}}, p::Position) where {T} = Position(T(p.x), T(p.y), T(p.z))
 
+Base.:(==)(p1::Position, p2::Position) = p1.x == p2.x && p1.y == p2.y && p1.z == p2.z
+
 """
     AbstractSpin
 
