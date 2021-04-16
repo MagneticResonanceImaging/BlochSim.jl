@@ -296,6 +296,8 @@ Base.getproperty(spin::Spin, s::Symbol) = begin
     if s == :signal
         M = getfield(spin, :M)
         return complex(M.x, M.y)
+    elseif s == :N
+        return 1
     else
         return getfield(spin, s)
     end

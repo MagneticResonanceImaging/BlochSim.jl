@@ -1,10 +1,3 @@
-struct ExcitationMatrix{T<:Real}
-    A::BlochMatrix{T}
-end
-
-ExcitationMatrix{T}() where {T} = ExcitationMatrix(BlochMatrix{T}())
-ExcitationMatrix() = ExcitationMatrix(BlochMatrix())
-
 abstract type AbstractRF end
 
 struct InstantaneousRF{T<:Real} <: AbstractRF
@@ -133,7 +126,7 @@ julia> (A, _) = excitation(spin, π/4, π/2); A * spin.M
 function excitation(spin::Spin, θ::Real, α::Real)
 
     A = rotatetheta(θ, α)
-    B = zeros(length(spin.M))
+    B = zeros(3)
     return (A, B)
 
 end
@@ -141,12 +134,12 @@ end
 function excitation(spin::SpinMC, θ::Real, α::Real)
 
     A = kron(Diagonal(ones(Bool, spin.N)), rotatetheta(θ, α))
-    B = zeros(length(spin.M))
+    B = zeros(3spin.N)
     return (A, B)
 
 end
 
-function excite!(A::ExcitationMatrix, spin::Spin, rf::InstantaneousRF)
+function excite!(A::ExcitationMatrix, spin::AbstractSpin, rf::InstantaneousRF)
 
     rotatetheta!(A.A, rf.θ, rf.α)
 
@@ -177,10 +170,11 @@ function excitation(spin::AbstractSpin, rf::AbstractArray{<:Number,1}, Δθ::Rea
     T = length(rf)
     α = GAMMA * abs.(rf) * dt/1000 # Flip angle in rad
     θ = angle.(rf) .+ Δθ # RF phase in rad
-    A = Diagonal(ones(Bool, length(spin.M)))
-    B = zeros(length(spin.M))
+    A = Diagonal(ones(Bool, 3spin.N))
+    B = zeros(3spin.N)
     for t = 1:T
         (Af, Bf) = freeprecess(spin, dt/2, grad[:,t])
+        Bf = Vector(Bf)
         (Ae, _) = excitation(spin, θ[t], α[t])
         A = Af * Ae * Af * A
         B = Af * (Ae * (Af * B + Bf)) + Bf
@@ -196,9 +190,10 @@ function excitation(spin::AbstractSpin, rf::AbstractArray{<:Number,1}, Δθ::Rea
     T = length(rf)
     α = GAMMA * abs.(rf) * dt/1000 # Flip angle in rad
     θ = angle.(rf) .+ Δθ # RF phase in rad
-    A = Diagonal(ones(Bool, length(spin.M)))
-    B = zeros(length(spin.M))
+    A = Diagonal(ones(Bool, 3spin.N))
+    B = zeros(3spin.N)
     (Af, Bf) = freeprecess(spin, dt/2, grad)
+    Bf = Vector(Bf)
     for t = 1:T
         (Ae, _) = excitation(spin, θ[t], α[t])
         A = Af * Ae * Af * A

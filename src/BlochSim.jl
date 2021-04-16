@@ -20,15 +20,19 @@ export RFSpoiling
 export RFandGradientSpoiling
 export spoiler_gradient
 export rfspoiling_increment
+export InstantaneousRF
+export RF
 
 export FreePrecessionMatrix
 export BlochMcConnellMatrix
 
 export BlochMcConnellWorkspace
+export ExcitationWorkspace
 export freeprecess
 export freeprecess!
 export excitation
 export excitation!
+export excite!
 export spoil
 export spoil!
 export applydynamics!
@@ -43,6 +47,7 @@ include("spoiling.jl")
 include("expm.jl")
 include("helpers.jl")
 include("freeprecess.jl")
+include("excite.jl")
 include("sequences.jl")
 
 end

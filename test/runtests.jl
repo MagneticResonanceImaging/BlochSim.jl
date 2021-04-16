@@ -14,5 +14,6 @@ using Test
     include("AbstractSpin.jl")
     include("AbstractSpoiling.jl")
     include("freeprecess.jl")
+    include("excite.jl")
     include("expm.jl")
 end

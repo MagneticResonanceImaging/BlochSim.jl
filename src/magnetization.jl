@@ -2,21 +2,15 @@ mutable struct Magnetization{T<:Real}
     x::T
     y::T
     z::T
-
-    function Magnetization(x, y, z)
-
-        args = promote(x, y, z)
-        T = typeof(args[1])
-        new{T}(args...)
-
-    end
 end
+
+Magnetization(x, y, z) = Magnetization(promote(x, y, z)...)
+Magnetization{T}() where {T} = Magnetization(zero(T), zero(T), zero(T))
+Magnetization() = Magnetization(0.0, 0.0, 0.0)
 
 Base.show(io::IO, M::Magnetization) = print(io, "[", M.x, ", ", M.y, ", ", M.z, "]")
 Base.show(io::IO, ::MIME"text/plain", M::Magnetization{T}) where {T} =
     print(io, "Magnetization vector with eltype $T:\n Mx = ", M.x, "\n My = ", M.y, "\n Mz = ", M.z)
-
-Base.zero(::Union{Magnetization{T},Type{Magnetization{T}}}) where {T} = Magnetization(zero(T), zero(T), zero(T))
 
 function Base.copyto!(dst::Magnetization, src::Magnetization)
 
@@ -52,14 +46,8 @@ struct MagnetizationMC{T<:Real,N}
 end
 
 MagnetizationMC(M::NTuple{3,Real}...) = MagnetizationMC((Magnetization(Mi...) for Mi in M)...)
-
-function MagnetizationMC(M::Real...)
-
-    N = length(M)
-    N % 3 == 0 || error("must specify Mx, My, and Mz for each magnetization vector")
-    MagnetizationMC((Magnetization(M[i], M[i+1], M[i+2]) for i = 1:3:N)...)
-
-end
+MagnetizationMC{T}(N) where {T} = MagnetizationMC(ntuple(i -> Magnetization{T}(), N)...)
+MagnetizationMC(N) = MagnetizationMC(ntuple(i -> Magnetization(), N)...)
 
 function Base.show(io::IO, M::MagnetizationMC{T,N}) where {T,N}
 
@@ -82,9 +70,6 @@ function Base.show(io::IO, ::MIME"text/plain", M::MagnetizationMC{T,N}) where {T
     end
 
 end
-
-Base.zero(::Union{MagnetizationMC{T,N},Type{MagnetizationMC{T,N}}}) where {T,N} =
-    MagnetizationMC((zero(Magnetization{T}) for i = 1:N)...)
 
 Base.copyto!(dst::MagnetizationMC{T,N}, src::MagnetizationMC{S,N}) where {S,T,N} =
     foreach(i -> copyto!(dst[i], src[i]), 1:N)

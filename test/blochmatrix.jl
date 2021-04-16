@@ -1,6 +1,6 @@
 function mul1()
 
-    M2 = zero(Magnetization{Float64})
+    M2 = Magnetization()
     A = BlochSim.BlochMatrix()
     A.a11 = 1
     A.a21 = 2
@@ -679,7 +679,7 @@ end
 
 function subtractmul1()
 
-    M2 = zero(Magnetization{Float64})
+    M2 = Magnetization()
     A = BlochSim.BlochMatrix()
     A.a11 = 1
     A.a21 = 2
@@ -700,7 +700,7 @@ end
 
 function subtractmul2()
 
-    M2 = zero(MagnetizationMC{Float64,2})
+    M2 = MagnetizationMC(2)
     A = BlochMcConnellMatrix(2)
     for i = 1:2, j = 1:2
         A.A[i][j].a11 = 1 + i + 10j
@@ -713,7 +713,7 @@ function subtractmul2()
         A.A[i][j].a23 = 8 + i + 10j
         A.A[i][j].a33 = 9 + i + 10j
     end
-    M1 = MagnetizationMC(10.0, 20.0, 30.0, 1.0, 2.0, 3.0)
+    M1 = MagnetizationMC((10.0, 20.0, 30.0), (1.0, 2.0, 3.0))
     BlochSim.subtractmul!(M2, I, A, M1)
     correct = (I - Matrix(A)) * Vector(M1)
 

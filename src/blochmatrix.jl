@@ -297,6 +297,13 @@ function Base.Matrix(A::BlochMcConnellMatrix{T,N}) where {T,N}
 
 end
 
+struct ExcitationMatrix{T<:Real}
+    A::BlochMatrix{T}
+end
+
+ExcitationMatrix{T}() where {T} = ExcitationMatrix(BlochMatrix{T}())
+ExcitationMatrix() = ExcitationMatrix(BlochMatrix())
+
 #Base.:+(M1::Magnetization, M2::Magnetization) = Magnetization(M1.x + M2.x, M1.y + M2.y, M1.z + M2.z)
 function add!(M1::Magnetization, M2::Magnetization)
 
@@ -304,6 +311,14 @@ function add!(M1::Magnetization, M2::Magnetization)
     M1.y += M2.y
     M1.z += M2.z
     return nothing
+
+end
+
+function add!(M1::MagnetizationMC{T1,N}, M2::MagnetizationMC{T2,N}) where {T1,T2,N}
+
+    for i = 1:N
+        add!(M1[i], M2[i])
+    end
 
 end
 
@@ -377,6 +392,41 @@ function LinearAlgebra.mul!(M2::Magnetization, A::BlochMatrix, M1::Magnetization
     M2.y = A.a21 * M1.x + A.a22 * M1.y + A.a23 * M1.z
     M2.z = A.a31 * M1.x + A.a32 * M1.y + A.a33 * M1.z
     return nothing
+
+end
+
+function LinearAlgebra.mul!(M2::Magnetization, A::FreePrecessionMatrix, M1::Magnetization)
+
+    M2.x = A.E2cosθ * M1.x + A.E2sinθ * M1.y
+    M2.y = A.E2cosθ * M1.y - A.E2sinθ * M1.x
+    M2.z = A.E1 * M1.z
+    return nothing
+
+end
+
+function LinearAlgebra.mul!(M2::Magnetization, A::ExcitationMatrix, M1::Magnetization)
+
+    mul!(M2, A.A, M1)
+
+end
+
+function LinearAlgebra.mul!(M2::MagnetizationMC{T1,N}, A::BlochMcConnellMatrix{T2,N}, M1::MagnetizationMC{T3,N}) where {T1,T2,T3,N}
+
+    for i = 1:N
+        M = M2[i]
+        mul!(M, getblock(A, i, 1), M1[1])
+        for j = 2:N
+            muladd!(M, getblock(A, i, j), M1[j])
+        end
+    end
+
+end
+
+function LinearAlgebra.mul!(M2::MagnetizationMC{T,N}, A::ExcitationMatrix, M1::MagnetizationMC{S,N}) where {S,T,N}
+
+    for i = 1:N
+        mul!(M2[i], A, M1[i])
+    end
 
 end
 
@@ -577,6 +627,60 @@ end
 function LinearAlgebra.mul!(C::BlochMatrix, A::ExchangeDynamicsMatrix, B::BlochDynamicsMatrix)
 
     mul!(C, B, A)
+
+end
+
+function LinearAlgebra.mul!(C::BlochMatrix, A::ExcitationMatrix, B::BlochMatrix)
+
+    mul!(C, A.A, B)
+
+end
+
+function LinearAlgebra.mul!(C::BlochMatrix, A::ExcitationMatrix, B::FreePrecessionMatrix)
+
+    mul!(C, A.A, B)
+
+end
+
+function LinearAlgebra.mul!(C::BlochMatrix, A::BlochMatrix, B::FreePrecessionMatrix)
+
+    C.a11 = A.a11 * B.E2cosθ - A.a12 * B.E2sinθ
+    C.a21 = A.a21 * B.E2cosθ - A.a22 * B.E2sinθ
+    C.a31 = A.a31 * B.E2cosθ - A.a32 * B.E2sinθ
+    C.a12 = A.a11 * B.E2sinθ + A.a12 * B.E2cosθ
+    C.a22 = A.a21 * B.E2sinθ + A.a22 * B.E2cosθ
+    C.a32 = A.a31 * B.E2sinθ + A.a32 * B.E2cosθ
+    C.a13 = A.a13 * B.E1
+    C.a23 = A.a23 * B.E1
+    C.a33 = A.a33 * B.E1
+    return nothing
+
+end
+
+function LinearAlgebra.mul!(C::BlochMatrix, A::FreePrecessionMatrix, B::BlochMatrix)
+
+    C.a11 = A.E2cosθ * B.a11 + A.E2sinθ * B.a21
+    C.a21 = A.E2cosθ * B.a21 - A.E2sinθ * B.a11
+    C.a31 = A.E1 * B.a31
+    C.a12 = A.E2cosθ * B.a12 + A.E2sinθ * B.a22
+    C.a22 = A.E2cosθ * B.a22 - A.E2sinθ * B.a12
+    C.a32 = A.E1 * B.a32
+    C.a13 = A.E2cosθ * B.a13 + A.E2sinθ * B.a23
+    C.a23 = A.E2cosθ * B.a23 - A.E2sinθ * B.a13
+    C.a33 = A.E1 * B.a33
+    return nothing
+
+end
+
+function LinearAlgebra.mul!(
+    C::BlochMcConnellMatrix{T1,N},
+    A::ExcitationMatrix,
+    B::BlochMcConnellMatrix{T2,N}
+) where {T1,T2,N}
+
+    for j = 1:N, i = 1:N
+        mul!(getblock(C, i, j), A.A, getblock(B, i, j))
+    end
 
 end
 
