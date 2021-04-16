@@ -2,15 +2,9 @@ struct Gradient{T<:Real}
     x::T
     y::T
     z::T
-
-    function Gradient(x, y, z)
-
-        args = promote(x, y, z)
-        T = typeof(args[1])
-        new{T}(args...)
-
-    end
 end
+
+Gradient(x, y, z) = Gradient(promote(x, y, z)...)
 
 Base.show(io::IO, grad::Gradient) = print(io, "[", grad.x, ", ", grad.y, ", ", grad.z, "]")
 Base.show(io::IO, ::MIME"text/plain", grad::Gradient{T}) where {T} =

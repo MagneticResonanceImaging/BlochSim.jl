@@ -18,15 +18,9 @@ struct Position{T<:Real}
     x::T
     y::T
     z::T
-
-    function Position(x, y, z)
-
-        args = promote(x, y, z)
-        T = typeof(args[1])
-        new{T}(args...)
-
-    end
 end
+
+Position(x, y, z) = Position(promote(x, y, z)...)
 
 Base.show(io::IO, pos::Position) = print(io, "(", pos.x, ", ", pos.y, ", ", pos.z, ")")
 Base.show(io::IO, ::MIME"text/plain", pos::Position{T}) where {T} =
@@ -228,30 +222,33 @@ struct SpinMC{T<:DualFloat64,N} <: AbstractSpin
         T2,
         Δf,
         τ,
-        pos::Position = Position(0, 0, 0)
+        pos::Position = Position(0.0, 0.0, 0.0)
     ) where {S,N}
 
         N > 1 || error(sprint(print, "SpinMC expects 2 or more compartments, got ", N))
-        Meq = MagnetizationMC((Magnetization(0, 0, frac[i] * M0) for i = 1:N)...)
         frac = promote(frac...)
         T1 = promote(T1...)
         T2 = promote(T2...)
         Δf = promote(Δf...)
-        τ = promote(τ...)
-        itmp = 1
+        rtmp = promote((1 ./ τ)...)
+        T = promote_type(Float64, eltype(M), typeof(M0),
+            eltype(frac), eltype(T1), eltype(T2), eltype(Δf), eltype(rtmp))
+        Meq = MagnetizationMC{T}(N)
+        for i = 1:N
+            Meq[i].z = frac[i] * M0
+        end
+        itmp = 0
         r = ntuple(N) do i
             ntuple(N) do j
-                out = 1 / τ[min(itmp, N * (N - 1))]
                 if i == j
-                    out = zero(out)
+                    out = zero(T)
                 else
                     itmp += 1
+                    out = rtmp[itmp]
                 end
                 out
             end
         end
-        T = promote_type(Float64, eltype(M), eltype(Meq), typeof(M0),
-            eltype(frac), eltype(T1), eltype(T2), eltype(Δf), eltype(eltype(r)))
         new{T,N}(M, Meq, M0, frac, T1, T2, Δf, r, pos)
 
     end
