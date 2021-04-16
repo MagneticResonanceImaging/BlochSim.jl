@@ -359,15 +359,17 @@ julia> spin.M
 function applydynamics!(spin::AbstractSpin, A::AbstractArray{<:Real,2},
                         B::AbstractArray{<:Real,1})
 
-  spin.M[:] = A * spin.M + B
-  return nothing
+    tmp = A * spin.M
+    add!(tmp, B)
+    copyto!(spin.M, tmp)
+    return nothing
 
 end
 
 function applydynamics!(spin::AbstractSpin, A::AbstractArray{<:Real,2})
 
-  spin.M[:] = A * spin.M
-  return nothing
+    copyto!(spin.M, A * spin.M)
+    return nothing
 
 end
 
@@ -375,6 +377,14 @@ function applydynamics!(spin::AbstractSpin, BtoM, A, B)
 
     copyto!(BtoM, B)
     muladd!(BtoM, A, spin.M) # BtoM .= A * spin.M + BtoM
+    copyto!(spin.M, BtoM)
+    return nothing
+
+end
+
+function applydynamics!(spin::AbstractSpin, BtoM, A)
+
+    mul!(BtoM, A, spin.M)
     copyto!(spin.M, BtoM)
     return nothing
 

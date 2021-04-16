@@ -23,7 +23,9 @@ export rfspoiling_increment
 export InstantaneousRF
 export RF
 
+export BlochMatrix
 export FreePrecessionMatrix
+export ExcitationMatrix
 export BlochMcConnellMatrix
 
 export BlochMcConnellWorkspace

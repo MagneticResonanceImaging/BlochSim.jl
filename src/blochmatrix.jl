@@ -314,10 +314,27 @@ function add!(M1::Magnetization, M2::Magnetization)
 
 end
 
+function add!(M1::Magnetization, M2::AbstractVector)
+
+    M1.x += M2[1]
+    M1.y += M2[2]
+    M1.z += M2[3]
+    return nothing
+
+end
+
 function add!(M1::MagnetizationMC{T1,N}, M2::MagnetizationMC{T2,N}) where {T1,T2,N}
 
     for i = 1:N
         add!(M1[i], M2[i])
+    end
+
+end
+
+function add!(M1::MagnetizationMC{T,N}, M2::AbstractVector) where {T,N}
+
+    for i = 1:N
+        add!(M1[i], M2[3i-2:3i])
     end
 
 end
@@ -436,6 +453,26 @@ function muladd!(M2::Magnetization, A::BlochMatrix, M1::Magnetization)
     M2.y += A.a21 * M1.x + A.a22 * M1.y + A.a23 * M1.z
     M2.z += A.a31 * M1.x + A.a32 * M1.y + A.a33 * M1.z
     return nothing
+
+end
+
+function muladd!(M2::Magnetization, A::FreePrecessionMatrix, M1::Magnetization)
+
+    M2.x += A.E2cosθ * M1.x + A.E2sinθ * M1.y
+    M2.y += A.E2cosθ * M1.y - A.E2sinθ * M1.x
+    M2.z += A.E1 * M1.z
+    return nothing
+
+end
+
+function muladd!(M2::MagnetizationMC{T1,N}, A::BlochMcConnellMatrix{T2,N}, M1::MagnetizationMC{T3,N}) where {T1,T2,T3,N}
+
+    for i = 1:N
+        M = M2[i]
+        for j = 1:N
+            muladd!(M, getblock(A, i, j), M1[j])
+        end
+    end
 
 end
 
