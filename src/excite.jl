@@ -123,7 +123,7 @@ julia> (A, _) = excitation(spin, π/4, π/2); A * spin.M
   6.123233995736766e-17
 ```
 """
-function excitation(spin::Spin, θ::Real, α::Real)
+function excitation(spin::Spin_old, θ::Real, α::Real)
 
     A = rotatetheta(θ, α)
     B = zeros(3)
@@ -131,7 +131,7 @@ function excitation(spin::Spin, θ::Real, α::Real)
 
 end
 
-function excitation(spin::SpinMC, θ::Real, α::Real)
+function excitation(spin::SpinMC_old, θ::Real, α::Real)
 
     A = kron(Diagonal(ones(Bool, spin.N)), rotatetheta(θ, α))
     B = zeros(3spin.N)
