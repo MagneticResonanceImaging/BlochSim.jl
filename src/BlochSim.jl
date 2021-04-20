@@ -34,6 +34,7 @@ export freeprecess
 export freeprecess!
 export excitation
 export excitation!
+export excite
 export excite!
 export spoil
 export spoil!

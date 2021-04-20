@@ -71,9 +71,6 @@ julia> S = spoil(spin); S * spin.M
 """
 spoil(::Any) = [0 0 0; 0 0 0; 0 0 1]
 
-struct IdealSpoilingMatrix end
-const idealspoiling = IdealSpoilingMatrix()
-
 spoil(::AbstractSpin) = idealspoiling
 
 """
@@ -82,21 +79,5 @@ spoil(::AbstractSpin) = idealspoiling
 Apply ideal spoiling to the given spin.
 """
 spoil!(spin::AbstractSpin) = mul!(spin.M, idealspoiling)
-
-function LinearAlgebra.mul!(M::Magnetization{T}, ::IdealSpoilingMatrix) where {T}
-
-    M.x = zero(T)
-    M.y = zero(T)
-    return nothing
-
-end
-
-function LinearAlgebra.mul!(M::MagnetizationMC{T,N}, ::IdealSpoilingMatrix) where {T,N}
-
-    for i = 1:N
-        mul!(M[i], idealspoiling)
-    end
-
-end
 
 applydynamics!(spin::AbstractSpin, ::IdealSpoilingMatrix) = spoil!(spin)

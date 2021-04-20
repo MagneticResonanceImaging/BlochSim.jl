@@ -280,8 +280,8 @@ function PadeApproximantOfDegree!(
         mul!(workspace.U, A, workspace.tmp1)
     end
 
-    subtractcopyto!(workspace.mat1, workspace.V, workspace.U)
-    addcopyto!(workspace.mat2, workspace.V, workspace.U)
+    subtract!(workspace.mat1, workspace.V, workspace.U)
+    add!(workspace.mat2, workspace.V, workspace.U)
     F = lu!(workspace.mat1)
     ldiv!(F, workspace.mat2)
     copyto!(expA, workspace.mat2)

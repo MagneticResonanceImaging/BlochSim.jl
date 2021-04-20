@@ -139,6 +139,14 @@ function excitation(spin::SpinMC, θ::Real, α::Real)
 
 end
 
+function excite(spin::AbstractSpin, rf::InstantaneousRF)
+
+    A = ExcitationMatrix{eltype(spin)}()
+    excite!(A, spin, rf)
+    return A
+
+end
+
 function excite!(A::ExcitationMatrix, spin::AbstractSpin, rf::InstantaneousRF)
 
     rotatetheta!(A.A, rf.θ, rf.α)
@@ -199,6 +207,24 @@ function excitation(spin::AbstractSpin, rf::AbstractArray{<:Number,1}, Δθ::Rea
         A = Af * Ae * Af * A
         B = Af * (Ae * (Af * B + Bf)) + Bf
     end
+    return (A, B)
+
+end
+
+function excite(spin::Spin, rf, Δθ, grad)
+
+    A = BlochMatrix{eltype(spin)}()
+    B = Magnetization{eltype(spin)}()
+    excite!(A, B, spin, rf, Δθ, grad)
+    return (A, B)
+
+end
+
+function excite(spin::SpinMC{T,N}, rf, Δθ, grad) where {T,N}
+
+    A = BlochMcConnellMatrix{T}(N)
+    B = MagnetizationMC{T}(N)
+    excite!(A, B, spin, rf, Δθ, grad)
     return (A, B)
 
 end

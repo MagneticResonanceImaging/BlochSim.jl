@@ -6,7 +6,7 @@ function freeprecess1()
     A2 = FreePrecessionMatrix()
     B2 = Magnetization()
     freeprecess!(A2, B2, spin, t)
-    return A1 == Matrix(A2) && B1 == Vector(B2)
+    return Matrix(A1) == Matrix(A2) && B1 == B2
 
 end
 
@@ -18,7 +18,7 @@ function freeprecess2()
     A2 = BlochMcConnellMatrix(3)
     B2 = MagnetizationMC(3)
     freeprecess!(A2, B2, spin, t)
-    return A1 ≈ Matrix(A2) && B1 ≈ B2
+    return Matrix(A1) == Matrix(A2) && B1 == B2
 
 end
 

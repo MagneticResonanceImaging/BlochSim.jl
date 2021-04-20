@@ -27,6 +27,15 @@ Base.convert(::Type{Magnetization{T}}, M::Magnetization{T}) where {T} = M
 
 Base.Vector(M::Magnetization) = [M.x, M.y, M.z]
 
+function Base.copyto!(dst::Magnetization, src::AbstractVector)
+
+    dst.x = src[1]
+    dst.y = src[2]
+    dst.z = src[3]
+    return nothing
+
+end
+
 Base.:(==)(M1::Magnetization, M2::Magnetization) = M1.x == M2.x && M1.y == M2.y && M1.z == M2.z
 Base.isapprox(M1::Magnetization, M2::Magnetization; kwargs...) =
     isapprox(Vector(M1), Vector(M2); kwargs...)

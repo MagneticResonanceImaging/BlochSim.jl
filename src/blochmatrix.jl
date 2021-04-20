@@ -17,6 +17,8 @@ BlochMatrix{T}() where {T} = BlochMatrix(zero(T), zero(T), zero(T), zero(T),
                                     zero(T), zero(T), zero(T), zero(T), zero(T))
 BlochMatrix() = BlochMatrix{Float64}()
 
+Base.eltype(::BlochMatrix{T}) where {T} = T
+
 function Base.fill!(A::BlochMatrix, v)
 
     A.a11 = v
@@ -304,7 +306,11 @@ end
 ExcitationMatrix{T}() where {T} = ExcitationMatrix(BlochMatrix{T}())
 ExcitationMatrix() = ExcitationMatrix(BlochMatrix())
 
+struct IdealSpoilingMatrix end
+const idealspoiling = IdealSpoilingMatrix()
+
 #Base.:+(M1::Magnetization, M2::Magnetization) = Magnetization(M1.x + M2.x, M1.y + M2.y, M1.z + M2.z)
+
 function add!(M1::Magnetization, M2::Magnetization)
 
     M1.x += M2.x
@@ -355,6 +361,64 @@ Base.:*(A::AbstractMatrix, M::MagnetizationMC{T,N}) where {T,N} = MagnetizationM
     end
     Mtmp
 end...)
+
+function Base.:*(A::BlochMatrix, M::Magnetization)
+
+    return Magnetization(
+        A.a11 * M.x + A.a12 * M.y + A.a13 * M.z,
+        A.a21 * M.x + A.a22 * M.y + A.a23 * M.z,
+        A.a31 * M.x + A.a32 * M.y + A.a33 * M.z
+    )
+
+end
+
+Base.:*(A::ExcitationMatrix, M::Magnetization) = A.A * M
+
+Base.:*(::IdealSpoilingMatrix, M::Magnetization{T}) where {T} = Magnetization(zero(T), zero(T), M.z)
+
+function Base.:*(A::BlochMatrix, B::FreePrecessionMatrix)
+
+    return BlochMatrix(
+        A.a11 * B.E2cosθ - A.a12 * B.E2sinθ,
+        A.a21 * B.E2cosθ - A.a22 * B.E2sinθ,
+        A.a31 * B.E2cosθ - A.a32 * B.E2sinθ,
+        A.a11 * B.E2sinθ + A.a12 * B.E2cosθ,
+        A.a21 * B.E2sinθ + A.a22 * B.E2cosθ,
+        A.a31 * B.E2sinθ + A.a32 * B.E2cosθ,
+        A.a13 * B.E1,
+        A.a23 * B.E1,
+        A.a33 * B.E1
+    )
+
+end
+
+function Base.:*(A::BlochMatrix, ::IdealSpoilingMatrix)
+
+    T = eltype(A)
+    return BlochMatrix(zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), A.a13, A.a23, A.a33)
+
+end
+
+Base.:*(A::ExcitationMatrix, ::IdealSpoilingMatrix) = A.A * idealspoiling
+
+function Base.:-(::UniformScaling, B::BlochMatrix)
+
+    T = eltype(B)
+    return BlochMatrix(
+        one(T) - B.a11,
+        -B.a21,
+        -B.a31,
+        -B.a12,
+        one(T) - B.a22,
+        -B.a32,
+        -B.a13,
+        -B.a23,
+        one(T) - B.a33
+    )
+
+end
+
+Base.:\(A::BlochMatrix, M::Magnetization) = Magnetization((Matrix(A) \ Vector(M))...)
 
 # M2 = A * M1
 function LinearAlgebra.mul!(M2::Magnetization, A::AbstractMatrix, M1::Magnetization)
@@ -427,6 +491,21 @@ function LinearAlgebra.mul!(M2::Magnetization, A::ExcitationMatrix, M1::Magnetiz
 
 end
 
+function LinearAlgebra.mul!(M2::Vector, A::BlochMatrix, M1::Magnetization)
+
+    M2[1] = A.a11 * M1.x + A.a12 * M1.y + A.a13 * M1.z
+    M2[2] = A.a21 * M1.x + A.a22 * M1.y + A.a23 * M1.z
+    M2[3] = A.a31 * M1.x + A.a32 * M1.y + A.a33 * M1.z
+    return nothing
+
+end
+
+function LinearAlgebra.mul!(M2::Vector, A::ExcitationMatrix, M1::Magnetization)
+
+    mul!(M2, A.A, M1)
+
+end
+
 function LinearAlgebra.mul!(M2::MagnetizationMC{T1,N}, A::BlochMcConnellMatrix{T2,N}, M1::MagnetizationMC{T3,N}) where {T1,T2,T3,N}
 
     for i = 1:N
@@ -444,6 +523,31 @@ function LinearAlgebra.mul!(M2::MagnetizationMC{T,N}, A::ExcitationMatrix, M1::M
     for i = 1:N
         mul!(M2[i], A, M1[i])
     end
+
+end
+
+function LinearAlgebra.mul!(M::Magnetization{T}, ::IdealSpoilingMatrix) where {T}
+
+    M.x = zero(T)
+    M.y = zero(T)
+    return nothing
+
+end
+
+function LinearAlgebra.mul!(M::MagnetizationMC{T,N}, ::IdealSpoilingMatrix) where {T,N}
+
+    for i = 1:N
+        mul!(M[i], idealspoiling)
+    end
+
+end
+
+function LinearAlgebra.mul!(M2::Magnetization{T}, ::IdealSpoilingMatrix, M1::Magnetization) where {T}
+
+    M2.x = zero(T)
+    M2.y = zero(T)
+    M2.z = M1.z
+    return nothing
 
 end
 
@@ -709,6 +813,21 @@ function LinearAlgebra.mul!(C::BlochMatrix, A::FreePrecessionMatrix, B::BlochMat
 
 end
 
+function LinearAlgebra.mul!(C::BlochMatrix{T}, ::IdealSpoilingMatrix, B::FreePrecessionMatrix) where {T}
+
+    C.a11 = zero(T)
+    C.a21 = zero(T)
+    C.a31 = zero(T)
+    C.a12 = zero(T)
+    C.a22 = zero(T)
+    C.a32 = zero(T)
+    C.a13 = zero(T)
+    C.a23 = zero(T)
+    C.a33 = B.E1
+    return nothing
+
+end
+
 function LinearAlgebra.mul!(
     C::BlochMcConnellMatrix{T1,N},
     A::ExcitationMatrix,
@@ -820,7 +939,22 @@ function muladd!(C::BlochMatrix, A::ExchangeDynamicsMatrix, B::BlochDynamicsMatr
 end
 
 # C = A - B
-function subtractcopyto!(C::AbstractMatrix, A::BlochMcConnellMatrix{T,N}, B::BlochMcConnellMatrix{S,N}) where {S,T,N}
+function subtract!(C::AbstractMatrix{T}, ::UniformScaling, B::BlochMatrix) where {T}
+
+    C[1,1] = one(T) - B.a11
+    C[2,1] = -B.a21
+    C[3,1] = -B.a31
+    C[1,2] = -B.a12
+    C[2,2] = one(T) - B.a22
+    C[3,2] = -B.a32
+    C[1,3] = -B.a13
+    C[2,3] = -B.a23
+    C[3,3] = one(T) - B.a33
+    return nothing
+
+end
+
+function subtract!(C::AbstractMatrix, A::BlochMcConnellMatrix{T,N}, B::BlochMcConnellMatrix{S,N}) where {S,T,N}
 
     for j = 1:N, i = 1:N
         Ab = getblock(A, i, j)
@@ -839,7 +973,7 @@ function subtractcopyto!(C::AbstractMatrix, A::BlochMcConnellMatrix{T,N}, B::Blo
 end
 
 # C = A + B
-function addcopyto!(C::AbstractMatrix, A::BlochMcConnellMatrix{T,N}, B::BlochMcConnellMatrix{S,N}) where {S,T,N}
+function add!(C::AbstractMatrix, A::BlochMcConnellMatrix{T,N}, B::BlochMcConnellMatrix{S,N}) where {S,T,N}
 
     for j = 1:N, i = 1:N
         Ab = getblock(A, i, j)

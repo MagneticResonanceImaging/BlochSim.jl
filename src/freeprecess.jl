@@ -35,7 +35,7 @@ julia> (A, B) = freeprecess(spin, 100); A * spin.M + B
   0.09516258196404048
 ```
 """
-freeprecess(spin::Spin, t::Real) =
+freeprecess_old(spin::Spin_old, t::Real) =
     freeprecess(t, spin.M0, spin.T1, spin.T2, spin.Δf)
 
 function freeprecess_old(spin::SpinMC_old, t::Real)
@@ -46,25 +46,21 @@ function freeprecess_old(spin::SpinMC_old, t::Real)
 
 end
 
-function freeprecess(spin::SpinMC{T,N}, t::Real) where {T,N}
+function freeprecess(spin::Spin, t)
 
-    A = Array{T}(undef, 3N, 3N)
-    for j = 1:N, i = 1:N
-        ii = 3i-2:3i
-        jj = 3j-2:3j
-        if i == j
-            tmp = sum(spin.r[i][k] for k = 1:N) # 1/ms
-            r1 = -1 / spin.T1[i] - tmp # 1/ms
-            r2 = -1 / spin.T2[i] - tmp # 1/ms
-            Δω = 2π * spin.Δf[i] / 1000 # rad/ms
-            A[ii,jj] = [r2 Δω 0; -Δω r2 0; 0 0 r1] # Left-handed rotation
-        else
-            A[ii,jj] = spin.r[j][i] * Diagonal(ones(Bool, 3))
-        end
-    end
-    E = expm(t * A)
-    B = (Diagonal(ones(Bool, size(E, 1))) - E) * spin.Meq
-    return (E, B)
+    A = FreePrecessionMatrix{eltype(spin)}()
+    B = Magnetization{eltype(spin)}()
+    freeprecess!(A, B, spin, t)
+    return (A, B)
+
+end
+
+function freeprecess(spin::SpinMC{T,N}, t, workspace = BlochMcConnellWorkspace(spin)) where {T,N}
+
+    A = BlochMcConnellMatrix{T}(N)
+    B = MagnetizationMC{T}(N)
+    freeprecess!(A, B, spin, t, workspace)
+    return (A, B)
 
 end
 
