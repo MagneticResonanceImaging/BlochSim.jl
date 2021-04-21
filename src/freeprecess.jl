@@ -334,6 +334,30 @@ function combine(D::Tuple{<:AbstractArray{<:Real,2},<:AbstractArray{<:Real,1}}..
 
 end
 
+function combine!(A, B, A1, B1, A2, B2)
+
+    mul!(A, A2, A1)
+    mul!(B, A2, B1)
+    add!(B, B2)
+
+end
+
+function combine!(A, B, A1, B1, A2, ::Nothing)
+
+    mul!(A, A2, A1)
+    mul!(B, A2, B1)
+
+end
+
+function combine!(A, B, A1, ::Nothing, A2, B2)
+
+    mul!(A, A2, A1)
+    copyto!(B, B2)
+
+end
+
+combine!(A, A2, A1) = mul!(A, A2, A1)
+
 """
     applydynamics!(spin, A[, B])
 
