@@ -82,6 +82,8 @@ end
 
 Base.copyto!(dst::MagnetizationMC{T,N}, src::MagnetizationMC{S,N}) where {S,T,N} =
     foreach(i -> copyto!(dst[i], src[i]), 1:N)
+Base.copyto!(dst::MagnetizationMC{T,N}, src::AbstractVector) where {T,N} =
+    foreach(i -> copyto!(dst[i], view(src, 3i-2:3i)), 1:N)
 
 Base.eltype(::MagnetizationMC{T,N}) where {T,N} = T
 Base.getindex(M::MagnetizationMC, i) = M.M[i]

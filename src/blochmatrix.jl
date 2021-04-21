@@ -329,6 +329,15 @@ function add!(M1::Magnetization, M2::AbstractVector)
 
 end
 
+function add!(C::AbstractVector, M1::Magnetization, M2::Magnetization)
+
+    C[1] = M1.x + M2.x
+    C[2] = M1.y + M2.y
+    C[3] = M1.z + M2.z
+    return nothing
+
+end
+
 function add!(M1::MagnetizationMC{T1,N}, M2::MagnetizationMC{T2,N}) where {T1,T2,N}
 
     for i = 1:N
@@ -340,7 +349,15 @@ end
 function add!(M1::MagnetizationMC{T,N}, M2::AbstractVector) where {T,N}
 
     for i = 1:N
-        add!(M1[i], M2[3i-2:3i])
+        add!(M1[i], view(M2, 3i-2:3i))
+    end
+
+end
+
+function add!(C::AbstractVector, M1::MagnetizationMC{T,N}, M2::MagnetizationMC{S,N}) where {S,T,N}
+
+    for i = 1:N
+        add!(view(C, 3i-2:3i), M1[i], M2[i])
     end
 
 end
@@ -548,6 +565,14 @@ function LinearAlgebra.mul!(M2::Magnetization{T}, ::IdealSpoilingMatrix, M1::Mag
     M2.y = zero(T)
     M2.z = M1.z
     return nothing
+
+end
+
+function LinearAlgebra.mul!(M2::MagnetizationMC{T,N}, ::IdealSpoilingMatrix, M1::MagnetizationMC{S,N}) where {S,T,N}
+
+    for i = 1:N
+        mul!(M2[i], idealspoiling, M1[i])
+    end
 
 end
 
@@ -813,6 +838,21 @@ function LinearAlgebra.mul!(C::BlochMatrix, A::FreePrecessionMatrix, B::BlochMat
 
 end
 
+function LinearAlgebra.mul!(C::BlochMatrix{T}, ::IdealSpoilingMatrix, B::BlochMatrix) where {T}
+
+    C.a11 = zero(T)
+    C.a21 = zero(T)
+    C.a31 = B.a31
+    C.a12 = zero(T)
+    C.a22 = zero(T)
+    C.a32 = B.a32
+    C.a13 = zero(T)
+    C.a23 = zero(T)
+    C.a33 = B.a33
+    return nothing
+
+end
+
 function LinearAlgebra.mul!(C::BlochMatrix{T}, ::IdealSpoilingMatrix, B::FreePrecessionMatrix) where {T}
 
     C.a11 = zero(T)
@@ -836,6 +876,18 @@ function LinearAlgebra.mul!(
 
     for j = 1:N, i = 1:N
         mul!(getblock(C, i, j), A.A, getblock(B, i, j))
+    end
+
+end
+
+function LinearAlgebra.mul!(
+    C::BlochMcConnellMatrix{T1,N},
+    ::IdealSpoilingMatrix,
+    B::BlochMcConnellMatrix{T2,N}
+) where {T1,T2,N}
+
+    for j = 1:N, i = 1:N
+        mul!(getblock(C, i, j), idealspoiling, getblock(B, i, j))
     end
 
 end
@@ -968,6 +1020,35 @@ function subtract!(C::AbstractMatrix, A::BlochMcConnellMatrix{T,N}, B::BlochMcCo
         C[3i-2,3j]   = Ab.a13 - Bb.a13
         C[3i-1,3j]   = Ab.a23 - Bb.a23
         C[3i  ,3j]   = Ab.a33 - Bb.a33
+    end
+
+end
+
+function subtract!(C::AbstractMatrix{T}, A::UniformScaling, B::BlochMcConnellMatrix{S,N}) where {S,T,N}
+
+    for j = 1:N, i = 1:N
+        b = getblock(B, i, j)
+        if i == j
+            C[3i-2,3j-2] = one(T) - b.a11
+            C[3i-1,3j-2] = -b.a21
+            C[3i  ,3j-2] = -b.a31
+            C[3i-2,3j-1] = -b.a12
+            C[3i-1,3j-1] = one(T) - b.a22
+            C[3i  ,3j-1] = -b.a32
+            C[3i-2,3j]   = -b.a13
+            C[3i-1,3j]   = -b.a23
+            C[3i  ,3j]   = one(T) - b.a33
+        else
+            C[3i-2,3j-2] = -b.a11
+            C[3i-1,3j-2] = -b.a21
+            C[3i  ,3j-2] = -b.a31
+            C[3i-2,3j-1] = -b.a12
+            C[3i-1,3j-1] = -b.a22
+            C[3i  ,3j-1] = -b.a32
+            C[3i-2,3j]   = -b.a13
+            C[3i-1,3j]   = -b.a23
+            C[3i  ,3j]   = -b.a33
+        end
     end
 
 end
