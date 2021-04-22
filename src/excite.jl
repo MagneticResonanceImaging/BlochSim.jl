@@ -7,91 +7,73 @@ end
 
 InstantaneousRF(α, θ = zero(α)) = InstantaneousRF(promote(α, θ)...)
 
-struct RF{T<:Real} <: AbstractRF
+struct RF{T<:Real,G<:Union{<:Gradient,<:AbstractVector{<:Gradient}}} <: AbstractRF
     α::Vector{T}
     θ::Vector{T}
     Δt::Float64
+    Δθ::Ref{T} # Type Ref to enable RF-spoiling, which requires updating Δθ
+    grad::G
+
+    function RF(
+        α::AbstractVector{<:Real},
+        θ::AbstractVector{<:Real},
+        Δt::Real,
+        Δθ::Real,
+        grad::Union{<:Gradient,<:AbstractVector{<:Gradient}}
+    )
+
+        length(α) == length(θ) || error("α and θ must have the same number of elements")
+        grad isa AbstractVector && (length(grad) == length(α) ||
+            error("grad is a vector but has a different number of elements than α"))
+        T = promote_type(eltype(α), eltype(θ), typeof(Δθ))
+        new{T,typeof(grad)}(α, θ, Δt, Δθ, grad)
+
+    end
 end
 
 # waveform in Gauss, Δt in ms
-RF(waveform, Δt) = RF(GAMMA .* abs.(waveform) .* (Δt / 1000), angle.(waveform), Δt)
+RF(waveform, Δt, Δθ, grad) = RF(GAMMA .* abs.(waveform) .* (Δt / 1000), angle.(waveform), Δt, Δθ, grad)
+RF(waveform, Δt, Δθ::Real) = RF(waveform, Δt, Δθ, Gradient(0, 0, 0))
+RF(waveform, Δt, grad) = RF(waveform, Δt, 0, grad)
+RF(waveform, Δt) = RF(waveform, Δt, 0, Gradient(0, 0, 0))
 
 Base.length(rf::RF) = length(rf.α)
 
-abstract type AbstractExcitationWorkspace end
-
-struct ExcitationWorkspace{T<:Real} <: AbstractExcitationWorkspace
-    Af::FreePrecessionMatrix{T}
-    Bf::Magnetization{T}
-    Ae::ExcitationMatrix{T}
-    tmpA1::BlochMatrix{T}
-    tmpA2::BlochMatrix{T}
-    tmpB1::Magnetization{T}
-    tmpB2::Magnetization{T}
-    freeprecess_workspace::Nothing
-end
-
-ExcitationWorkspace(::Spin{T}) where {T} = ExcitationWorkspace(
-                                                    FreePrecessionMatrix{T}(),
-                                                    Magnetization{T}(),
-                                                    ExcitationMatrix{T}(),
-                                                    BlochMatrix{T}(),
-                                                    BlochMatrix{T}(),
-                                                    Magnetization{T}(),
-                                                    Magnetization{T}(),
-                                                    nothing)
-
-struct ExcitationWorkspaceMC{T<:Real,N} <: AbstractExcitationWorkspace
-    Af::BlochMcConnellMatrix{T,N}
-    Bf::MagnetizationMC{T,N}
-    Ae::ExcitationMatrix{T}
-    tmpA1::BlochMcConnellMatrix{T,N}
-    tmpA2::BlochMcConnellMatrix{T,N}
-    tmpB1::MagnetizationMC{T,N}
-    tmpB2::MagnetizationMC{T,N}
-    freeprecess_workspace::BlochMcConnellWorkspace{T,N}
+struct ExcitationWorkspace{T1,T2,T3,T4,T5}
+    Af::T1
+    Bf::T2
+    Ae::T3
+    tmpA1::T4
+    tmpA2::T4
+    tmpB1::T2
+    tmpB2::T2
+    bm_workspace::T5
 end
 
 function ExcitationWorkspace(
-    spin::SpinMC{T,N},
-    freeprecess_workspace::BlochMcConnellWorkspace = BlochMcConnellWorkspace(spin)
-) where {T,N}
+    spin::AbstractSpin,
+    bm_workspace = spin isa Spin ? nothing : BlochMcConnellWorkspace(spin)
+)
 
-    ExcitationWorkspaceMC(BlochMcConnellMatrix{T}(N),
-                          MagnetizationMC{T}(N),
-                          ExcitationMatrix{T}(),
-                          BlochMcConnellMatrix{T}(N),
-                          BlochMcConnellMatrix{T}(N),
-                          MagnetizationMC{T}(N),
-                          MagnetizationMC{T}(N),
-                          freeprecess_workspace)
-
-end
-
-struct ExcitationWorkspaceMCApproximate{T<:Real,N} <: AbstractExcitationWorkspace
-    Af::BlochMcConnellMatrix{T,N}
-    Bf::MagnetizationMC{T,N}
-    Ae::ExcitationMatrix{T}
-    tmpA1::BlochMcConnellMatrix{T,N}
-    tmpA2::BlochMcConnellMatrix{T,N}
-    tmpB1::MagnetizationMC{T,N}
-    tmpB2::MagnetizationMC{T,N}
-    freeprecess_workspace::Nothing
-end
-
-function ExcitationWorkspace(
-    spin::SpinMC{T,N},
-    ::Nothing
-) where {T,N}
-
-    ExcitationWorkspaceMCApproximate(BlochMcConnellMatrix{T}(N),
-                                     MagnetizationMC{T}(N),
-                                     ExcitationMatrix{T}(),
-                                     BlochMcConnellMatrix{T}(N),
-                                     BlochMcConnellMatrix{T}(N),
-                                     MagnetizationMC{T}(N),
-                                     MagnetizationMC{T}(N),
-                                     nothing)
+    T = eltype(spin)
+    Ae = ExcitationMatrix{T}()
+    if spin isa Spin
+        Af = FreePrecessionMatrix{T}()
+        Bf = Magnetization{T}()
+        tmpA1 = BlochMatrix{T}()
+        tmpA2 = BlochMatrix{T}()
+        tmpB1 = Magnetization{T}()
+        tmpB2 = Magnetization{T}()
+    else
+        N = spin.N
+        Af = BlochMcConnellMatrix{T}(N)
+        Bf = MagnetizationMC{T}(N)
+        tmpA1 = BlochMcConnellMatrix{T}(N)
+        tmpA2 = BlochMcConnellMatrix{T}(N)
+        tmpB1 = MagnetizationMC{T}(N)
+        tmpB2 = MagnetizationMC{T}(N)
+    end
+    ExcitationWorkspace(Af, Bf, Ae, tmpA1, tmpA2, tmpB1, tmpB2, bm_workspace)
 
 end
 
@@ -143,13 +125,19 @@ function excite(spin::AbstractSpin, rf::InstantaneousRF)
 
     A = ExcitationMatrix{eltype(spin)}()
     excite!(A, spin, rf)
-    return A
+    return (A, nothing)
 
 end
 
 function excite!(A::ExcitationMatrix, spin::AbstractSpin, rf::InstantaneousRF)
 
     rotatetheta!(A.A, rf.θ, rf.α)
+
+end
+
+function excite!(A::ExcitationMatrix, ::Nothing, spin::AbstractSpin, rf::InstantaneousRF, ::Nothing = nothing)
+
+    excite!(A, spin, rf)
 
 end
 
@@ -211,20 +199,18 @@ function excitation(spin::AbstractSpin, rf::AbstractArray{<:Number,1}, Δθ::Rea
 
 end
 
-function excite(spin::Spin, rf, Δθ, grad)
+function excite(spin::AbstractSpin, rf::RF)
 
-    A = BlochMatrix{eltype(spin)}()
-    B = Magnetization{eltype(spin)}()
-    excite!(A, B, spin, rf, Δθ, grad)
-    return (A, B)
-
-end
-
-function excite(spin::SpinMC{T,N}, rf, Δθ, grad) where {T,N}
-
-    A = BlochMcConnellMatrix{T}(N)
-    B = MagnetizationMC{T}(N)
-    excite!(A, B, spin, rf, Δθ, grad)
+    T = eltype(spin)
+    if spin isa Spin
+        A = BlochMatrix{T}()
+        B = Magnetization{T}()
+    else
+        N = spin.N
+        A = BlochMcConnellMatrix{T}(N)
+        B = MagnetizationMC{T}(N)
+    end
+    excite!(A, B, spin, rf)
     return (A, B)
 
 end
@@ -233,47 +219,33 @@ function excite!(
     A::Union{<:BlochMatrix,<:BlochMcConnellMatrix},
     B::Union{<:Magnetization,<:MagnetizationMC},
     spin::AbstractSpin,
-    rf::RF,
-    Δθ::Real,
-    grad::Union{<:AbstractVector{<:Gradient},<:Gradient},
-    workspace::AbstractExcitationWorkspace = ExcitationWorkspace(spin)
-)
+    rf::RF{T,G},
+    workspace::ExcitationWorkspace = ExcitationWorkspace(spin)
+) where {T,G}
 
-    if grad isa AbstractVector
-        freeprecess!(workspace.Af, workspace.Bf, spin, rf.Δt / 2, grad[1], workspace.freeprecess_workspace)
+    Δtby2 = rf.Δt / 2
+    if G <: AbstractVector
+        freeprecess!(workspace.Af, workspace.Bf, spin, Δtby2, rf.grad[1], workspace.bm_workspace)
     else
-        freeprecess!(workspace.Af, workspace.Bf, spin, rf.Δt / 2, grad, workspace.freeprecess_workspace)
+        freeprecess!(workspace.Af, workspace.Bf, spin, Δtby2, rf.grad, workspace.bm_workspace)
     end
-    rotatetheta!(workspace.Ae.A, rf.θ[1] + Δθ, rf.α[1])
+    excite!(workspace.Ae, spin, InstantaneousRF(rf.α[1], rf.θ[1] + rf.Δθ[]))
 
-    mul!(workspace.tmpA2, workspace.Ae, workspace.Af)
-    mul!(A, workspace.Af, workspace.tmpA2)
+    combine!(workspace.tmpA1, workspace.tmpB1, workspace.Af, workspace.Bf, workspace.Ae, nothing)
+    combine!(A, B, workspace.tmpA1, workspace.tmpB1, workspace.Af, workspace.Bf)
 
-    mul!(workspace.tmpB2, workspace.Ae, workspace.Bf)
-    mul!(B, workspace.Af, workspace.tmpB2)
-    add!(B, workspace.Bf)
+    for t = 2:length(rf)
 
-    T = length(rf)
-    for t = 2:T
-
-        if grad isa AbstractVector
-            freeprecess!(workspace.Af, workspace.Bf, spin, rf.Δt / 2, grad[t], workspace.freeprecess_workspace)
+        if G <: AbstractVector
+            freeprecess!(workspace.Af, workspace.Bf, spin, Δtby2, rf.grad[t], workspace.bm_workspace)
         end
-        rotatetheta!(workspace.Ae.A, rf.θ[t] + Δθ, rf.α[t])
+        excite!(workspace.Ae, spin, InstantaneousRF(rf.α[t], rf.θ[t] + rf.Δθ[]))
 
-        mul!(workspace.tmpA1, workspace.Af, A)
-        mul!(workspace.tmpA2, workspace.Ae, workspace.tmpA1)
-        mul!(A, workspace.Af, workspace.tmpA2)
-
-        mul!(workspace.tmpB1, workspace.Af, B)
-        add!(workspace.tmpB1, workspace.Bf)
-        mul!(workspace.tmpB2, workspace.Ae, workspace.tmpB1)
-        mul!(B, workspace.Af, workspace.tmpB2)
-        add!(B, workspace.Bf)
+        combine!(workspace.tmpA1, workspace.tmpB1, A, B, workspace.Af, workspace.Bf)
+        combine!(workspace.tmpA2, workspace.tmpB2, workspace.tmpA1, workspace.tmpB1, workspace.Ae, nothing)
+        combine!(A, B, workspace.tmpA2, workspace.tmpB2, workspace.Af, workspace.Bf)
 
     end
-
-    return nothing
 
 end
 

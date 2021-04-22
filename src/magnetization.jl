@@ -12,6 +12,7 @@ Base.show(io::IO, M::Magnetization) = print(io, "[", M.x, ", ", M.y, ", ", M.z, 
 Base.show(io::IO, ::MIME"text/plain", M::Magnetization{T}) where {T} =
     print(io, "Magnetization vector with eltype $T:\n Mx = ", M.x, "\n My = ", M.y, "\n Mz = ", M.z)
 
+Base.copy(M::Magnetization) = Magnetization(M.x, M.y, M.z)
 function Base.copyto!(dst::Magnetization, src::Magnetization)
 
     dst.x = src.x
@@ -36,9 +37,20 @@ function Base.copyto!(dst::Magnetization, src::AbstractVector)
 
 end
 
+function Base.copyto!(dst::AbstractVector, src::Magnetization)
+
+    dst[1] = src.x
+    dst[2] = src.y
+    dst[3] = src.z
+    return nothing
+
+end
+
 Base.:(==)(M1::Magnetization, M2::Magnetization) = M1.x == M2.x && M1.y == M2.y && M1.z == M2.z
 Base.isapprox(M1::Magnetization, M2::Magnetization; kwargs...) =
     isapprox(Vector(M1), Vector(M2); kwargs...)
+
+signal(M::Magnetization) = complex(M.x, M.y)
 
 struct MagnetizationMC{T<:Real,N}
     M::NTuple{N,Magnetization{T}}
@@ -80,10 +92,13 @@ function Base.show(io::IO, ::MIME"text/plain", M::MagnetizationMC{T,N}) where {T
 
 end
 
+Base.copy(M::MagnetizationMC{T,N}) where {T,N} = MagnetizationMC(ntuple(i -> copy(M[i]), N)...)
 Base.copyto!(dst::MagnetizationMC{T,N}, src::MagnetizationMC{S,N}) where {S,T,N} =
     foreach(i -> copyto!(dst[i], src[i]), 1:N)
 Base.copyto!(dst::MagnetizationMC{T,N}, src::AbstractVector) where {T,N} =
     foreach(i -> copyto!(dst[i], view(src, 3i-2:3i)), 1:N)
+Base.copyto!(dst::AbstractVector, src::MagnetizationMC{T,N}) where {T,N} =
+    foreach(i -> copyto!(view(dst, 3i-2:3i), src[i]), 1:N)
 
 Base.eltype(::MagnetizationMC{T,N}) where {T,N} = T
 Base.getindex(M::MagnetizationMC, i) = M.M[i]
@@ -106,3 +121,5 @@ end
 
 Base.:(==)(M1::MagnetizationMC{T,N}, M2::MagnetizationMC{S,N}) where {S,T,N} = all(M1[i] == M2[i] for i = 1:N)
 Base.isapprox(M1::MagnetizationMC{T,N}, M2::MagnetizationMC{S,N}; kwargs...) where {S,T,N} = all(isapprox(M1[i], M2[i]; kwargs...) for i = 1:N)
+
+signal(M::MagnetizationMC{T,N}) where {T,N} = sum(signal(M) for M in M)

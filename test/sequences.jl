@@ -7,9 +7,10 @@ function testB2c()
     answer = matread("matlabtestdata/testB2c.mat")
 
     spin = Spin(1, 600, 100, 0)
-    sig = mese!(spin, 1000, 50, 1)[1]
+    mese! = MESEBlochSim(1000, 50, 1)
+    mag = mese!(spin)[1]
 
-    return sig ≈ answer["sig"]
+    return signal(mag) ≈ answer["sig"]
 
 end
 
@@ -18,9 +19,10 @@ function testB2d()
     answer = matread("matlabtestdata/testB2d.mat")
 
     spin = Spin(1, 600, 100, 0)
-    sig = mese!(spin, 1000, 50, 8)
+    mese! = MESEBlochSim(1000, 50, 8)
+    mag = mese!(spin)
 
-    return sig ≈ vec(answer["sig"])
+    return map(signal, mag) ≈ vec(answer["sig"])
 
 end
 
@@ -111,19 +113,15 @@ end
 # End tests for comparing to Brian Hargreaves' MATLAB code
 # ------------------------------------------------------------------------------
 
-function mese1()
+function testB2dMC()
 
-    s = Spin(1, 1000, 100, 0)
-    signal = mese(s, 3000, 10, 32)
-    return signal isa AbstractVector{<:Number}
+    answer = matread("matlabtestdata/testB2d.mat")
 
-end
+    spin = SpinMC(1, [0, 1], [Inf, 600], [Inf, 100], [0, 0], [Inf, Inf])
+    mese! = MESEBlochSim(1000, 50, 8)
+    mag = mese!(spin)
 
-function mese2()
-
-    s = SpinMC(1, [0.2, 0.8], [400, 1000], [20, 100], [15, 0], [20, 40])
-    signal = mese(s, 3000, 10, 32)
-    return signal isa AbstractVector{<:Number}
+    return map(signal, mag) ≈ vec(answer["sig"])
 
 end
 
@@ -133,20 +131,19 @@ end
 
         @test testB2c()
         @test testB2d()
-        @test mese1()
-        @test mese2()
+        @test testB2dMC()
 
     end
 
-    @testset "SPGR" begin
-
-
-        @test testB3a()
-        @test testB3b()
-        @test testB3c()
-        @test testB5a()
-        @test testB5b()
-
-    end
+#    @testset "SPGR" begin
+#
+#
+#        @test testB3a()
+#        @test testB3b()
+#        @test testB3c()
+#        @test testB5a()
+#        @test testB5b()
+#
+#    end
 
 end

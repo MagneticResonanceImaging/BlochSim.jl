@@ -51,7 +51,7 @@ function testF1a()
         applydynamics!(spins[f], BtoM, Af, Bf)
         applydynamics!(spins[f], BtoM, Ae)
     end
-    sig = map(spin -> spin.signal, spins)
+    sig = map(signal, spins)
 
     return sig ≈ vec(answer["sig"])
 
@@ -83,7 +83,7 @@ function testF1b()
         applydynamics!(spins[i], BtoM, Af, Bf)
         applydynamics!(spins[i], BtoM, Ae)
     end
-    sig = map(spin -> spin.signal, spins)
+    sig = map(signal, spins)
 
     return sig ≈ vec(answer["sig"])
 
@@ -120,7 +120,7 @@ function testF1c()
         applydynamics!(spins[i], BtoM, Ae)
         applydynamics!(spins[i], BtoM, Ar, Br)
     end
-    sig = map(spin -> spin.signal, spins)
+    sig = map(signal, spins)
 
     return sig ≈ vec(answer["sig"])
 
@@ -135,16 +135,15 @@ function testF2c()
     rf = 0.05 * sinc.(t .- 3) # G
     Δf = -1000:20:1000 # Hz
     spins = map(Δf -> Spin(1, 600, 100, Δf), Δf)
-    rf = RF(rf, dt)
     A = BlochMatrix()
     B = Magnetization()
     BtoM = Magnetization()
-    grad = Gradient(0, 0, 0)
+    rf = RF(rf, dt)
     map(spins) do spin
-        excite!(A, B, spin, rf, 0, grad)
+        excite!(A, B, spin, rf)
         applydynamics!(spin, BtoM, A, B)
     end
-    sig = map(spin -> spin.signal, spins)
+    sig = map(signal, spins)
 
     return sig ≈ vec(answer["sig"])
 
@@ -165,15 +164,15 @@ function testF3a()
     Δf = 0 # Hz
     pos = [Position(x, 0, 0) for x in xpos]
     spins = map(pos -> Spin(1, T1, T2, Δf, pos), pos)
-    rf = RF(rf, dt)
+    rf = RF(rf, dt, grad)
     A = BlochMatrix()
     B = Magnetization()
     BtoM = Magnetization()
     for i = 1:length(xpos)
-        excite!(A, B, spins[i], rf, 0, grad)
+        excite!(A, B, spins[i], rf)
         applydynamics!(spins[i], BtoM, A, B)
     end
-    sig = map(spin -> spin.signal, spins)
+    sig = map(signal, spins)
 
     return sig ≈ vec(answer["sig"])
 
@@ -195,19 +194,19 @@ function testF3c()
     Δf = 0 # Hz
     pos = [Position(x, 0, 0) for x in xpos]
     spins = map(pos -> Spin(1, T1, T2, Δf, pos), pos)
-    rf = RF(rf, dt)
+    rf = RF(rf, dt, grad)
     Ae = BlochMatrix()
     Be = Magnetization()
     Af = FreePrecessionMatrix()
     Bf = Magnetization()
     BtoM = Magnetization()
     for i = 1:length(xpos)
-        excite!(Ae, Be, spins[i], rf, 0, grad)
+        excite!(Ae, Be, spins[i], rf)
         freeprecess!(Af, Bf, spins[i], t[end] - dt, grad2)
         applydynamics!(spins[i], BtoM, Ae, Be)
         applydynamics!(spins[i], BtoM, Af, Bf)
     end
-    sig = map(spin -> spin.signal, spins)
+    sig = map(signal, spins)
     Mz = map(spin -> spin.M.z, spins)
 
     return sig ≈ vec(answer["sig"]) && Mz ≈ vec(answer["mz"])
@@ -230,19 +229,19 @@ function testF3d()
     Δf = 100 # Hz
     pos = [Position(x, 0, 0) for x in xpos]
     spins = map(pos -> Spin(1, T1, T2, Δf, pos), pos)
-    rf = RF(rf, dt)
+    rf = RF(rf, dt, grad)
     Ae = BlochMatrix()
     Be = Magnetization()
     Af = FreePrecessionMatrix()
     Bf = Magnetization()
     BtoM = Magnetization()
     map(spins) do spin
-        excite!(Ae, Be, spin, rf, 0, grad)
+        excite!(Ae, Be, spin, rf)
         freeprecess!(Af, Bf, spin, t[end] - dt, grad2)
         applydynamics!(spin, BtoM, Ae, Be)
         applydynamics!(spin, BtoM, Af, Bf)
     end
-    sig = map(spin -> spin.signal, spins)
+    sig = map(signal, spins)
     Mz = map(spin -> spin.M.z, spins)
 
     return sig ≈ vec(answer["sig"]) && Mz ≈ vec(answer["mz"])
@@ -265,19 +264,19 @@ function testF3f()
     Δf = 0 # Hz
     pos = [Position(x, 0, 0) for x in xpos]
     spins = map(pos -> Spin(1, T1, T2, Δf, pos), pos)
-    rf = RF(rf, dt)
+    rf = RF(rf, dt, grad)
     Ae = BlochMatrix()
     Be = Magnetization()
     Af = FreePrecessionMatrix()
     Bf = Magnetization()
     BtoM = Magnetization()
     map(spins) do spin
-        excite!(Ae, Be, spin, rf, 0, grad)
+        excite!(Ae, Be, spin, rf)
         freeprecess!(Af, Bf, spin, t[end] - dt, grad2)
         applydynamics!(spin, BtoM, Ae, Be)
         applydynamics!(spin, BtoM, Af, Bf)
     end
-    sig = map(spin -> spin.signal, spins)
+    sig = map(signal, spins)
     Mz = map(spin -> spin.M.z, spins)
 
     return sig ≈ vec(answer["sig"]) && Mz ≈ vec(answer["mz"])
@@ -341,7 +340,7 @@ function testF1cMC()
         applydynamics!(spin, BtoM, Ae)
         applydynamics!(spin, BtoM, Ar, Br)
     end
-    sig = map(spin -> spin.signal, spins)
+    sig = map(signal, spins)
 
     return sig ≈ vec(answer["sig"])
 
@@ -357,15 +356,15 @@ function testF2cMC()
     Δf = -1000:20:1000 # Hz
     grad = [Gradient(0, 0, 0) for r in rf]
     spins = map(Δf -> SpinMC(1, [1, 0], [600, 10], [100, 10], [Δf, 0], [Inf, Inf]), Δf)
-    rf = RF(rf, dt)
+    rf = RF(rf, dt, grad)
     A = BlochMcConnellMatrix(2)
     B = MagnetizationMC(2)
     BtoM = MagnetizationMC(2)
     map(spins) do spin
-        excite!(A, B, spin, rf, 0, grad)
+        excite!(A, B, spin, rf)
         applydynamics!(spin, BtoM, A, B)
     end
-    sig = map(spin -> spin.signal, spins)
+    sig = map(signal, spins)
 
     return sig ≈ vec(answer["sig"])
 
@@ -380,10 +379,10 @@ function testF3cMC()
     T = length(t)
     xpos = -2:0.1:2 # cm
     rf = 0.05 * sinc.(t .- 3) # G
-    rf = RF(rf, dt)
-    rf0 = RF(zeros(length(rf)), dt)
     grad1 = Gradient(0.1, 0, 0)
     grad2 = Gradient(-0.052, 0, 0)
+    rf = RF(rf, dt, grad1)
+    rf0 = RF(zeros(length(rf)), dt, grad2)
     T1 = 600 # ms
     T2 = 100 # ms
     Δf = 0 # Hz
@@ -395,12 +394,12 @@ function testF3cMC()
     B2 = MagnetizationMC(2)
     BtoM = MagnetizationMC(2)
     map(spins) do spin
-        excite!(A1, B1, spin, rf, 0, grad1)
-        excite!(A2, B2, spin, rf0, 0, grad2)
+        excite!(A1, B1, spin, rf)
+        excite!(A2, B2, spin, rf0)
         applydynamics!(spin, BtoM, A1, B1)
         applydynamics!(spin, BtoM, A2, B2)
     end
-    sig = map(spin -> spin.signal, spins)
+    sig = map(signal, spins)
     Mz = map(spin -> spin.M[1].z, spins)
 
     return sig ≈ vec(answer["sig"]) && Mz ≈ vec(answer["mz"])
@@ -416,10 +415,10 @@ function testF3dMC()
     T = length(t)
     xpos = -2:0.1:2 # cm
     rf = 0.05 * sinc.(t .- 3) # G
-    rf = RF(rf, dt)
-    rf0 = RF(zeros(length(rf)), dt)
     grad1 = Gradient(0.1, 0, 0)
     grad2 = Gradient(-0.052, 0, 0)
+    rf = RF(rf, dt, grad1)
+    rf0 = RF(zeros(length(rf)), dt, grad2)
     T1 = 600 # ms
     T2 = 100 # ms
     Δf = 100 # Hz
@@ -431,12 +430,12 @@ function testF3dMC()
     B2 = MagnetizationMC(2)
     BtoM = MagnetizationMC(2)
     map(spins) do spin
-        excite!(A1, B1, spin, rf, 0, grad1)
-        excite!(A2, B2, spin, rf0, 0, grad2)
+        excite!(A1, B1, spin, rf)
+        excite!(A2, B2, spin, rf0)
         applydynamics!(spin, BtoM, A1, B1)
         applydynamics!(spin, BtoM, A2, B2)
     end
-    sig = map(spin -> spin.signal, spins)
+    sig = map(signal, spins)
     Mz = map(spin -> spin.M[1].z, spins)
 
     return sig ≈ vec(answer["sig"]) && Mz ≈ vec(answer["mz"])
@@ -452,9 +451,9 @@ function testF3fMC()
     T = length(t)
     xpos = -5:0.1:5 # cm
     rf = 0.05 * sinc.(t .- 3) .* (exp.(im * 2π * 900 * t/1000) + exp.(-im * 2π * 900 * t/1000)) # G
-    rf = RF(rf, dt)
     grad1 = Gradient(0.1, 0, 0)
     grad2 = Gradient(-0.052, 0, 0)
+    rf = RF(rf, dt, grad1)
     T1 = 600 # ms
     T2 = 100 # ms
     Δf = 0 # Hz
@@ -466,12 +465,12 @@ function testF3fMC()
     B2 = MagnetizationMC(2)
     BtoM = MagnetizationMC(2)
     map(spins) do spin
-        excite!(A1, B1, spin, rf, 0, grad1)
+        excite!(A1, B1, spin, rf)
         freeprecess!(A2, B2, spin, t[end] - dt, grad2)
         applydynamics!(spin, BtoM, A1, B1)
         applydynamics!(spin, BtoM, A2, B2)
     end
-    sig = map(spin -> spin.signal, spins)
+    sig = map(signal, spins)
     Mz = map(spin -> spin.M[1].z, spins)
 
     return sig ≈ vec(answer["sig"]) && Mz ≈ vec(answer["mz"])
@@ -495,7 +494,7 @@ function Spin1()
            s.T2 == 100 &&
            s.Δf == 0 &&
            s.pos == Position(0, 0, 0) &&
-           s.signal == 1 + 2im
+           signal(s) == 1 + 2im
 
 end
 
@@ -508,7 +507,7 @@ function Spin2()
            s.T2 == 100 &&
            s.Δf == 1.3 &&
            s.pos == Position(0.5, 0.2, 1) &&
-           s.signal == 1 + 2im
+           signal(s) == 1 + 2im
 
 end
 
@@ -521,7 +520,7 @@ function Spin3()
            s.T2 == 100 &&
            s.Δf == 0 &&
            s.pos == Position(0, 0, 0) &&
-           s.signal == 0
+           signal(s) == 0
 
 end
 
@@ -534,7 +533,7 @@ function Spin4()
            s.T2 == 100 &&
            s.Δf == 1.3 &&
            s.pos == Position(0.5, 0.2, 1) &&
-           s.signal == 0
+           signal(s) == 0
 
 end
 
@@ -581,13 +580,13 @@ function excitation2()
 
     s = Spin(1, Inf, Inf, 0)
     dt = 250π / GAMMA
-    rf = RF(fill(exp(im * π/8), 2), dt)
     Δθ = π/8
-    grad = [Gradient(0, 0, 0) for i = 1:length(rf)]
+    grad = [Gradient(0, 0, 0) for i = 1:2]
+    rf = RF(fill(exp(im * π/8), length(grad)), dt, Δθ, grad)
     A = BlochMatrix()
     B = Magnetization()
     BtoM = Magnetization()
-    excite!(A, B, s, rf, Δθ, grad)
+    excite!(A, B, s, rf)
     applydynamics!(s, BtoM, A, B)
     M_correct = Magnetization(sqrt(2)/2, -sqrt(2)/2, 0)
     return s.M ≈ M_correct && B == Magnetization(0, 0, 0)
@@ -598,13 +597,12 @@ function excitation3()
 
     s = Spin(1, Inf, Inf, 0)
     dt = 250π / GAMMA
-    rf = RF(fill(exp(im * π/8), 2), dt)
     Δθ = π/8
-    grad = Gradient(0, 0, 0)
+    rf = RF(fill(exp(im * π/8), 2), dt, Δθ)
     A = BlochMatrix()
     B = Magnetization()
     BtoM = Magnetization()
-    excite!(A, B, s, rf, Δθ, grad)
+    excite!(A, B, s, rf)
     applydynamics!(s, BtoM, A, B)
     M_correct = Magnetization(sqrt(2)/2, -sqrt(2)/2, 0)
     return s.M ≈ M_correct && B == Magnetization(0, 0, 0)
@@ -667,7 +665,7 @@ function SpinMC1()
            s.Δf == (15, 0) &&
            s.r == ((0, 1 / 20), (1 / 40, 0)) &&
            s.pos == Position(-0.3, -1, 0) &&
-           s.signal == 5 + 7im
+           signal(s) == 5 + 7im
 
 end
 
@@ -684,7 +682,7 @@ function SpinMC2()
            s.Δf == (15, 0) &&
            s.r == ((0, 1 / 20), (1 / 40, 0)) &&
            s.pos == Position(-0.3, -1, 0) &&
-           s.signal == 0
+           signal(s) == 0
 
 end
 
@@ -742,7 +740,7 @@ function autodiff1()
         applydynamics!(s, BtoM, Ae)
         freeprecess!(Af, Bf, s, 10)
         applydynamics!(s, BtoM, Af, Bf)
-        abs.(s.signal)
+        abs.(signal(s))
     end
     correct = [0.0, 0.0009048374180359595]
     return grad ≈ correct
@@ -764,7 +762,7 @@ function autodiff2()
         applydynamics!(s, BtoM, Ae)
         freeprecess!(Af, Bf, s, 10)
         applydynamics!(s, BtoM, Af, Bf)
-        abs.(s.signal)
+        abs.(signal(s))
     end
     correct = [0.0, 0.0007660512555728833]
     return grad ≈ correct
@@ -786,7 +784,7 @@ function autodiff3()
         applydynamics!(s, BtoM, Ae)
         freeprecess!(Af, Bf, s, 2)
         applydynamics!(s, BtoM, Af, Bf)
-        abs.(s.signal)
+        abs.(signal(s))
     end
     correct = [0.0, 0.00016657611260161996]
     return grad ≈ correct
@@ -808,7 +806,7 @@ function autodiff4()
         applydynamics!(s, BtoM, Ae)
         freeprecess!(Af, Bf, s, 1)
         applydynamics!(s, BtoM, Af, Bf)
-        abs.(s.signal)
+        abs.(signal(s))
     end
     correct = [0.0, 8.414639502122038e-5]
     return grad ≈ correct
@@ -830,7 +828,7 @@ function autodiff5()
         applydynamics!(s, BtoM, Ae)
         freeprecess!(Af, Bf, s, 0.1)
         applydynamics!(s, BtoM, Af, Bf)
-        abs.(s.signal)
+        abs.(signal(s))
     end
     correct = [0.0, 8.491495820718459e-6]
     return grad ≈ correct
@@ -852,7 +850,7 @@ function autodiff6()
         applydynamics!(s, BtoM, Ae)
         freeprecess!(Af, Bf, s, 0.01)
         applydynamics!(s, BtoM, Af, Bf)
-        abs.(s.signal)
+        abs.(signal(s))
     end
     correct = [0.0, 8.499149957624547e-7]
     return grad ≈ correct

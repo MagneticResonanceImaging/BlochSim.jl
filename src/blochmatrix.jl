@@ -34,6 +34,21 @@ function Base.fill!(A::BlochMatrix, v)
 
 end
 
+function Base.copyto!(dst::BlochMatrix, src::BlochMatrix)
+
+    dst.a11 = src.a11
+    dst.a21 = src.a21
+    dst.a31 = src.a31
+    dst.a12 = src.a12
+    dst.a22 = src.a22
+    dst.a32 = src.a32
+    dst.a13 = src.a13
+    dst.a23 = src.a23
+    dst.a33 = src.a33
+    return nothing
+
+end
+
 function Base.Matrix(A::BlochMatrix{T}) where {T}
 
     mat = Matrix{T}(undef, 3, 3)

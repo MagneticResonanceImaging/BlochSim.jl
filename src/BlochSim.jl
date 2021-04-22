@@ -12,6 +12,7 @@ export Position
 export AbstractSpin
 export Spin
 export SpinMC
+export signal
 
 export Gradient
 export AbstractSpoiling
@@ -39,6 +40,8 @@ export excite!
 export spoil
 export spoil!
 export applydynamics!
+export MESEBlochSim
+export MESEBlochSimWorkspace
 export mese
 export mese!
 export spgr!
@@ -51,6 +54,6 @@ include("expm.jl")
 include("helpers.jl")
 include("freeprecess.jl")
 include("excite.jl")
-include("sequences.jl")
+include("mese.jl")
 
 end
