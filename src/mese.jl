@@ -17,7 +17,7 @@ end
 
 MESEBlochSim(TR, TE, nechoes) = MESEBlochSim(TR, TE, nechoes, InstantaneousRF(π/2), InstantaneousRF(π, -π/2))
 
-struct MESEBlochSimWorkspace{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10}
+struct MESEBlochSimWorkspace{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12}
     Aex::T1
     Bex::T2
     Aref::T3
@@ -35,6 +35,8 @@ struct MESEBlochSimWorkspace{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10}
     mat::T8
     vec::T9
     bm_workspace::T10
+    ex_workspace::T11
+    ref_workspace::T12
 end
 
 function MESEBlochSimWorkspace(
@@ -47,22 +49,30 @@ function MESEBlochSimWorkspace(
     if T1 <: InstantaneousRF
         Aex = ExcitationMatrix{T}()
         Bex = nothing
-    elseif spin isa Spin
-        Aex = BlochMatrix{T}()
-        Bex = Magnetization{T}()
+        ex_workspace = nothing
     else
-        Aex = BlochMcConnellMatrix{T}(spin.N)
-        Bex = MagnetizationMC{T}(spin.N)
+        if spin isa Spin
+            Aex = BlochMatrix{T}()
+            Bex = Magnetization{T}()
+        else
+            Aex = BlochMcConnellMatrix{T}(spin.N)
+            Bex = MagnetizationMC{T}(spin.N)
+        end
+        ex_workspace = ExcitationWorkspace(spin, bm_workspace)
     end
     if T2 <: InstantaneousRF
         Aref = ExcitationMatrix{T}()
         Bref = nothing
-    elseif spin isa Spin
-        Aref = BlochMatrix{T}()
-        Bref = Magnetization{T}()
+        ref_workspace = nothing
     else
-        Aref = BlochMcConnellMatrix{T}(spin.N)
-        Bref = MagnetizationMC{T}(spin.N)
+        if spin isa Spin
+            Aref = BlochMatrix{T}()
+            Bref = Magnetization{T}()
+        else
+            Aref = BlochMcConnellMatrix{T}(spin.N)
+            Bref = MagnetizationMC{T}(spin.N)
+        end
+        ref_workspace = ExcitationWorkspace(spin, bm_workspace)
     end
     if spin isa Spin
         Ate = FreePrecessionMatrix{T}()
@@ -93,14 +103,16 @@ function MESEBlochSimWorkspace(
         vec = Vector{T}(undef, 6)
     end
     MESEBlochSimWorkspace(Aex, Bex, Aref, Bref, Ate, Bte, Atr, Btr, Aecho,
-                          Becho, tmpA1, tmpB1, tmpA2, tmpB2, mat, vec, bm_workspace)
+        Becho, tmpA1, tmpB1, tmpA2, tmpB2, mat, vec, bm_workspace, ex_workspace,
+        ref_workspace)
 
 end
 
+# This function does not correctly handle timing with non-instantaneous RF pulses
 function (scan::MESEBlochSim)(spin::AbstractSpin, workspace::MESEBlochSimWorkspace = MESEBlochSimWorkspace(spin, scan))
 
-    excite!(workspace.Aex, workspace.Bex, spin, scan.rfex)
-    excite!(workspace.Aref, workspace.Bref, spin, scan.rfref)
+    excite!(workspace.Aex, workspace.Bex, spin, scan.rfex, workspace.ex_workspace)
+    excite!(workspace.Aref, workspace.Bref, spin, scan.rfref, workspace.ex_workspace)
     freeprecess!(workspace.Ate, workspace.Bte, spin, scan.TE / 2, workspace.bm_workspace)
     freeprecess!(workspace.Atr, workspace.Btr, spin, scan.TR - scan.TE * scan.nechoes, workspace.bm_workspace)
     S = spoil(spin)

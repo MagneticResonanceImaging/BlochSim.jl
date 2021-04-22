@@ -42,6 +42,8 @@ export spoil!
 export applydynamics!
 export MESEBlochSim
 export MESEBlochSimWorkspace
+export SPGRBlochSim
+export SPGRBlochSimWorkspace
 export mese
 export mese!
 export spgr!
@@ -55,5 +57,6 @@ include("helpers.jl")
 include("freeprecess.jl")
 include("excite.jl")
 include("mese.jl")
+include("spgr.jl")
 
 end

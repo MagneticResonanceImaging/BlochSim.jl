@@ -18,11 +18,20 @@ end
 
 abstract type AbstractSpoiling end
 
+struct IdealSpoiling <: AbstractSpoiling end
+
 struct GradientSpoiling{T<:Real} <: AbstractSpoiling
     gradient::Gradient{T}
+    Tg::Float64
+
+    function GradientSpoiling(gradient::Gradient{T}, Tg::Real) where {T}
+
+        new{T}(gradient, Tg)
+
+    end
 end
 
-GradientSpoiling(x, y, z) = GradientSpoiling(Gradient(x, y, z))
+GradientSpoiling(x, y, z, Tg) = GradientSpoiling(Gradient(x, y, z), Tg)
 
 struct RFSpoiling{T<:Real} <: AbstractSpoiling
     Δθ::T
@@ -33,15 +42,20 @@ struct RFandGradientSpoiling{T1<:Real,T2<:Real} <: AbstractSpoiling
     rf::RFSpoiling{T2}
 end
 
-RFandGradientSpoiling(grad::Gradient, rf::RFSpoiling) = RFandGradientSpoiling(GradientSpoiling(grad), rf)
-RFandGradientSpoiling(grad::NTuple{3,Real}, rf::RFSpoiling) = RFandGradientSpoiling(GradientSpoiling(grad...), rf)
-RFandGradientSpoiling(gx, gy, gz, rf::RFSpoiling) = RFandGradientSpoiling(GradientSpoiling(gx, gy, gz), rf)
-RFandGradientSpoiling(grad::Union{<:GradientSpoiling,<:Gradient,<:NTuple{3,Real}}, Δθ) = RFandGradientSpoiling(grad, RFSpoiling(Δθ))
-RFandGradientSpoiling(rf::Union{<:RFSpoiling,<:Real}, grad::Union{<:GradientSpoiling,<:Gradient,<:NTuple{3,Real}}) = RFandGradientSpoiling(grad, rf)
-RFandGradientSpoiling(rf::RFSpoiling, gx, gy, gz) = RFandGradientSpoiling(gx, gy, gz, rf)
+RFandGradientSpoiling(grad::Gradient, Tg::Real, rf::RFSpoiling) = RFandGradientSpoiling(GradientSpoiling(grad, Tg), rf)
+RFandGradientSpoiling(grad::NTuple{3,Real}, Tg::Real, rf::RFSpoiling) = RFandGradientSpoiling(GradientSpoiling(grad..., Tg), rf)
+RFandGradientSpoiling(gx, gy, gz, Tg, rf::RFSpoiling) = RFandGradientSpoiling(GradientSpoiling(gx, gy, gz, Tg), rf)
+RFandGradientSpoiling(grad::GradientSpoiling, Δθ) = RFandGradientSpoiling(grad, RFSpoiling(Δθ))
+RFandGradientSpoiling(grad::Union{<:Gradient,<:NTuple{3,Real}}, Tg, Δθ) = RFandGradientSpoiling(grad, Tg, RFSpoiling(Δθ))
+RFandGradientSpoiling(rf::Union{<:RFSpoiling,<:Real}, grad::GradientSpoiling) = RFandGradientSpoiling(grad, rf)
+RFandGradientSpoiling(rf::Union{<:RFSpoiling,<:Real}, grad::Union{<:Gradient,<:NTuple{3,Real}}, Tg) = RFandGradientSpoiling(grad, Tg, rf)
+RFandGradientSpoiling(rf::RFSpoiling, gx, gy, gz, Tg) = RFandGradientSpoiling(gx, gy, gz, Tg, rf)
 
 spoiler_gradient(s::GradientSpoiling) = s.gradient
 spoiler_gradient(s::RFandGradientSpoiling) = spoiler_gradient(s.gradient)
+spoiler_gradient_duration(::IdealSpoiling) = 0
+spoiler_gradient_duration(s::GradientSpoiling) = s.Tg
+spoiler_gradient_duration(s::RFandGradientSpoiling) = spoiler_gradient_duration(s.gradient)
 rfspoiling_increment(s::RFSpoiling) = s.Δθ
 rfspoiling_increment(s::RFandGradientSpoiling) = rfspoiling_increment(s.rf)
 
@@ -81,3 +95,17 @@ Apply ideal spoiling to the given spin.
 spoil!(spin::AbstractSpin) = mul!(spin.M, idealspoiling)
 
 applydynamics!(spin::AbstractSpin, ::IdealSpoilingMatrix) = spoil!(spin)
+
+spoil!(A::IdealSpoilingMatrix, ::Nothing, spin::AbstractSpin, ::IdealSpoiling, ::Any = nothing) = nothing
+
+function spoil!(
+    A,
+    B,
+    spin::AbstractSpin,
+    spoiling::AbstractSpoiling,
+    workspace = spin isa Spin ? nothing : BlochMcConnellWorkspace(spin)
+)
+
+    freeprecess!(A, B, spin, spoiler_gradient_duration(spoiling), spoiler_gradient(spoiling), workspace)
+
+end

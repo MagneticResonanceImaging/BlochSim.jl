@@ -324,7 +324,8 @@ ExcitationMatrix() = ExcitationMatrix(BlochMatrix())
 struct IdealSpoilingMatrix end
 const idealspoiling = IdealSpoilingMatrix()
 
-#Base.:+(M1::Magnetization, M2::Magnetization) = Magnetization(M1.x + M2.x, M1.y + M2.y, M1.z + M2.z)
+Base.:+(M1::Magnetization, M2::Magnetization) = Magnetization(M1.x + M2.x, M1.y + M2.y, M1.z + M2.z)
+Base.:/(M::Magnetization, a) = Magnetization(M.x / a, M.y / a, M.z / a)
 
 function add!(M1::Magnetization, M2::Magnetization)
 
@@ -849,6 +850,21 @@ function LinearAlgebra.mul!(C::BlochMatrix, A::FreePrecessionMatrix, B::BlochMat
     C.a13 = A.E2cosθ * B.a13 + A.E2sinθ * B.a23
     C.a23 = A.E2cosθ * B.a23 - A.E2sinθ * B.a13
     C.a33 = A.E1 * B.a33
+    return nothing
+
+end
+
+function LinearAlgebra.mul!(C::BlochMatrix{T}, A::FreePrecessionMatrix, B::FreePrecessionMatrix) where {T}
+
+    C.a11 = A.E2cosθ * B.E2cosθ - A.E2sinθ * B.E2sinθ
+    C.a12 = A.E2cosθ * B.E2sinθ + A.E2sinθ * B.E2cosθ
+    C.a13 = zero(T)
+    C.a21 = -C.a12
+    C.a22 = C.a11
+    C.a23 = zero(T)
+    C.a31 = zero(T)
+    C.a32 = zero(T)
+    C.a33 = A.E1 * B.E1
     return nothing
 
 end

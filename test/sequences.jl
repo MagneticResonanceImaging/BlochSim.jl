@@ -33,10 +33,11 @@ function testB3a()
     gradz = 0.3 # G/cm
     Tg = 3 # ms
     z = π/2 / (GAMMA * gradz * Tg/1000) # cm
-    spin = Spin(1, 600, 100, 0, [0,0,z])
-    spgr!(spin, 10, 2, π/3, [0,0,gradz], Tg; Δθinc = 0)
+    spin = Spin(1, 600, 100, 0, Position(0,0,z))
+    spgr! = SPGRBlochSim(10, 2, π/3, GradientSpoiling(0, 0, gradz, Tg))
+    spgr!(spin)
 
-    return spin.M ≈ vec(answer["M"])
+    return Vector(spin.M) ≈ vec(answer["M"])
 
 end
 
@@ -48,15 +49,12 @@ function testB3b()
     Tg = 3 # ms
     zmax = 4π / (GAMMA * gradz * Tg/1000) # cm
     z = ((1:100)/100 .- 0.5) * zmax
-    spins = map(z -> Spin(1, 600, 100, 0, [0,0,z]), z)
-    map(spin -> spgr!(spin, 10, 2, π/3, [0,0,gradz], Tg; Δθinc = 0), spins)
-    M = zeros(ComplexF64, 3)
-    for spin in spins
-        M .+= spin.M
-    end
-    M ./= 100
+    spins = map(z -> Spin(1, 600, 100, 0, Position(0,0,z)), z)
+    spgr! = SPGRBlochSim(10, 2, π/3, GradientSpoiling(0, 0, gradz, Tg))
+    foreach(spgr!, spins)
+    M = mean(spin.M for spin in spins)
 
-    return M ≈ vec(answer["M"])
+    return Vector(M) ≈ vec(answer["M"])
 
 end
 
@@ -65,9 +63,10 @@ function testB3c()
     answer = matread("matlabtestdata/testB3c.mat")
 
     spin = Spin(1, 600, 100, 0)
-    spgr!(spin, 10, 2, π/3)
+    spgr! = SPGRBlochSim(10, 2, π/3)
+    spgr!(spin)
 
-    return spin.M ≈ vec(answer["M"])
+    return Vector(spin.M) ≈ vec(answer["M"])
 
 end
 
@@ -79,7 +78,8 @@ function testB5a()
     Tg = 3 # ms
     zmax = 2π / (GAMMA * gradz * Tg/1000) # cm
     z = (1:100)/100 * zmax
-    spins = map(z -> Spin(1, 600, 100, 0, [0,0,z]), z)
+    spins = map(z -> Spin(1, 600, 100, 0, Position(0,0,z)), z)
+    spgr! = SPGRBlochSim(10, 2, π/6, RFandGradientSpoiling((0, 0, gradz), Tg, deg2rad(117)))
     s = map(spin -> spgr!(spin, 10, 2, π/6, [0,0,gradz], Tg, nTR = 99), spins)
     sig = sum(s) / 100
 
@@ -127,23 +127,23 @@ end
 
 @testset "Sequences" begin
 
-    @testset "MESE" begin
-
-        @test testB2c()
-        @test testB2d()
-        @test testB2dMC()
-
-    end
-
-#    @testset "SPGR" begin
+#    @testset "MESE" begin
 #
-#
-#        @test testB3a()
-#        @test testB3b()
-#        @test testB3c()
-#        @test testB5a()
-#        @test testB5b()
+#        @test testB2c()
+#        @test testB2d()
+#        @test testB2dMC()
 #
 #    end
+
+    @testset "SPGR" begin
+
+
+        @test testB3a()
+        @test testB3b()
+        @test testB3c()
+        @test testB5a()
+#        @test testB5b()
+
+    end
 
 end
