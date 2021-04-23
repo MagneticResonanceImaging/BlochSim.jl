@@ -7,9 +7,11 @@ struct MESEBlochSim{T1<:AbstractRF,T2<:AbstractRF}
 
     function MESEBlochSim(TR, TE, nechoes, rfex::T1, rfref::T2) where {T1,T2}
 
-        TR >= TE * nechoes || error("TR must be greater than or equal to TE * nechoes")
-        # Should probably also check to make sure TE is not during RF pulse,
-        # and that excitation/refocussing pulses do not overlap
+        TR >= TE * nechoes + duration(rfex) / 2 ||
+            error("TR must be greater than or equal to TE * nechoes + duration(rfex) / 2")
+        (TE - duration(rfref)) / 2 >= duration(rfex) / 2 ||
+            error("the refocussing pulse must not overlap the excitation pulse")
+        TE >= duration(rfref) || error("TE must be longer than the refocussing pulse")
         new{T1,T2}(TR, TE, nechoes, rfex, rfref)
 
     end
@@ -22,10 +24,14 @@ struct MESEBlochSimWorkspace{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12}
     Bex::T2
     Aref::T3
     Bref::T4
+    Ate1::T5
+    Bte1::T6
     Ate::T5
     Bte::T6
     Atr::T5
     Btr::T6
+    Aecho1::T7
+    Becho1::T6
     Aecho::T7
     Becho::T6
     tmpA1::T7
@@ -75,10 +81,14 @@ function MESEBlochSimWorkspace(
         ref_workspace = ExcitationWorkspace(spin, bm_workspace)
     end
     if spin isa Spin
+        Ate1 = FreePrecessionMatrix{T}()
+        Bte1 = Magnetization{T}()
         Ate = FreePrecessionMatrix{T}()
         Bte = Magnetization{T}()
         Atr = FreePrecessionMatrix{T}()
         Btr = Magnetization{T}()
+        Aecho1 = BlochMatrix{T}()
+        Becho1 = Magnetization{T}()
         Aecho = BlochMatrix{T}()
         Becho = Magnetization{T}()
         tmpA1 = BlochMatrix{T}()
@@ -89,10 +99,14 @@ function MESEBlochSimWorkspace(
         vec = Vector{T}(undef, 3)
     else
         N = spin.N
+        Ate1 = BlochMcConnellMatrix{T}(N)
+        Bte1 = MagnetizationMC{T}(N)
         Ate = BlochMcConnellMatrix{T}(N)
         Bte = MagnetizationMC{T}(N)
         Atr = BlochMcConnellMatrix{T}(N)
         Btr = MagnetizationMC{T}(N)
+        Aecho1 = BlochMcConnellMatrix{T}(N)
+        Becho1 = MagnetizationMC{T}(N)
         Aecho = BlochMcConnellMatrix{T}(N)
         Becho = MagnetizationMC{T}(N)
         tmpA1 = BlochMcConnellMatrix{T}(N)
@@ -102,26 +116,28 @@ function MESEBlochSimWorkspace(
         mat = Matrix{T}(undef, 6, 6)
         vec = Vector{T}(undef, 6)
     end
-    MESEBlochSimWorkspace(Aex, Bex, Aref, Bref, Ate, Bte, Atr, Btr, Aecho,
-        Becho, tmpA1, tmpB1, tmpA2, tmpB2, mat, vec, bm_workspace, ex_workspace,
-        ref_workspace)
+    MESEBlochSimWorkspace(Aex, Bex, Aref, Bref, Ate1, Bte1, Ate, Bte, Atr, Btr,
+        Aecho1, Becho1, Aecho, Becho, tmpA1, tmpB1, tmpA2, tmpB2, mat, vec,
+        bm_workspace, ex_workspace, ref_workspace)
 
 end
 
-# This function does not correctly handle timing with non-instantaneous RF pulses
 function (scan::MESEBlochSim)(spin::AbstractSpin, workspace::MESEBlochSimWorkspace = MESEBlochSimWorkspace(spin, scan))
 
     excite!(workspace.Aex, workspace.Bex, spin, scan.rfex, workspace.ex_workspace)
     excite!(workspace.Aref, workspace.Bref, spin, scan.rfref, workspace.ex_workspace)
-    freeprecess!(workspace.Ate, workspace.Bte, spin, scan.TE / 2, workspace.bm_workspace)
+    freeprecess!(workspace.Ate1, workspace.Bte1, spin, (scan.TE - duration(scan.rfex) - duration(scan.rfref)) / 2, workspace.bm_workspace)
+    freeprecess!(workspace.Ate, workspace.Bte, spin, (scan.TE - duration(scan.rfref)) / 2, workspace.bm_workspace)
     freeprecess!(workspace.Atr, workspace.Btr, spin, scan.TR - scan.TE * scan.nechoes, workspace.bm_workspace)
     S = spoil(spin)
 
     combine!(workspace.tmpA1, workspace.tmpB1, workspace.Ate, workspace.Bte, workspace.Aref, workspace.Bref)
     combine!(workspace.Aecho, workspace.Becho, workspace.tmpA1, workspace.tmpB1, workspace.Ate, workspace.Bte)
 
-    copyto!(workspace.tmpA1, workspace.Aecho)
-    copyto!(workspace.tmpB1, workspace.Becho)
+    combine!(workspace.tmpA1, workspace.tmpB1, workspace.Ate1, workspace.Bte1, workspace.Aref, workspace.Bref)
+    combine!(workspace.Aecho1, workspace.Becho1, workspace.tmpA1, workspace.tmpB1, workspace.Ate, workspace.Bte)
+    copyto!(workspace.tmpA1, workspace.Aecho1)
+    copyto!(workspace.tmpB1, workspace.Becho1)
     for e = 2:scan.nechoes
         combine!(workspace.tmpA2, workspace.tmpB2, workspace.tmpA1, workspace.tmpB1, workspace.Aecho, workspace.Becho)
         copyto!(workspace.tmpA1, workspace.tmpA2)
@@ -137,7 +153,9 @@ function (scan::MESEBlochSim)(spin::AbstractSpin, workspace::MESEBlochSimWorkspa
     copyto!(spin.M, workspace.vec)
 
     Mout = Vector{typeof(spin.M)}(undef, scan.nechoes)
-    for e = 1:scan.nechoes
+    applydynamics!(spin, workspace.tmpB1, workspace.Aecho1, workspace.Becho1)
+    Mout[1] = copy(spin.M)
+    for e = 2:scan.nechoes
         applydynamics!(spin, workspace.tmpB1, workspace.Aecho, workspace.Becho)
         Mout[e] = copy(spin.M)
     end

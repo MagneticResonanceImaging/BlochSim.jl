@@ -14,8 +14,9 @@ struct SPGRBlochSim{T1<:AbstractRF,T2<:AbstractSpoiling,nTR,save_transients}
     ) where {T1<:AbstractRF,T2<:AbstractSpoiling,T3,T4}
 
         Tg = spoiler_gradient_duration(spoiling)
-        TR >= TE + Tg || error("TR must be greater than or equal to TE + Tg")
-        # Should probably also check to make sure TE is not during RF pulse
+        TR >= TE + Tg + duration(rf) / 2 ||
+            error("TR must be greater than or equal to TE + Tg + duration(rf) / 2")
+        TE >= duration(rf) / 2 || error("TE must not be during the excitation pulse")
         (T3 isa Int && T3 >= 0) || error("nTR must be a nonnegative Int")
         T2 <: Union{<:RFSpoiling,<:RFandGradientSpoiling} && (T3 > 0 ||
             error("nTR must be positive when simulating RF spoiling"))
@@ -110,7 +111,6 @@ function SPGRBlochSimWorkspace(
 end
 
 # Case when nTR = 0
-# This function does not correctly handle timing with non-instantaneous RF pulses
 function (scan::SPGRBlochSim{<:AbstractRF,<:AbstractSpoiling,0})(
     spin::AbstractSpin,
     workspace::SPGRBlochSimWorkspace = SPGRBlochSimWorkspace(spin, scan)
@@ -119,7 +119,7 @@ function (scan::SPGRBlochSim{<:AbstractRF,<:AbstractSpoiling,0})(
     Tg = spoiler_gradient_duration(scan.spoiling)
 
     excite!(workspace.Aex, workspace.Bex, spin, scan.rf, workspace.ex_workspace)
-    freeprecess!(workspace.Atr, workspace.Btr, spin, scan.TR - Tg, workspace.bm_workspace)
+    freeprecess!(workspace.Atr, workspace.Btr, spin, scan.TR - Tg - duration(scan.rf), workspace.bm_workspace)
     spoil!(workspace.Atg, workspace.Btg, spin, scan.spoiling, workspace.bm_workspace)
 
     combine!(workspace.tmpA1, workspace.tmpB1, workspace.Atr, workspace.Btr, workspace.Atg, workspace.Btg)
@@ -130,13 +130,12 @@ function (scan::SPGRBlochSim{<:AbstractRF,<:AbstractSpoiling,0})(
     ldiv!(F, workspace.vec)
     copyto!(spin.M, workspace.vec)
 
-    freeprecess!(workspace.Atr, workspace.Btr, spin, scan.TE, workspace.bm_workspace)
+    freeprecess!(workspace.Atr, workspace.Btr, spin, scan.TE - duration(scan.rf) / 2, workspace.bm_workspace)
     applydynamics!(spin, workspace.tmpB1, workspace.Atr, workspace.Btr)
 
 end
 
 # Case when nTR > 0
-# This function does not correctly handle timing with non-instantaneous RF pulses
 function (scan::SPGRBlochSim{<:AbstractRF,T,nTR,save})(
     spin::AbstractSpin,
     workspace::SPGRBlochSimWorkspace = SPGRBlochSimWorkspace(spin, scan)
@@ -155,13 +154,13 @@ function (scan::SPGRBlochSim{<:AbstractRF,T,nTR,save})(
 
     if save
         M = Vector{typeof(spin.M)}(undef, nTR)
-        freeprecess!(workspace.Atr, workspace.Btr, spin, scan.TR - scan.TE - Tg, workspace.bm_workspace)
+        freeprecess!(workspace.Atr, workspace.Btr, spin, scan.TR - scan.TE - Tg - duration(scan.rf) / 2, workspace.bm_workspace)
     else
-        freeprecess!(workspace.Atr, workspace.Btr, spin, scan.TR - Tg, workspace.bm_workspace)
+        freeprecess!(workspace.Atr, workspace.Btr, spin, scan.TR - Tg - duration(scan.rf), workspace.bm_workspace)
     end
     spoil!(workspace.Atg, workspace.Btg, spin, scan.spoiling, workspace.bm_workspace)
     combine!(workspace.tmpA1, workspace.tmpB1, workspace.Atr, workspace.Btr, workspace.Atg, workspace.Btg)
-    freeprecess!(workspace.Atr, workspace.Btr, spin, scan.TE, workspace.bm_workspace)
+    freeprecess!(workspace.Atr, workspace.Btr, spin, scan.TE - duration(scan.rf) / 2, workspace.bm_workspace)
 
     for rep = 1:nTR-1
 

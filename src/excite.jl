@@ -40,6 +40,9 @@ RF(waveform, Δt) = RF(waveform, Δt, 0, Gradient(0, 0, 0))
 
 Base.length(rf::RF) = length(rf.α)
 
+duration(::InstantaneousRF) = 0
+duration(rf::RF) = length(rf) * rf.Δt
+
 struct ExcitationWorkspace{T1,T2,T3,T4,T5}
     Af::T1
     Bf::T2
