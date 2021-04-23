@@ -79,9 +79,9 @@ function testB5a()
     zmax = 2π / (GAMMA * gradz * Tg/1000) # cm
     z = (1:100)/100 * zmax
     spins = map(z -> Spin(1, 600, 100, 0, Position(0,0,z)), z)
-    spgr! = SPGRBlochSim(10, 2, π/6, RFandGradientSpoiling((0, 0, gradz), Tg, deg2rad(117)))
-    s = map(spin -> spgr!(spin, 10, 2, π/6, [0,0,gradz], Tg, nTR = 99), spins)
-    sig = sum(s) / 100
+    spgr! = SPGRBlochSim(10, 2, π/6, RFandGradientSpoiling((0, 0, gradz), Tg), Val(100))
+    foreach(spgr!, spins)
+    sig = mean(signal(spin.M) for spin in spins)
 
     return sig ≈ answer["sig"]
 
@@ -96,14 +96,19 @@ function testB5b()
     Tg = 3 # ms
     zmax = 2π / (GAMMA * gradz * Tg/1000) # cm
     z = (1:100)/100 * zmax
-    srf = zeros(ComplexF64, 51)
+    srf = Vector{ComplexF64}(undef, 51)
     for i = 1:51
-        spins = map(z -> Spin(1, 600, 100, 0, [0,0,z]), z)
-        s = map(spin -> spgr!(spin, 10, 2, α[i], [0,0,gradz], Tg, nTR = 99), spins)
-        srf[i] = sum(s) / 100
+        spins = map(z -> Spin(1, 600, 100, 0, Position(0,0,z)), z)
+        spgr! = SPGRBlochSim(10, 2, α[i], RFandGradientSpoiling((0, 0, gradz), Tg), Val(100))
+        foreach(spgr!, spins)
+        srf[i] = mean(signal(spin.M) for spin in spins)
     end
     spin = Spin(1, 600, 100, 0)
-    sideal = map(α -> spgr!(spin, 10, 2, α), α)
+    sideal = map(α) do α
+        spgr! = SPGRBlochSim(10, 2, α)
+        spgr!(spin)
+        signal(spin)
+    end
 
     return srf ≈ vec(answer["sig1"]) && sideal ≈ vec(answer["sig2"])
 
@@ -127,13 +132,13 @@ end
 
 @testset "Sequences" begin
 
-#    @testset "MESE" begin
-#
-#        @test testB2c()
-#        @test testB2d()
-#        @test testB2dMC()
-#
-#    end
+    @testset "MESE" begin
+
+        @test testB2c()
+        @test testB2d()
+        @test testB2dMC()
+
+    end
 
     @testset "SPGR" begin
 
@@ -142,7 +147,7 @@ end
         @test testB3b()
         @test testB3c()
         @test testB5a()
-#        @test testB5b()
+        @test testB5b()
 
     end
 

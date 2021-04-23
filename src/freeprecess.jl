@@ -356,6 +356,20 @@ function combine!(A, B, A1, ::Nothing, A2, B2)
 
 end
 
+function combine!(A, B, A1, B1, ::Nothing, ::Nothing)
+
+    copyto!(A, A1)
+    copyto!(B, B1)
+
+end
+
+function combine!(A, B, ::Nothing, ::Nothing, A2, B2)
+
+    copyto!(A, A2)
+    copyto!(B, B2)
+
+end
+
 combine!(A, A2, A1) = mul!(A, A2, A1)
 
 """
@@ -410,7 +424,7 @@ function applydynamics!(spin::AbstractSpin, BtoM, A, B)
 
 end
 
-function applydynamics!(spin::AbstractSpin, BtoM, A)
+function applydynamics!(spin::AbstractSpin, BtoM, A, ::Nothing = nothing)
 
     mul!(BtoM, A, spin.M)
     copyto!(spin.M, BtoM)

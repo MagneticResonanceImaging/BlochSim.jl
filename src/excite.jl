@@ -11,8 +11,9 @@ struct RF{T<:Real,G<:Union{<:Gradient,<:AbstractVector{<:Gradient}}} <: Abstract
     α::Vector{T}
     θ::Vector{T}
     Δt::Float64
-    Δθ::Ref{T} # Type Ref to enable RF-spoiling, which requires updating Δθ
+    Δθ_initial::T
     grad::G
+    Δθ::Ref{T} # Type Ref to enable RF-spoiling, which requires updating Δθ
 
     function RF(
         α::AbstractVector{<:Real},
@@ -26,7 +27,7 @@ struct RF{T<:Real,G<:Union{<:Gradient,<:AbstractVector{<:Gradient}}} <: Abstract
         grad isa AbstractVector && (length(grad) == length(α) ||
             error("grad is a vector but has a different number of elements than α"))
         T = promote_type(eltype(α), eltype(θ), typeof(Δθ))
-        new{T,typeof(grad)}(α, θ, Δt, Δθ, grad)
+        new{T,typeof(grad)}(α, θ, Δt, Δθ, grad, Δθ)
 
     end
 end

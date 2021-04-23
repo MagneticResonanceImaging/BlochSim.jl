@@ -37,6 +37,8 @@ struct RFSpoiling{T<:Real} <: AbstractSpoiling
     Δθ::T
 end
 
+RFSpoiling() = RFSpoiling(deg2rad(117))
+
 struct RFandGradientSpoiling{T1<:Real,T2<:Real} <: AbstractSpoiling
     gradient::GradientSpoiling{T1}
     rf::RFSpoiling{T2}
@@ -47,15 +49,18 @@ RFandGradientSpoiling(grad::NTuple{3,Real}, Tg::Real, rf::RFSpoiling) = RFandGra
 RFandGradientSpoiling(gx, gy, gz, Tg, rf::RFSpoiling) = RFandGradientSpoiling(GradientSpoiling(gx, gy, gz, Tg), rf)
 RFandGradientSpoiling(grad::GradientSpoiling, Δθ) = RFandGradientSpoiling(grad, RFSpoiling(Δθ))
 RFandGradientSpoiling(grad::Union{<:Gradient,<:NTuple{3,Real}}, Tg, Δθ) = RFandGradientSpoiling(grad, Tg, RFSpoiling(Δθ))
+RFandGradientSpoiling(grad::GradientSpoiling) = RFandGradientSpoiling(grad, RFSpoiling())
+RFandGradientSpoiling(grad::Union{<:Gradient,<:NTuple{3,Real}}, Tg) = RFandGradientSpoiling(grad, Tg, RFSpoiling())
 RFandGradientSpoiling(rf::Union{<:RFSpoiling,<:Real}, grad::GradientSpoiling) = RFandGradientSpoiling(grad, rf)
 RFandGradientSpoiling(rf::Union{<:RFSpoiling,<:Real}, grad::Union{<:Gradient,<:NTuple{3,Real}}, Tg) = RFandGradientSpoiling(grad, Tg, rf)
 RFandGradientSpoiling(rf::RFSpoiling, gx, gy, gz, Tg) = RFandGradientSpoiling(gx, gy, gz, Tg, rf)
 
 spoiler_gradient(s::GradientSpoiling) = s.gradient
 spoiler_gradient(s::RFandGradientSpoiling) = spoiler_gradient(s.gradient)
-spoiler_gradient_duration(::IdealSpoiling) = 0
+spoiler_gradient_duration(::AbstractSpoiling) = 0
 spoiler_gradient_duration(s::GradientSpoiling) = s.Tg
 spoiler_gradient_duration(s::RFandGradientSpoiling) = spoiler_gradient_duration(s.gradient)
+rfspoiling_increment(::AbstractSpoiling) = 0
 rfspoiling_increment(s::RFSpoiling) = s.Δθ
 rfspoiling_increment(s::RFandGradientSpoiling) = rfspoiling_increment(s.rf)
 
@@ -97,6 +102,7 @@ spoil!(spin::AbstractSpin) = mul!(spin.M, idealspoiling)
 applydynamics!(spin::AbstractSpin, ::IdealSpoilingMatrix) = spoil!(spin)
 
 spoil!(A::IdealSpoilingMatrix, ::Nothing, spin::AbstractSpin, ::IdealSpoiling, ::Any = nothing) = nothing
+spoil!(::Nothing, ::Nothing, spin::AbstractSpin, ::RFSpoiling, ::Any = nothing) = nothing
 
 function spoil!(
     A,
