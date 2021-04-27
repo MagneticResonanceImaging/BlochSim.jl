@@ -28,8 +28,7 @@ struct SPGRBlochSim{T1<:AbstractRF,T2<:AbstractSpoiling,nTR,save_transients}
     end
 end
 
-SPGRBlochSim(TR, TE, rf, spoiling::AbstractSpoiling, nTR::Val) = SPGRBlochSim(TR, TE, rf, spoiling, nTR, Val(false))
-SPGRBlochSim(TR, TE, rf, spoiling::AbstractSpoiling) = SPGRBlochSim(TR, TE, rf, spoiling, Val(0), Val(false))
+SPGRBlochSim(TR, TE, rf, spoiling::AbstractSpoiling, nTR::Val = Val(0)) = SPGRBlochSim(TR, TE, rf, spoiling, nTR, Val(false))
 SPGRBlochSim(TR, TE, rf, nTR::Val, save_transients::Val = Val(false)) = SPGRBlochSim(TR, TE, rf, IdealSpoiling(), nTR, save_transients)
 SPGRBlochSim(TR, TE, rf) = SPGRBlochSim(TR, TE, rf, IdealSpoiling(), Val(0), Val(false))
 SPGRBlochSim(TR, TE, α::Real, spoiling, nTR, save_transients) = SPGRBlochSim(TR, TE, InstantaneousRF(α), spoiling, nTR, save_transients)
@@ -150,6 +149,8 @@ function (scan::SPGRBlochSim{<:AbstractRF,T,nTR,save})(
         Δθinc = rfspoiling_increment(scan.spoiling)
         θ = zero(Δθinc) # For knowing how much phase to remove when recording signal
         Δθ = Δθinc
+    else
+        excite!(workspace.Aex, workspace.Bex, spin, rf, workspace.ex_workspace)
     end
 
     if save
@@ -164,19 +165,20 @@ function (scan::SPGRBlochSim{<:AbstractRF,T,nTR,save})(
 
     for rep = 1:nTR-1
 
-        excite!(workspace.Aex, workspace.Bex, spin, rf, workspace.ex_workspace)
+        rfspoiling && excite!(workspace.Aex, workspace.Bex, spin, rf, workspace.ex_workspace)
         applydynamics!(spin, workspace.tmpB2, workspace.Aex, workspace.Bex)
         if save
             applydynamics!(spin, workspace.tmpB2, workspace.Atr, workspace.Btr)
             M[rep] = copy(spin.M)
             if rfspoiling
+                modulation = exp(im * θ)
                 if spin isa Spin
-                    tmp = signal(spin.M) * exp(im * θ)
+                    tmp = signal(spin.M) * modulation
                     M[rep].x = real(tmp)
                     M[rep].y = imag(tmp)
                 else
                     for i = 1:spin.N
-                        tmp = signal(spin.M[i]) * exp(im * θ)
+                        tmp = signal(spin.M[i]) * modulation
                         M[rep][i].x = real(tmp)
                         M[rep][i].y = imag(tmp)
                     end
@@ -197,17 +199,18 @@ function (scan::SPGRBlochSim{<:AbstractRF,T,nTR,save})(
 
     end
 
-    excite!(workspace.Aex, workspace.Bex, spin, rf, workspace.ex_workspace)
+    rfspoiling && excite!(workspace.Aex, workspace.Bex, spin, rf, workspace.ex_workspace)
     applydynamics!(spin, workspace.tmpB2, workspace.Aex, workspace.Bex)
     applydynamics!(spin, workspace.tmpB2, workspace.Atr, workspace.Btr)
     if rfspoiling
+        modulation = exp(im * θ)
         if spin isa Spin
-            tmp = signal(spin.M) * exp(im * θ)
+            tmp = signal(spin.M) * modulation
             spin.M.x = real(tmp)
             spin.M.y = imag(tmp)
         else
             for i = 1:spin.N
-                tmp = signal(spin.M[i]) * exp(im * θ)
+                tmp = signal(spin.M[i]) * modulation
                 spin.M[i].x = real(tmp)
                 spin.M[i].y = imag(tmp)
             end
