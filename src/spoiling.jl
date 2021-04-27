@@ -33,6 +33,8 @@ end
 
 GradientSpoiling(x, y, z, Tg) = GradientSpoiling(Gradient(x, y, z), Tg)
 
+# I almost removed RFSpoiling but decided against it because it can be used to
+# implement, e.g., phase cycling for bSSFP
 struct RFSpoiling{T<:Real} <: AbstractSpoiling
     Δθ::T
 end

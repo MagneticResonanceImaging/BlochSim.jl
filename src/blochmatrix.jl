@@ -124,6 +124,21 @@ function Base.Matrix(A::FreePrecessionMatrix{T}) where {T}
 
 end
 
+function Base.copyto!(dst::BlochMatrix{T}, src::FreePrecessionMatrix) where {T}
+
+    dst.a11 = src.E2cosθ
+    dst.a21 = -src.E2sinθ
+    dst.a31 = zero(T)
+    dst.a12 = src.E2sinθ
+    dst.a22 = src.E2cosθ
+    dst.a32 = zero(T)
+    dst.a13 = zero(T)
+    dst.a23 = zero(T)
+    dst.a33 = src.E1
+    return nothing
+
+end
+
 mutable struct ExchangeDynamicsMatrix{T<:Real} <: AbstractBlochMatrix{T}
     r::T
 end
@@ -326,6 +341,7 @@ const idealspoiling = IdealSpoilingMatrix()
 
 Base.:+(M1::Magnetization, M2::Magnetization) = Magnetization(M1.x + M2.x, M1.y + M2.y, M1.z + M2.z)
 Base.:/(M::Magnetization, a) = Magnetization(M.x / a, M.y / a, M.z / a)
+LinearAlgebra.rdiv!(M::Magnetization, a) = (M.x /= a; M.y /= a; M.z /= a; nothing)
 
 function add!(M1::Magnetization, M2::Magnetization)
 

@@ -8,7 +8,8 @@ struct BlochMcConnellWorkspace{T<:Real,N}
                  MatrixExponentialWorkspace{T}(N))
 end
 
-BlochMcConnellWorkspace(::SpinMC{T,N}) where{T,N} = BlochMcConnellWorkspace(T, N)
+BlochMcConnellWorkspace(::Type{SpinMC{T,N}}) where {T,N} = BlochMcConnellWorkspace(T, N)
+BlochMcConnellWorkspace(spin::SpinMC) = BlochMcConnellWorkspace(typeof(spin))
 
 """
     freeprecess(spin, t)

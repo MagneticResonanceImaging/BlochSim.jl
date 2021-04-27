@@ -14,7 +14,7 @@ const GAMMA  = 2π * GAMBAR
 
 const DualFloat64 = Union{Float64,<:ForwardDiff.Dual{T,Float64,N} where {T,N}}
 
-struct Position{T<:Real}
+mutable struct Position{T<:Real}
     x::T
     y::T
     z::T
@@ -105,7 +105,7 @@ end
 
 # If magnetization vector is not specified then use equilibrium
 Spin(M0, T1, T2, Δf, pos::Position = Position(0.0, 0.0, 0.0)) =
-    Spin(Magnetization(0, 0, M0), M0, T1, T2, Δf, pos)
+    Spin(Magnetization(0.0, 0.0, M0), M0, T1, T2, Δf, pos)
 
 function Base.show(io::IO, ::MIME"text/plain", spin::Spin{T}) where {T}
 

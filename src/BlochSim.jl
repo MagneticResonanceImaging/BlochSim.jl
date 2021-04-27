@@ -16,13 +16,19 @@ export signal
 
 export Gradient
 export AbstractSpoiling
+export IdealSpoiling
 export GradientSpoiling
 export RFSpoiling
 export RFandGradientSpoiling
+export idealspoiling
 export spoiler_gradient
+export spoiler_gradient_duration
 export rfspoiling_increment
+
+export AbstractRF
 export InstantaneousRF
 export RF
+export duration
 
 export BlochMatrix
 export FreePrecessionMatrix
@@ -39,14 +45,17 @@ export excite
 export excite!
 export spoil
 export spoil!
+
+export add!
+export subtract!
+export muladd!
+export combine!
 export applydynamics!
+
 export MESEBlochSim
 export MESEBlochSimWorkspace
 export SPGRBlochSim
 export SPGRBlochSimWorkspace
-export mese
-export mese!
-export spgr!
 
 include("magnetization.jl")
 include("blochmatrix.jl")
