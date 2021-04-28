@@ -47,22 +47,31 @@ end
 
 function MESEBlochSimWorkspace(
     spin::AbstractSpin,
-    scan::MESEBlochSim{T1,T2},
+    scan::MESEBlochSim,
     bm_workspace = spin isa Spin ? nothing : BlochMcConnellWorkspace(spin)
-) where {T1,T2}
+)
 
-    T = eltype(spin)
+    MESEBlochSimWorkspace(typeof(spin), typeof(scan), bm_workspace)
+
+end
+
+function MESEBlochSimWorkspace(
+    spin::Union{Type{Spin{T}},Type{SpinMC{T,N}}},
+    scan::Type{MESEBlochSim{T1,T2}},
+    bm_workspace = spin <: Spin ? nothing : BlochMcConnellWorkspace(spin)
+) where {T,N,T1,T2}
+
     if T1 <: InstantaneousRF
         Aex = ExcitationMatrix{T}()
         Bex = nothing
         ex_workspace = nothing
     else
-        if spin isa Spin
+        if spin <: Spin
             Aex = BlochMatrix{T}()
             Bex = Magnetization{T}()
         else
-            Aex = BlochMcConnellMatrix{T}(spin.N)
-            Bex = MagnetizationMC{T}(spin.N)
+            Aex = BlochMcConnellMatrix{T}(N)
+            Bex = MagnetizationMC{T}(N)
         end
         ex_workspace = ExcitationWorkspace(spin, bm_workspace)
     end
@@ -71,16 +80,16 @@ function MESEBlochSimWorkspace(
         Bref = nothing
         ref_workspace = nothing
     else
-        if spin isa Spin
+        if spin <: Spin
             Aref = BlochMatrix{T}()
             Bref = Magnetization{T}()
         else
-            Aref = BlochMcConnellMatrix{T}(spin.N)
-            Bref = MagnetizationMC{T}(spin.N)
+            Aref = BlochMcConnellMatrix{T}(N)
+            Bref = MagnetizationMC{T}(N)
         end
         ref_workspace = ExcitationWorkspace(spin, bm_workspace)
     end
-    if spin isa Spin
+    if spin <: Spin
         Ate1 = FreePrecessionMatrix{T}()
         Bte1 = Magnetization{T}()
         Ate = FreePrecessionMatrix{T}()
@@ -98,7 +107,6 @@ function MESEBlochSimWorkspace(
         mat = Matrix{T}(undef, 3, 3)
         vec = Vector{T}(undef, 3)
     else
-        N = spin.N
         Ate1 = BlochMcConnellMatrix{T}(N)
         Bte1 = MagnetizationMC{T}(N)
         Ate = BlochMcConnellMatrix{T}(N)
@@ -113,8 +121,8 @@ function MESEBlochSimWorkspace(
         tmpB1 = MagnetizationMC{T}(N)
         tmpA2 = BlochMcConnellMatrix{T}(N)
         tmpB2 = MagnetizationMC{T}(N)
-        mat = Matrix{T}(undef, 6, 6)
-        vec = Vector{T}(undef, 6)
+        mat = Matrix{T}(undef, 3N, 3N)
+        vec = Vector{T}(undef, 3N)
     end
     MESEBlochSimWorkspace(Aex, Bex, Aref, Bref, Ate1, Bte1, Ate, Bte, Atr, Btr,
         Aecho1, Becho1, Aecho, Becho, tmpA1, tmpB1, tmpA2, tmpB2, mat, vec,
