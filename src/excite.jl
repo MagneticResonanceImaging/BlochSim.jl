@@ -59,9 +59,17 @@ function ExcitationWorkspace(
     bm_workspace = spin isa Spin ? nothing : BlochMcConnellWorkspace(spin)
 )
 
-    T = eltype(spin)
+    ExcitationWorkspace(typeof(spin), bm_workspace)
+
+end
+
+function ExcitationWorkspace(
+    spin::Union{Type{Spin{T}},Type{SpinMC{T,N}}},
+    bm_workspace = spin <: Spin ? nothing : BlochMcConnellWorkspace(spin)
+) where {T,N}
+
     Ae = ExcitationMatrix{T}()
-    if spin isa Spin
+    if spin <: Spin
         Af = FreePrecessionMatrix{T}()
         Bf = Magnetization{T}()
         tmpA1 = BlochMatrix{T}()
@@ -69,7 +77,6 @@ function ExcitationWorkspace(
         tmpB1 = Magnetization{T}()
         tmpB2 = Magnetization{T}()
     else
-        N = spin.N
         Af = BlochMcConnellMatrix{T}(N)
         Bf = MagnetizationMC{T}(N)
         tmpA1 = BlochMcConnellMatrix{T}(N)
