@@ -343,6 +343,10 @@ Base.:+(M1::Magnetization, M2::Magnetization) = Magnetization(M1.x + M2.x, M1.y 
 Base.:/(M::Magnetization, a) = Magnetization(M.x / a, M.y / a, M.z / a)
 LinearAlgebra.rdiv!(M::Magnetization, a) = (M.x /= a; M.y /= a; M.z /= a; nothing)
 
+Base.:+(M1::MagnetizationMC{T,N}, M2::MagnetizationMC{S,N}) where {S,T,N} = MagnetizationMC(ntuple(i -> M1[i] + M2[i], N)...)
+Base.:/(M::MagnetizationMC{T,N}, a) where {T,N} = MagnetizationMC(ntuple(i -> M[i] / a, N)...)
+LinearAlgebra.rdiv!(M::MagnetizationMC{T,N}, a) where {T,N} = foreach(M -> rdiv!(M, a), M)
+
 function add!(M1::Magnetization, M2::Magnetization)
 
     M1.x += M2.x
