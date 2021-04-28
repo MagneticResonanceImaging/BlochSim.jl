@@ -87,25 +87,33 @@ struct Spin{T<:DualFloat64} <: AbstractSpin
     pos::Position{Float64}
 
     # Default constructor with optional argument pos
-    function Spin(
+    function Spin{T}(
         M::Magnetization,
         M0,
         T1,
         T2,
         Δf,
         pos::Position = Position(0.0, 0.0, 0.0)
-    )
+    ) where {T<:DualFloat64}
 
-        args = (M0, T1, T2, Δf)
-        T = promote_type(Float64, eltype(M), typeof.(args)...)
-        new{T}(M, args..., pos)
+        new{T}(M, M0, T1, T2, Δf, pos)
 
     end
 end
 
+function Spin(M, M0, T1, T2, Δf, pos...)
+
+    args = (M0, T1, T2, Δf)
+    T = promote_type(Float64, eltype(M), typeof.(args)...)
+    Spin{T}(M, args..., pos...)
+
+end
+
 # If magnetization vector is not specified then use equilibrium
-Spin(M0, T1, T2, Δf, pos::Position = Position(0.0, 0.0, 0.0)) =
-    Spin(Magnetization(0.0, 0.0, M0), M0, T1, T2, Δf, pos)
+Spin{T}(M0, T1, T2, Δf, pos::Position...) where {T} =
+    Spin{T}(Magnetization(0.0, 0.0, M0), M0, T1, T2, Δf, pos...)
+Spin(M0, T1, T2, Δf, pos::Position...) =
+    Spin(Magnetization(0.0, 0.0, M0), M0, T1, T2, Δf, pos...)
 
 function Base.show(io::IO, ::MIME"text/plain", spin::Spin{T}) where {T}
 
@@ -218,7 +226,7 @@ struct SpinMC{T<:DualFloat64,N} <: AbstractSpin
     r::NTuple{N,NTuple{N,T}}
     pos::Position{Float64}
 
-    function SpinMC(
+    function SpinMC{T}(
         M::MagnetizationMC{S,N},
         M0,
         frac,
@@ -227,16 +235,9 @@ struct SpinMC{T<:DualFloat64,N} <: AbstractSpin
         Δf,
         τ,
         pos::Position = Position(0.0, 0.0, 0.0)
-    ) where {S,N}
+    ) where {T<:DualFloat64,S,N}
 
         N > 1 || error(sprint(print, "SpinMC expects 2 or more compartments, got ", N))
-        frac = promote(frac...)
-        T1 = promote(T1...)
-        T2 = promote(T2...)
-        Δf = promote(Δf...)
-        rtmp = promote((1 ./ τ)...)
-        T = promote_type(Float64, eltype(M), typeof(M0),
-            eltype(frac), eltype(T1), eltype(T2), eltype(Δf), eltype(rtmp))
         Meq = MagnetizationMC{T}(N)
         for i = 1:N
             Meq[i].z = frac[i] * M0
@@ -248,7 +249,7 @@ struct SpinMC{T<:DualFloat64,N} <: AbstractSpin
                     out = zero(T)
                 else
                     itmp += 1
-                    out = rtmp[itmp]
+                    out = 1 / τ[itmp]
                 end
                 out
             end
@@ -258,11 +259,27 @@ struct SpinMC{T<:DualFloat64,N} <: AbstractSpin
     end
 end
 
+function SpinMC(M, M0, frac, T1, T2, Δf, τ, pos...)
+
+        frac = promote(frac...)
+        T1 = promote(T1...)
+        T2 = promote(T2...)
+        Δf = promote(Δf...)
+        rtmp = promote((1 ./ τ)...)
+        T = promote_type(Float64, eltype(M), typeof(M0),
+            eltype(frac), eltype(T1), eltype(T2), eltype(Δf), eltype(rtmp))
+        SpinMC{T}(M, M0, frac, T1, T2, Δf, τ, pos...)
+
+end
+
+SpinMC{T}(M::NTuple{N,Magnetization}, args...) where {T,N} = SpinMC{T}(MagnetizationMC(M...), args...)
+SpinMC{T}(M::NTuple{N,NTuple{3,Real}}, args...) where {T,N} = SpinMC{T}(MagnetizationMC(M...), args...)
+SpinMC{T}(M0::Real, frac, T1, T2, Δf, τ, pos::Position...) where {T} =
+    SpinMC{T}(MagnetizationMC((Magnetization(0.0, 0.0, frac[i] * M0) for i = 1:length(frac))...), M0, frac, T1, T2, Δf, τ, pos...)
 SpinMC(M::NTuple{N,Magnetization}, args...) where {N} = SpinMC(MagnetizationMC(M...), args...)
 SpinMC(M::NTuple{N,NTuple{3,Real}}, args...) where {N} = SpinMC(MagnetizationMC(M...), args...)
-SpinMC(M::NTuple{N,Real}, args...) where {N} = SpinMC(MagnetizationMC(M...), args...)
-SpinMC(M0::Real, frac, T1, T2, Δf, τ, pos::Position = Position(0.0, 0.0, 0.0)) =
-    SpinMC(MagnetizationMC((Magnetization(0, 0, frac[i] * M0) for i = 1:length(frac))...), M0, frac, T1, T2, Δf, τ, pos)
+SpinMC(M0::Real, frac, T1, T2, Δf, τ, pos::Position...) =
+    SpinMC(MagnetizationMC((Magnetization(0.0, 0.0, frac[i] * M0) for i = 1:length(frac))...), M0, frac, T1, T2, Δf, τ, pos...)
 
 function Base.show(io::IO, spin::SpinMC{T,N}) where {T,N}
 
