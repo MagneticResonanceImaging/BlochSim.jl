@@ -143,7 +143,7 @@ end # expm
 
 frexp1(x) = frexp(x)[1]
 frexp2(x) = frexp(x)[2]
-dfrexp1(x) = 2.0^(-round(log2(abs(x)), RoundDown) - 1)
+dfrexp1(x) = 2.0^(-floor(log2(abs(x))) - 1)
 dfrexp2(x) = 0
 
 for (f, df) in ((:frexp1, :dfrexp1), (:frexp2, :dfrexp2))

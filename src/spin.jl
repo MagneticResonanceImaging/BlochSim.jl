@@ -12,7 +12,7 @@ Gyromagnetic ratio for ¹H with units rad/s/G.
 """
 const GAMMA  = 2π * GAMBAR
 
-const DualFloat64 = Union{Float64,<:ForwardDiff.Dual{T,Float64,N} where {T,N}}
+const DualFloat64 = Union{Float64,<:ForwardDiff.Dual}
 
 mutable struct Position{T<:Real}
     x::T
