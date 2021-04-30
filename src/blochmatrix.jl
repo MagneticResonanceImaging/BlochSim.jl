@@ -169,7 +169,7 @@ end
 
 abstract type AbstractBlochMcConnellMatrix{T<:Real,N} end
 
-mutable struct BlochMcConnellDynamicsMatrix{T<:Real,N,M} <: AbstractBlochMcConnellMatrix{T,N}
+struct BlochMcConnellDynamicsMatrix{T<:Real,N,M} <: AbstractBlochMcConnellMatrix{T,N}
     A::NTuple{N,BlochDynamicsMatrix{T}}
     E::NTuple{M,ExchangeDynamicsMatrix{T}}
 
@@ -340,12 +340,9 @@ struct IdealSpoilingMatrix end
 const idealspoiling = IdealSpoilingMatrix()
 
 Base.:+(M1::Magnetization, M2::Magnetization) = Magnetization(M1.x + M2.x, M1.y + M2.y, M1.z + M2.z)
+Base.:-(M1::Magnetization, M2::Magnetization) = Magnetization(M1.x - M2.x, M1.y - M2.y, M1.z - M2.z)
+Base.:*(M::Magnetization, a) = Magnetization(M.x * a, M.y * a, M.z * a)
 Base.:/(M::Magnetization, a) = Magnetization(M.x / a, M.y / a, M.z / a)
-LinearAlgebra.rdiv!(M::Magnetization, a) = (M.x /= a; M.y /= a; M.z /= a; nothing)
-
-Base.:+(M1::MagnetizationMC{T,N}, M2::MagnetizationMC{S,N}) where {S,T,N} = MagnetizationMC(ntuple(i -> M1[i] + M2[i], N)...)
-Base.:/(M::MagnetizationMC{T,N}, a) where {T,N} = MagnetizationMC(ntuple(i -> M[i] / a, N)...)
-LinearAlgebra.rdiv!(M::MagnetizationMC{T,N}, a) where {T,N} = foreach(M -> rdiv!(M, a), M)
 
 function add!(M1::Magnetization, M2::Magnetization)
 
@@ -356,23 +353,22 @@ function add!(M1::Magnetization, M2::Magnetization)
 
 end
 
-function add!(M1::Magnetization, M2::AbstractVector)
+function subtract!(M1::Magnetization, M2::Magnetization)
 
-    M1.x += M2[1]
-    M1.y += M2[2]
-    M1.z += M2[3]
+    M1.x -= M2.x
+    M1.y -= M2.y
+    M1.z -= M2.z
     return nothing
 
 end
 
-function add!(C::AbstractVector, M1::Magnetization, M2::Magnetization)
+LinearAlgebra.mul!(M::Magnetization, a) = (M.x *= a; M.y *= a; M.z *= a; nothing)
+div!(M::Magnetization, a) = (M.x /= a; M.y /= a; M.z /= a; nothing)
 
-    C[1] = M1.x + M2.x
-    C[2] = M1.y + M2.y
-    C[3] = M1.z + M2.z
-    return nothing
-
-end
+Base.:+(M1::MagnetizationMC{T,N}, M2::MagnetizationMC{S,N}) where {S,T,N} = MagnetizationMC(ntuple(i -> M1[i] + M2[i], N)...)
+Base.:-(M1::MagnetizationMC{T,N}, M2::MagnetizationMC{S,N}) where {S,T,N} = MagnetizationMC(ntuple(i -> M1[i] - M2[i], N)...)
+Base.:*(M::MagnetizationMC{T,N}, a) where {T,N} = MagnetizationMC(ntuple(i -> M[i] * a, N)...)
+Base.:/(M::MagnetizationMC{T,N}, a) where {T,N} = MagnetizationMC(ntuple(i -> M[i] / a, N)...)
 
 function add!(M1::MagnetizationMC{T1,N}, M2::MagnetizationMC{T2,N}) where {T1,T2,N}
 
@@ -382,11 +378,24 @@ function add!(M1::MagnetizationMC{T1,N}, M2::MagnetizationMC{T2,N}) where {T1,T2
 
 end
 
-function add!(M1::MagnetizationMC{T,N}, M2::AbstractVector) where {T,N}
+function subtract!(M1::MagnetizationMC{T1,N}, M2::MagnetizationMC{T2,N}) where {T1,T2,N}
 
     for i = 1:N
-        add!(M1[i], view(M2, 3i-2:3i))
+        subtract!(M1[i], M2[i])
     end
+
+end
+
+LinearAlgebra.mul!(M::MagnetizationMC{T,N}, a) where {T,N} = foreach(M -> mul!(M, a), M)
+div!(M::MagnetizationMC{T,N}, a) where {T,N} = foreach(M -> div!(M, a), M)
+
+# Shortcut for cpy = copy(M1); add!(cpy, M2); copyto!(C, cpy)
+function add!(C::AbstractVector, M1::Magnetization, M2::Magnetization)
+
+    C[1] = M1.x + M2.x
+    C[2] = M1.y + M2.y
+    C[3] = M1.z + M2.z
+    return nothing
 
 end
 
@@ -398,23 +407,6 @@ function add!(C::AbstractVector, M1::MagnetizationMC{T,N}, M2::MagnetizationMC{S
 
 end
 
-function Base.:*(A::AbstractMatrix, M::Magnetization)
-
-    Mx = A[1,1] * M.x + A[1,2] * M.y + A[1,3] * M.z
-    My = A[2,1] * M.x + A[2,2] * M.y + A[2,3] * M.z
-    Mz = A[3,1] * M.x + A[3,2] * M.y + A[3,3] * M.z
-    return Magnetization(Mx, My, Mz)
-
-end
-
-Base.:*(A::AbstractMatrix, M::MagnetizationMC{T,N}) where {T,N} = MagnetizationMC(ntuple(N) do i
-    Mtmp = view(A, 3i-2:3i, 1:3) * M[1]
-    for j = 2:N
-        add!(Mtmp, view(A, 3i-2:3i, 3j-2:3j) * M[j])
-    end
-    Mtmp
-end...)
-
 function Base.:*(A::BlochMatrix, M::Magnetization)
 
     return Magnetization(
@@ -425,10 +417,38 @@ function Base.:*(A::BlochMatrix, M::Magnetization)
 
 end
 
+Base.:\(A::BlochMatrix, M::Magnetization) = Magnetization((Matrix(A) \ Vector(M))...)
+
+function Base.:*(A::FreePrecessionMatrix, M::Magnetization)
+
+    return Magnetization(
+        A.E2cosθ * M.x + A.E2sinθ * M.y,
+        A.E2cosθ * M.y - A.E2sinθ * M.x,
+        A.E1 * M.z
+    )
+
+end
+
 Base.:*(A::ExcitationMatrix, M::Magnetization) = A.A * M
 
 Base.:*(::IdealSpoilingMatrix, M::Magnetization{T}) where {T} = Magnetization(zero(T), zero(T), M.z)
 
+function Base.:*(A::BlochMcConnellMatrix{T,N}, M::MagnetizationMC{S,N}) where {S,T,N}
+
+    return MagnetizationMC(ntuple(N) do i
+                               Mc = getblock(A, i, 1) * M[1]
+                               for j = 2:N
+                                   muladd!(Mc, getblock(A, i, j), M[j])
+                               end
+                           end...)
+
+end
+
+Base.:*(A::ExcitationMatrix, M::MagnetizationMC) = MagnetizationMC((A * Mc for Mc in M)...)
+
+Base.:*(A::IdealSpoilingMatrix, M::MagnetizationMC) = MagnetizationMC((A * Mc for Mc in M)...)
+
+# TODO: Start here with *(::BlochMatrix, ::BlochMatrix)
 function Base.:*(A::BlochMatrix, B::FreePrecessionMatrix)
 
     return BlochMatrix(
@@ -470,8 +490,6 @@ function Base.:-(::UniformScaling, B::BlochMatrix)
     )
 
 end
-
-Base.:\(A::BlochMatrix, M::Magnetization) = Magnetization((Matrix(A) \ Vector(M))...)
 
 # M2 = A * M1
 function LinearAlgebra.mul!(M2::Magnetization, A::AbstractMatrix, M1::Magnetization)
@@ -579,7 +597,7 @@ function LinearAlgebra.mul!(M2::MagnetizationMC{T,N}, A::ExcitationMatrix, M1::M
 
 end
 
-function LinearAlgebra.mul!(M::Magnetization{T}, ::IdealSpoilingMatrix) where {T}
+function LinearAlgebra.mul!(M::Magnetization{T}, ::IdealSpoilingMatrix) where {T<:Real}
 
     M.x = zero(T)
     M.y = zero(T)
@@ -587,7 +605,7 @@ function LinearAlgebra.mul!(M::Magnetization{T}, ::IdealSpoilingMatrix) where {T
 
 end
 
-function LinearAlgebra.mul!(M::MagnetizationMC{T,N}, ::IdealSpoilingMatrix) where {T,N}
+function LinearAlgebra.mul!(M::MagnetizationMC{T,N}, ::IdealSpoilingMatrix) where {T<:Real,N}
 
     for i = 1:N
         mul!(M[i], idealspoiling)

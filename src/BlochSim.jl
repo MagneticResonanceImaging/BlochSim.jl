@@ -39,8 +39,6 @@ export BlochMcConnellWorkspace
 export ExcitationWorkspace
 export freeprecess
 export freeprecess!
-export excitation
-export excitation!
 export excite
 export excite!
 export spoil
@@ -49,6 +47,7 @@ export spoil!
 export add!
 export subtract!
 export muladd!
+export div!
 export combine!
 export applydynamics!
 
