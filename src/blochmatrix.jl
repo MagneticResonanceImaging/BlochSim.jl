@@ -174,12 +174,12 @@ struct BlochMcConnellDynamicsMatrix{T<:Real,N,M} <: AbstractBlochMcConnellMatrix
     E::NTuple{M,ExchangeDynamicsMatrix{T}}
 
     function BlochMcConnellDynamicsMatrix(
-        A::NTuple{N,BlochDynamicsMatrix{T}},
-        E::NTuple{M,ExchangeDynamicsMatrix{S}}
-    ) where {M,N,S,T}
+        A::NTuple{N,BlochDynamicsMatrix{T1}},
+        E::NTuple{M,ExchangeDynamicsMatrix{T2}}
+    ) where {M,N,T1,T2}
 
         M == N * (N - 1) || error("exchange rates must be defined for each pair of compartments")
-        Tnew = promote_type(T, S)
+        Tnew = promote_type(T1, T2)
         A = convert.(BlochDynamicsMatrix{Tnew}, A)
         E = convert.(ExchangeDynamicsMatrix{Tnew}, E)
         new{Tnew,N,M}(A, E)
@@ -290,6 +290,7 @@ function Base.copyto!(dst::BlochMcConnellMatrix{T,N}, src::BlochMcConnellMatrix{
 
 end
 
+# Used when computing matrix exponential
 function Base.copyto!(dst::BlochMcConnellMatrix{T,N}, src::AbstractMatrix) where {T,N}
 
     for j = 1:N, i = 1:N
@@ -365,8 +366,8 @@ end
 LinearAlgebra.mul!(M::Magnetization, a) = (M.x *= a; M.y *= a; M.z *= a; nothing)
 div!(M::Magnetization, a) = (M.x /= a; M.y /= a; M.z /= a; nothing)
 
-Base.:+(M1::MagnetizationMC{T,N}, M2::MagnetizationMC{S,N}) where {S,T,N} = MagnetizationMC(ntuple(i -> M1[i] + M2[i], N)...)
-Base.:-(M1::MagnetizationMC{T,N}, M2::MagnetizationMC{S,N}) where {S,T,N} = MagnetizationMC(ntuple(i -> M1[i] - M2[i], N)...)
+Base.:+(M1::MagnetizationMC{T1,N}, M2::MagnetizationMC{T2,N}) where {T1,T2,N} = MagnetizationMC(ntuple(i -> M1[i] + M2[i], N)...)
+Base.:-(M1::MagnetizationMC{T1,N}, M2::MagnetizationMC{T2,N}) where {T1,T2,N} = MagnetizationMC(ntuple(i -> M1[i] - M2[i], N)...)
 Base.:*(M::MagnetizationMC{T,N}, a) where {T,N} = MagnetizationMC(ntuple(i -> M[i] * a, N)...)
 Base.:/(M::MagnetizationMC{T,N}, a) where {T,N} = MagnetizationMC(ntuple(i -> M[i] / a, N)...)
 
@@ -399,7 +400,7 @@ function add!(C::AbstractVector, M1::Magnetization, M2::Magnetization)
 
 end
 
-function add!(C::AbstractVector, M1::MagnetizationMC{T,N}, M2::MagnetizationMC{S,N}) where {S,T,N}
+function add!(C::AbstractVector, M1::MagnetizationMC{T1,N}, M2::MagnetizationMC{T2,N}) where {T1,T2,N}
 
     for i = 1:N
         add!(view(C, 3i-2:3i), M1[i], M2[i])
@@ -433,14 +434,26 @@ Base.:*(A::ExcitationMatrix, M::Magnetization) = A.A * M
 
 Base.:*(::IdealSpoilingMatrix, M::Magnetization{T}) where {T} = Magnetization(zero(T), zero(T), M.z)
 
-function Base.:*(A::BlochMcConnellMatrix{T,N}, M::MagnetizationMC{S,N}) where {S,T,N}
+function Base.:*(A::BlochMcConnellMatrix{T1,N}, M::MagnetizationMC{T2,N}) where {T1,T2,N}
 
     return MagnetizationMC(ntuple(N) do i
-                               Mc = getblock(A, i, 1) * M[1]
-                               for j = 2:N
-                                   muladd!(Mc, getblock(A, i, j), M[j])
-                               end
-                           end...)
+        Mc = getblock(A, i, 1) * M[1]
+        for j = 2:N
+            muladd!(Mc, getblock(A, i, j), M[j])
+        end
+    end...)
+
+end
+
+function Base.:\(A::BlochMcConnellMatrix{T1,N}, M::MagnetizationMC{T2,N}) where {T1,T2,N}
+
+    result = Matrix(A) \ Vector(M)
+    return MagnetizationMC(ntuple(N) do i
+        @inbounds r1 = result[3i-2]
+        @inbounds r2 = result[3i-1]
+        @inbounds r3 = result[3i]
+        Magnetization(r1, r2, r3)
+    end...)
 
 end
 
