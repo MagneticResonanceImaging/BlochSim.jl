@@ -99,7 +99,22 @@ spoil(::AbstractSpin) = idealspoiling
 
 Apply ideal spoiling to the given spin.
 """
-spoil!(spin::AbstractSpin) = mul!(spin.M, idealspoiling)
+function spoil!(spin::Spin{T}) where {T}
+
+    spin.M.x = zero(T)
+    spin.M.y = zero(T)
+    return nothing
+
+end
+
+function spoil!(spin::SpinMC{T}) where {T}
+
+    for Mc in spin.M
+        Mc.x = zero(T)
+        Mc.y = zero(T)
+    end
+
+end
 
 applydynamics!(spin::AbstractSpin, ::IdealSpoilingMatrix) = spoil!(spin)
 
