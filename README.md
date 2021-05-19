@@ -1,6 +1,6 @@
 # BlochSim.jl
 
-[![Build Status](https://travis-ci.com/StevenWhitaker/BlochSim.jl.svg?branch=main)](https://travis-ci.com/StevenWhitaker/BlochSim.jl)
+[![action status](https://github.com/StevenWhitaker/BlochSim.jl/actions/workflows/runtests.yml/badge.svg)](https://github.com/StevenWhitaker/BlochSim.jl/actions)
 [![codecov](https://codecov.io/gh/StevenWhitaker/BlochSim.jl/branch/main/graph/badge.svg?token=tduieBgema)](https://codecov.io/gh/StevenWhitaker/BlochSim.jl)
 
 This package provides functionality for simulating arbitrary MRI sequences.
