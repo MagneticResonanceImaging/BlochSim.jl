@@ -90,9 +90,18 @@ julia> S = spoil(spin); S * spin.M
  5.0
 ```
 """
-spoil(::Any) = [0 0 0; 0 0 0; 0 0 1]
+spoil(::AbstractSpin, ::IdealSpoiling = IdealSpoiling(), ::Any = nothing) = idealspoiling
+spoil(::AbstractSpin, ::RFSpoiling, ::Any = nothing) = nothing
 
-spoil(::AbstractSpin) = idealspoiling
+function spoil(
+    spin::AbstractSpin,
+    spoiling::AbstractSpoiling,
+    workspace = spin isa Spin ? nothing : BlochMcConnellWorkspace(spin)
+)
+
+    return freeprecess(spin, spoiler_gradient_duration(spoiling), spoiler_gradient(spoiling), workspace)
+
+end
 
 """
     spoil!(spin)
@@ -118,8 +127,8 @@ end
 
 applydynamics!(spin::AbstractSpin, ::IdealSpoilingMatrix) = spoil!(spin)
 
-spoil!(A::IdealSpoilingMatrix, ::Nothing, spin::AbstractSpin, ::IdealSpoiling, ::Any = nothing) = nothing
-spoil!(::Nothing, ::Nothing, spin::AbstractSpin, ::RFSpoiling, ::Any = nothing) = nothing
+spoil!(A::IdealSpoilingMatrix, ::Nothing, ::AbstractSpin, ::IdealSpoiling, ::Any = nothing) = nothing
+spoil!(::Nothing, ::Nothing, ::AbstractSpin, ::RFSpoiling, ::Any = nothing) = nothing
 
 function spoil!(
     A,
