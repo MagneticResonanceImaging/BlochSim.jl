@@ -12,8 +12,6 @@ Gyromagnetic ratio for ¹H with units rad/s/G.
 """
 const GAMMA  = 2π * GAMBAR
 
-const DualFloat64 = Union{Float64,<:ForwardDiff.Dual}
-
 mutable struct Position{T<:Real}
     x::T
     y::T
@@ -29,6 +27,8 @@ Base.show(io::IO, ::MIME"text/plain", pos::Position{T}) where {T} =
 Base.convert(::Type{Position{T}}, p::Position) where {T} = Position(T(p.x), T(p.y), T(p.z))
 
 Base.:(==)(p1::Position, p2::Position) = p1.x == p2.x && p1.y == p2.y && p1.z == p2.z
+
+const DualFloat64 = Union{Float64,<:ForwardDiff.Dual}
 
 """
     AbstractSpin
@@ -57,27 +57,6 @@ julia> spin = Spin([1.0, 2.0, 3.0], 1, 1000, 100, 3); spin.signal
 1.0 + 2.0im
 ```
 """
-struct Spin_old{T<:Union{Float64,<:ForwardDiff.Dual}} <: AbstractSpin
-    M::Vector{T}
-    M0::T
-    T1::T
-    T2::T
-    Δf::T
-    pos::Vector{T}
-
-    # Default constructor with optional argument pos
-    Spin_old(M::Vector{<:Real}, M0, T1, T2, Δf, pos = [0,0,0]) = begin
-        T = promote_type(eltype(M), typeof(M0), typeof(T1), typeof(T2),
-                         typeof(Δf), eltype(pos))
-        T = T <: ForwardDiff.Dual ? float(T) : Float64
-        new{T}(M, M0, T1, T2, Δf, pos)
-    end
-
-    # If magnetization vector is not specified then use equilibrium
-    Spin_old(M0::Real, T1, T2, Δf, pos = [0,0,0]) =
-        Spin_old([0,0,M0], M0, T1, T2, Δf, pos)
-end
-
 struct Spin{T<:DualFloat64} <: AbstractSpin
     M::Magnetization{T}
     M0::T
@@ -164,57 +143,6 @@ julia> spin = SpinMC(M, 1, frac, [900, 400], [80, 20], [3, 13], τ); spin.signal
 1.2 + 2.1im
 ```
 """
-struct SpinMC_old{T<:Union{Float64,<:ForwardDiff.Dual}} <: AbstractSpin
-    N::Int
-    M::Vector{T} # [3N]
-    Meq::Vector{T} # [3N]
-    M0::T
-    frac::Vector{T} # [N]
-    T1::Vector{T} # [N]
-    T2::Vector{T} # [N]
-    Δf::Vector{T} # [N]
-    τ::Vector{T} # [N*(N-1)]
-    pos::Vector{T}
-    A::Matrix{T} # [3N,3N]
-
-    SpinMC_old(M::Vector{<:Real}, M0, frac, T1, T2, Δf, τ, pos = [0,0,0]) = begin
-        T = promote_type(eltype(M), typeof(M0), eltype(frac), eltype(T1),
-                         eltype(T2), eltype(Δf), eltype(τ), eltype(pos))
-        T = T <: ForwardDiff.Dual ? float(T) : Float64
-        N = length(frac)
-        Meq = vcat([[0, 0, frac[n] * M0] for n = 1:N]...)
-        r = zeros(T, N, N) # 1/ms
-        itmp = 1
-        for j = 1:N, i = 1:N
-            if i != j
-                r[i,j] = 1 / τ[itmp]
-                itmp += 1
-            end
-        end
-        A = zeros(T, 3N, 3N)
-        for j = 1:N, i = 1:N
-            ii = 3i-2:3i
-            jj = 3j-2:3j
-            if i == j
-                tmp = sum(r[:,i]) # 1/ms
-                r1 = -1 / T1[i] - tmp # 1/ms
-                r2 = -1 / T2[i] - tmp # 1/ms
-                Δω = 2π * Δf[i] / 1000 # rad/ms
-                A[ii,jj] = [r2 Δω 0; -Δω r2 0; 0 0 r1] # Left-handed rotation
-            else
-                A[ii,jj] = r[i,j] * Diagonal(ones(Bool, 3))
-            end
-        end
-        new{T}(N, M, Meq, M0, frac, T1, T2, Δf, τ, pos, A)
-    end
-
-    # If magnetization vector is not specified then use equilibrium
-    SpinMC_old(M0::Real, frac, T1, T2, Δf, τ, pos = [0,0,0]) = begin
-        M = vcat([[0, 0, frac[n] * M0] for n = 1:length(frac)]...)
-        SpinMC_old(M, M0, frac, T1, T2, Δf, τ, pos)
-    end
-end
-
 struct SpinMC{T<:DualFloat64,N} <: AbstractSpin
     M::MagnetizationMC{T,N}
     Meq::MagnetizationMC{T,N}
@@ -261,14 +189,14 @@ end
 
 function SpinMC(M, M0, frac, T1, T2, Δf, τ, pos...)
 
-        frac = promote(frac...)
-        T1 = promote(T1...)
-        T2 = promote(T2...)
-        Δf = promote(Δf...)
-        rtmp = promote((1 ./ τ)...)
-        T = promote_type(Float64, eltype(M), typeof(M0),
-            eltype(frac), eltype(T1), eltype(T2), eltype(Δf), eltype(rtmp))
-        SpinMC{T}(M, M0, frac, T1, T2, Δf, τ, pos...)
+    frac = promote(frac...)
+    T1 = promote(T1...)
+    T2 = promote(T2...)
+    Δf = promote(Δf...)
+    rtmp = promote((1 ./ τ)...)
+    T = promote_type(Float64, eltype(M), typeof(M0),
+        eltype(frac), eltype(T1), eltype(T2), eltype(Δf), eltype(rtmp))
+    SpinMC{T}(M, M0, frac, T1, T2, Δf, τ, pos...)
 
 end
 
@@ -312,18 +240,22 @@ Base.eltype(::SpinMC{T,N}) where {T,N} = T
 
 signal(spin::AbstractSpin) = signal(spin.M)
 
-Base.getproperty(spin::Spin, s::Symbol) = begin
+function Base.getproperty(spin::Spin, s::Symbol)
+
     if s === :N
         return 1
     else
         return getfield(spin, s)
     end
+
 end
 
-Base.getproperty(spin::SpinMC{T,N}, s::Symbol) where {T,N} = begin
+function Base.getproperty(spin::SpinMC{T,N}, s::Symbol) where {T,N}
+
     if s === :N
         return N
     else
         return getfield(spin, s)
     end
+
 end
