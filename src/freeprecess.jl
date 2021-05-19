@@ -2,7 +2,6 @@ struct BlochMcConnellWorkspace{T<:Real,N}
     A::BlochMcConnellDynamicsMatrix{T,N}
     expmworkspace::MatrixExponentialWorkspace{T,N}
 
-    # N is number of compartments
     BlochMcConnellWorkspace(T::Type{<:Real}, N) =
         new{T,N}(BlochMcConnellDynamicsMatrix{T}(N),
                  MatrixExponentialWorkspace{T}(N))
@@ -88,18 +87,7 @@ julia> (A, B) = freeprecess(spin, 100); A * spin.M + B
   0.09516258196404048
 ```
 """
-freeprecess_old(spin::Spin_old, t::Real) =
-    freeprecess(t, spin.M0, spin.T1, spin.T2, spin.Δf)
-
-function freeprecess_old(spin::SpinMC_old, t::Real)
-
-    E = expm(t * spin.A)
-    B = (Diagonal(ones(Bool, size(E, 1))) - E) * spin.Meq
-    return (E, B)
-
-end
-
-function freeprecess(spin::Spin, t)
+function freeprecess(spin::Spin, t, ::Nothing = nothing)
 
     A = FreePrecessionMatrix{eltype(spin)}()
     B = Magnetization{eltype(spin)}()
@@ -169,36 +157,21 @@ julia> (A, B) = freeprecess(spin, 100, [0, 0, 1/GAMBAR]); A * spin.M + B
   0.09516258196404048
 ```
 """
-function freeprecess(spin::Spin, t::Real, grad::AbstractArray{<:Real,1})
+function freeprecess(spin::Spin, t::Real, grad::Gradient, ::Nothing = nothing)
 
-    gradfreq = GAMBAR * (grad[1] * spin.pos.x + grad[2] * spin.pos.y + grad[3] * spin.pos.z) # Hz
-    freeprecess(t, spin.M0, spin.T1, spin.T2, spin.Δf + gradfreq)
+    A = FreePrecessionMatrix{eltype(spin)}()
+    B = Magnetization{eltype(spin)}()
+    freeprecess!(A, B, spin, t, grad)
+    return (A, B)
 
 end
 
-# See equation (6.9) in Gopal Nataraj's PhD thesis
-function freeprecess(spin::SpinMC{T,N}, t::Real, grad::AbstractArray{<:Real,1}) where {T,N}
+function freeprecess(spin::SpinMC{T,N}, t::Real, grad::Gradient, workspace = BlochMcConnellWorkspace(spin)) where {T,N}
 
-    A = Array{T}(undef, 3N, 3N)
-    for j = 1:N, i = 1:N
-        ii = 3i-2:3i
-        jj = 3j-2:3j
-        if i == j
-            tmp = sum(spin.r[i][k] for k = 1:N) # 1/ms
-            r1 = -1 / spin.T1[i] - tmp # 1/ms
-            r2 = -1 / spin.T2[i] - tmp # 1/ms
-            Δω = 2π * spin.Δf[i] / 1000 # rad/ms
-            A[ii,jj] = [r2 Δω 0; -Δω r2 0; 0 0 r1] # Left-handed rotation
-        else
-            A[ii,jj] = spin.r[j][i] * Diagonal(ones(Bool, 3))
-        end
-    end
-    gradfreq = GAMMA * (grad[1] * spin.pos.x + grad[2] * spin.pos.y + grad[3] * spin.pos.z) / 1000 # rad/ms
-    ΔA = diagm(1 => repeat([gradfreq, 0, 0], spin.N), # Left-handed rotation
-              -1 => repeat([-gradfreq, 0, 0], spin.N))[1:3spin.N,1:3spin.N]
-    E = expm(t * (A + ΔA))
-    B = (Diagonal(ones(Bool, size(E, 1))) - E) * spin.Meq
-    return (E, B)
+    A = BlochMcConnellMatrix{T}(N)
+    B = MagnetizationMC{T}(N)
+    freeprecess!(A, B, spin, t, grad, workspace)
+    return (A, B)
 
 end
 
@@ -375,18 +348,6 @@ julia> (A, B) = combine(D1, D2); A * spin.M + B
   0.09516258196404054
 ```
 """
-function combine(D::Tuple{<:AbstractArray{<:Real,2},<:AbstractArray{<:Real,1}}...)
-
-  (A, B) = D[1]
-  for i = 2:length(D)
-    (Ai, Bi) = D[i]
-    A = Ai * A
-    B = Ai * B + Bi
-  end
-  return (A, B)
-
-end
-
 function combine!(A, B, A1, B1, A2, B2)
 
     mul!(A, A2, A1)
@@ -451,27 +412,10 @@ julia> spin.M
   0.09516258196404054
 ```
 """
-function applydynamics!(spin::AbstractSpin, A::AbstractArray{<:Real,2},
-                        B::AbstractArray{<:Real,1})
-
-    tmp = A * spin.M
-    add!(tmp, B)
-    copyto!(spin.M, tmp)
-    return nothing
-
-end
-
-function applydynamics!(spin::AbstractSpin, A::AbstractArray{<:Real,2})
-
-    copyto!(spin.M, A * spin.M)
-    return nothing
-
-end
-
 function applydynamics!(spin::AbstractSpin, BtoM, A, B)
 
     copyto!(BtoM, B)
-    muladd!(BtoM, A, spin.M) # BtoM .= A * spin.M + BtoM
+    muladd!(BtoM, A, spin.M)
     copyto!(spin.M, BtoM)
     return nothing
 
