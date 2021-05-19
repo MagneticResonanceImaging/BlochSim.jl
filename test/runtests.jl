@@ -19,4 +19,7 @@ using Test
     include("matlab.jl")
     include("magnetization.jl")
     include("blochmatrix.jl")
+    include("spin.jl")
+    include("spoiling.jl")
+    include("expm.jl")
 end
