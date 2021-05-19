@@ -169,23 +169,7 @@ julia> (A, _) = excitation(spin, π/4, π/2); A * spin.M
   6.123233995736766e-17
 ```
 """
-function excitation(spin::Spin_old, θ::Real, α::Real)
-
-    A = rotatetheta(θ, α)
-    B = zeros(3)
-    return (A, B)
-
-end
-
-function excitation(spin::SpinMC_old, θ::Real, α::Real)
-
-    A = kron(Diagonal(ones(Bool, spin.N)), rotatetheta(θ, α))
-    B = zeros(3spin.N)
-    return (A, B)
-
-end
-
-function excite(spin::AbstractSpin, rf::InstantaneousRF)
+function excite(spin::AbstractSpin, rf::InstantaneousRF, ::Nothing = nothing)
 
     A = ExcitationMatrix{eltype(spin)}()
     excite!(A, spin, rf)
@@ -224,46 +208,7 @@ Simulate non-instantaneous excitation using the hard pulse approximation.
 - `A::Matrix`: Matrix that describes excitation and relaxation
 - `B::Vector`: Vector that describes excitation and relaxation
 """
-function excitation(spin::AbstractSpin, rf::AbstractArray{<:Number,1}, Δθ::Real,
-                    grad::AbstractArray{<:Real,2}, dt::Real)
-
-    T = length(rf)
-    α = GAMMA * abs.(rf) * dt/1000 # Flip angle in rad
-    θ = angle.(rf) .+ Δθ # RF phase in rad
-    A = Diagonal(ones(Bool, 3spin.N))
-    B = zeros(3spin.N)
-    for t = 1:T
-        (Af, Bf) = freeprecess(spin, dt/2, grad[:,t])
-        Bf = Vector(Bf)
-        (Ae, _) = excitation(spin, θ[t], α[t])
-        A = Af * Ae * Af * A
-        B = Af * (Ae * (Af * B + Bf)) + Bf
-    end
-    return (A, B)
-
-end
-
-# Excitation with constant gradient
-function excitation(spin::AbstractSpin, rf::AbstractArray{<:Number,1}, Δθ::Real,
-                    grad::AbstractArray{<:Real,1}, dt::Real)
-
-    T = length(rf)
-    α = GAMMA * abs.(rf) * dt/1000 # Flip angle in rad
-    θ = angle.(rf) .+ Δθ # RF phase in rad
-    A = Diagonal(ones(Bool, 3spin.N))
-    B = zeros(3spin.N)
-    (Af, Bf) = freeprecess(spin, dt/2, grad)
-    Bf = Vector(Bf)
-    for t = 1:T
-        (Ae, _) = excitation(spin, θ[t], α[t])
-        A = Af * Ae * Af * A
-        B = Af * (Ae * (Af * B + Bf)) + Bf
-    end
-    return (A, B)
-
-end
-
-function excite(spin::AbstractSpin, rf::RF)
+function excite(spin::AbstractSpin, rf::RF, workspace = ExcitationWorkspace(spin))
 
     T = eltype(spin)
     if spin isa Spin
@@ -274,7 +219,7 @@ function excite(spin::AbstractSpin, rf::RF)
         A = BlochMcConnellMatrix{T}(N)
         B = MagnetizationMC{T}(N)
     end
-    excite!(A, B, spin, rf)
+    excite!(A, B, spin, rf, workspace)
     return (A, B)
 
 end
@@ -314,48 +259,13 @@ function excite!(
 end
 
 """
-    excitation!(spin, ...)
+    excite!(spin, ...)
 
 Apply excitation to the given spin.
 """
-function excitation!(spin::AbstractSpin, θ::Real, α::Real)
+function excite!(spin::AbstractSpin, args...)
 
-    (A, _) = excitation(spin, θ, α)
-    applydynamics!(spin, A)
-
-end
-
-# Use this function if using RF spoiling (because A and B need to be
-# recalculated for each TR, so directly modifying the magnetization should be
-# faster in this case)
-function excitation!(spin::AbstractSpin, rf::AbstractArray{<:Number,1}, Δθ::Real,
-                     grad::AbstractArray{<:Real,2}, dt::Real)
-
-    T = length(rf)
-    α = GAMMA * abs.(rf) * dt/1000 # Flip angle in rad
-    θ = angle.(rf) .+ Δθ # RF phase in rad
-    for t = 1:T
-        (Af, Bf) = freeprecess(spin, dt/2, grad[:,t])
-        (Ae, _) = excitation(spin, θ[t], α[t])
-        applydynamics!(spin, Af, Bf)
-        applydynamics!(spin, Ae)
-        applydynamics!(spin, Af, Bf)
-    end
-
-end
-
-function excitation!(spin::AbstractSpin, rf::AbstractArray{<:Number,1}, Δθ::Real,
-                     grad::AbstractArray{<:Real,1}, dt::Real)
-
-    T = length(rf)
-    α = GAMMA * abs.(rf) * dt/1000 # Flip angle in rad
-    θ = angle.(rf) .+ Δθ # RF phase in rad
-    (Af, Bf) = freeprecess(spin, dt/2, grad)
-    for t = 1:T
-        (Ae, _) = excitation(spin, θ[t], α[t])
-        applydynamics!(spin, Af, Bf)
-        applydynamics!(spin, Ae)
-        applydynamics!(spin, Af, Bf)
-    end
+    (A, B) = excite(spin, args...)
+    applydynamics(spin, A, B)
 
 end
