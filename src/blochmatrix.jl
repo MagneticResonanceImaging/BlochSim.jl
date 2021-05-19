@@ -450,7 +450,29 @@ end
 
 Base.:*(A::ExcitationMatrix, ::IdealSpoilingMatrix) = A.A * idealspoiling
 
-# TODO: Define * for BlochMcConnell matrices, possibly for more single compartment matrices
+function Base.:*(A::BlochMcConnellMatrix{T1,N}, B::BlochMcConnellMatrix{T2,N}) where {T1,T2,N}
+
+    C = BlochMcConnellMatrix{promote_type(T1, T2)}(N)
+    mul!(C, A, B)
+    return C
+
+end
+
+function Base.:*(A::ExcitationMatrix{T1}, B::BlochMcConnellMatrix{T2,N}) where {T1,T2,N}
+
+    C = BlochMcConnellMatrix{promote_type(T1, T2)}(N)
+    mul!(C, A, B)
+    return C
+
+end
+
+function Base.:*(A::IdealSpoilingMatrix, B::BlochMcConnellMatrix{T,N}) where {T,N}
+
+    C = BlochMcConnellMatrix{T}(N)
+    mul!(C, A, B)
+    return C
+
+end
 
 # /
 Base.:/(M::Magnetization, a) = Magnetization(M.x / a, M.y / a, M.z / a)
