@@ -46,6 +46,7 @@ export spoil!
 
 export add!
 export subtract!
+export subtractmul!
 export mul!
 export muladd!
 export div!

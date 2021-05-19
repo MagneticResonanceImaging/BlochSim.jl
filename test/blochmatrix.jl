@@ -1,7 +1,7 @@
 function mul1()
 
     M2 = Magnetization()
-    A = BlochSim.BlochMatrix()
+    A = BlochMatrix()
     A.a11 = 1
     A.a21 = 2
     A.a31 = 3
@@ -15,7 +15,7 @@ function mul1()
     mul!(M2, A, M1)
     correct = Matrix(A) * Vector(M1)
 
-    return Vector(M2) == correct
+    @test Vector(M2) == correct
 
 end
 
@@ -29,7 +29,7 @@ function mul2()
     correct = Matrix(A) * t
     mul!(A, t)
 
-    return Matrix(A) == correct
+    @test Matrix(A) == correct
 
 end
 
@@ -41,7 +41,7 @@ function mul3()
     correct = Matrix(A) * t
     mul!(A, t)
 
-    return Matrix(A) == correct
+    @test Matrix(A) == correct
 
 end
 
@@ -67,14 +67,14 @@ function mul4()
     correct = Matrix(A) * t
     mul!(A, t)
 
-    return Matrix(A) == correct
+    @test Matrix(A) == correct
 
 end
 
 function mul5()
 
-    C = BlochSim.BlochMatrix()
-    A = BlochSim.BlochMatrix()
+    C = BlochMatrix()
+    A = BlochMatrix()
     A.a11 = 1
     A.a21 = 2
     A.a31 = 3
@@ -88,7 +88,7 @@ function mul5()
     mul!(C, A, t)
     correct = Matrix(A) * t
 
-    return Matrix(C) == correct
+    @test Matrix(C) == correct
 
 end
 
@@ -111,14 +111,14 @@ function mul6()
     mul!(C, A, t)
     correct = Matrix(A) * t
 
-    return Matrix(C) == correct
+    @test Matrix(C) == correct
 
 end
 
 function mul7()
 
-    C = BlochSim.BlochMatrix()
-    A = BlochSim.BlochMatrix()
+    C = BlochMatrix()
+    A = BlochMatrix()
     A.a11 = 1
     A.a21 = 2
     A.a31 = 3
@@ -128,7 +128,7 @@ function mul7()
     A.a13 = 7
     A.a23 = 8
     A.a33 = 9
-    B = BlochSim.BlochMatrix()
+    B = BlochMatrix()
     B.a11 = 10
     B.a21 = 20
     B.a31 = 30
@@ -141,18 +141,18 @@ function mul7()
     correct = Matrix(A) * Matrix(B)
     mul!(C, A, B)
 
-    return Matrix(C) == correct
+    @test Matrix(C) == correct
 
 end
 
 function mul8()
 
-    C = BlochSim.BlochMatrix()
+    C = BlochMatrix()
     A = BlochSim.BlochDynamicsMatrix()
     A.R1 = 1
     A.R2 = 2
     A.Δω = 3
-    B = BlochSim.BlochMatrix()
+    B = BlochMatrix()
     B.a11 = 10
     B.a21 = 20
     B.a31 = 30
@@ -165,16 +165,16 @@ function mul8()
     correct = Matrix(A) * Matrix(B)
     mul!(C, A, B)
 
-    return Matrix(C) == correct
+    @test Matrix(C) == correct
 
 end
 
 function mul9()
 
-    C = BlochSim.BlochMatrix()
+    C = BlochMatrix()
     A = BlochSim.ExchangeDynamicsMatrix()
     A.r = 1
-    B = BlochSim.BlochMatrix()
+    B = BlochMatrix()
     B.a11 = 10
     B.a21 = 20
     B.a31 = 30
@@ -187,13 +187,13 @@ function mul9()
     correct = Matrix(A) * Matrix(B)
     mul!(C, A, B)
 
-    return Matrix(C) == correct
+    @test Matrix(C) == correct
 
 end
 
 function mul10()
 
-    C = BlochSim.BlochMatrix()
+    C = BlochMatrix()
     A = BlochSim.BlochDynamicsMatrix()
     A.R1 = 1
     A.R2 = 2
@@ -205,13 +205,13 @@ function mul10()
     correct = Matrix(A) * Matrix(B)
     mul!(C, A, B)
 
-    return Matrix(C) == correct
+    @test Matrix(C) == correct
 
 end
 
 function mul11()
 
-    C = BlochSim.BlochMatrix()
+    C = BlochMatrix()
     A = BlochSim.ExchangeDynamicsMatrix()
     A.r = 2
     B = BlochSim.ExchangeDynamicsMatrix()
@@ -219,13 +219,13 @@ function mul11()
     correct = Matrix(A) * Matrix(B)
     mul!(C, A, B)
 
-    return Matrix(C) == correct
+    @test Matrix(C) == correct
 
 end
 
 function mul12()
 
-    C = BlochSim.BlochMatrix()
+    C = BlochMatrix()
     A = BlochSim.BlochDynamicsMatrix()
     A.R1 = 1
     A.R2 = 2
@@ -235,13 +235,13 @@ function mul12()
     correct = Matrix(A) * Matrix(B)
     mul!(C, A, B)
 
-    return Matrix(C) == correct
+    @test Matrix(C) == correct
 
 end
 
 function mul13()
 
-    C = BlochSim.BlochMatrix()
+    C = BlochMatrix()
     A = BlochSim.BlochDynamicsMatrix()
     A.R1 = 1
     A.R2 = 2
@@ -251,7 +251,7 @@ function mul13()
     correct = Matrix(B) * Matrix(A)
     mul!(C, B, A)
 
-    return Matrix(C) == correct
+    @test Matrix(C) == correct
 
 end
 
@@ -285,7 +285,7 @@ function mul14()
     mul!(C, A, B)
     correct = Matrix(A) * Matrix(B)
 
-    return Matrix(C) == correct
+    @test Matrix(C) == correct
 
 end
 
@@ -317,7 +317,7 @@ function mul15()
     mul!(C, A, B)
     correct = Matrix(A) * Matrix(B)
 
-    return Matrix(C) == correct
+    @test Matrix(C) == correct
 
 end
 
@@ -343,14 +343,14 @@ function mul16()
     mul!(C, A, A)
     correct = Matrix(A) * Matrix(A)
 
-    return Matrix(C) == correct
+    @test Matrix(C) == correct
 
 end
 
 function muladd1()
 
     M2 = Magnetization(1, 1, 1)
-    A = BlochSim.BlochMatrix()
+    A = BlochMatrix()
     A.a11 = 1
     A.a21 = 2
     A.a31 = 3
@@ -362,15 +362,15 @@ function muladd1()
     A.a33 = 9
     M1 = Magnetization(1, 2, 3)
     correct = Matrix(A) * Vector(M1) + Vector(M2)
-    BlochSim.muladd!(M2, A, M1)
+    muladd!(M2, A, M1)
 
-    return Vector(M2) == correct
+    @test Vector(M2) == correct
 
 end
 
 function muladd2()
 
-    C = BlochSim.BlochMatrix()
+    C = BlochMatrix()
     C.a11 = 10
     C.a21 = 20
     C.a31 = 30
@@ -380,7 +380,7 @@ function muladd2()
     C.a13 = 70
     C.a23 = 80
     C.a33 = 90
-    A = BlochSim.BlochMatrix()
+    A = BlochMatrix()
     A.a11 = 1
     A.a21 = 2
     A.a31 = 3
@@ -392,9 +392,9 @@ function muladd2()
     A.a33 = 9
     t = 10
     correct = Matrix(A) * t + Matrix(C)
-    BlochSim.muladd!(C, A, t)
+    muladd!(C, A, t)
 
-    return Matrix(C) == correct
+    @test Matrix(C) == correct
 
 end
 
@@ -426,15 +426,15 @@ function muladd3()
     end
     t = 10
     correct = Matrix(A) * t + Matrix(C)
-    BlochSim.muladd!(C, A, t)
+    muladd!(C, A, t)
 
-    return Matrix(C) == correct
+    @test Matrix(C) == correct
 
 end
 
 function muladd4()
 
-    C = BlochSim.BlochMatrix()
+    C = BlochMatrix()
     C.a11 = 10
     C.a21 = 20
     C.a31 = 30
@@ -446,9 +446,9 @@ function muladd4()
     C.a33 = 90
     t = 10
     correct = I(3) * t + Matrix(C)
-    BlochSim.muladd!(C, I, t)
+    muladd!(C, I, t)
 
-    return Matrix(C) == correct
+    @test Matrix(C) == correct
 
 end
 
@@ -468,15 +468,15 @@ function muladd5()
     end
     t = 10
     correct = I(9) * t + Matrix(C)
-    BlochSim.muladd!(C, I, t)
+    muladd!(C, I, t)
 
-    return Matrix(C) == correct
+    @test Matrix(C) == correct
 
 end
 
 function muladd6()
 
-    C = BlochSim.BlochMatrix()
+    C = BlochMatrix()
     C.a11 = 1
     C.a21 = 1
     C.a31 = 1
@@ -486,7 +486,7 @@ function muladd6()
     C.a13 = 1
     C.a23 = 1
     C.a33 = 1
-    A = BlochSim.BlochMatrix()
+    A = BlochMatrix()
     A.a11 = 1
     A.a21 = 2
     A.a31 = 3
@@ -496,7 +496,7 @@ function muladd6()
     A.a13 = 7
     A.a23 = 8
     A.a33 = 9
-    B = BlochSim.BlochMatrix()
+    B = BlochMatrix()
     B.a11 = 10
     B.a21 = 20
     B.a31 = 30
@@ -507,15 +507,15 @@ function muladd6()
     B.a23 = 80
     B.a33 = 90
     correct = Matrix(A) * Matrix(B) + Matrix(C)
-    BlochSim.muladd!(C, A, B)
+    muladd!(C, A, B)
 
-    return Matrix(C) == correct
+    @test Matrix(C) == correct
 
 end
 
 function muladd7()
 
-    C = BlochSim.BlochMatrix()
+    C = BlochMatrix()
     C.a11 = 1
     C.a21 = 1
     C.a31 = 1
@@ -529,7 +529,7 @@ function muladd7()
     A.R2 = 1
     A.Δω = 2
     A.R1 = 3
-    B = BlochSim.BlochMatrix()
+    B = BlochMatrix()
     B.a11 = 10
     B.a21 = 20
     B.a31 = 30
@@ -540,15 +540,15 @@ function muladd7()
     B.a23 = 80
     B.a33 = 90
     correct = Matrix(A) * Matrix(B) + Matrix(C)
-    BlochSim.muladd!(C, A, B)
+    muladd!(C, A, B)
 
-    return Matrix(C) == correct
+    @test Matrix(C) == correct
 
 end
 
 function muladd8()
 
-    C = BlochSim.BlochMatrix()
+    C = BlochMatrix()
     C.a11 = 1
     C.a21 = 1
     C.a31 = 1
@@ -560,7 +560,7 @@ function muladd8()
     C.a33 = 1
     A = BlochSim.ExchangeDynamicsMatrix()
     A.r = 1
-    B = BlochSim.BlochMatrix()
+    B = BlochMatrix()
     B.a11 = 10
     B.a21 = 20
     B.a31 = 30
@@ -571,15 +571,15 @@ function muladd8()
     B.a23 = 80
     B.a33 = 90
     correct = Matrix(A) * Matrix(B) + Matrix(C)
-    BlochSim.muladd!(C, A, B)
+    muladd!(C, A, B)
 
-    return Matrix(C) == correct
+    @test Matrix(C) == correct
 
 end
 
 function muladd9()
 
-    C = BlochSim.BlochMatrix()
+    C = BlochMatrix()
     C.a11 = 1
     C.a21 = 1
     C.a31 = 1
@@ -598,15 +598,15 @@ function muladd9()
     B.Δω = 20
     B.R1 = 30
     correct = Matrix(A) * Matrix(B) + Matrix(C)
-    BlochSim.muladd!(C, A, B)
+    muladd!(C, A, B)
 
-    return Matrix(C) == correct
+    @test Matrix(C) == correct
 
 end
 
 function muladd10()
 
-    C = BlochSim.BlochMatrix()
+    C = BlochMatrix()
     C.a11 = 1
     C.a21 = 1
     C.a31 = 1
@@ -621,15 +621,15 @@ function muladd10()
     B = BlochSim.ExchangeDynamicsMatrix()
     B.r = 10
     correct = Matrix(A) * Matrix(B) + Matrix(C)
-    BlochSim.muladd!(C, A, B)
+    muladd!(C, A, B)
 
-    return Matrix(C) == correct
+    @test Matrix(C) == correct
 
 end
 
 function muladd11()
 
-    C = BlochSim.BlochMatrix()
+    C = BlochMatrix()
     C.a11 = 1
     C.a21 = 1
     C.a31 = 1
@@ -646,15 +646,15 @@ function muladd11()
     B = BlochSim.ExchangeDynamicsMatrix()
     B.r = 10
     correct = Matrix(A) * Matrix(B) + Matrix(C)
-    BlochSim.muladd!(C, A, B)
+    muladd!(C, A, B)
 
-    return Matrix(C) == correct
+    @test Matrix(C) == correct
 
 end
 
 function muladd12()
 
-    C = BlochSim.BlochMatrix()
+    C = BlochMatrix()
     C.a11 = 1
     C.a21 = 1
     C.a31 = 1
@@ -671,16 +671,16 @@ function muladd12()
     B = BlochSim.ExchangeDynamicsMatrix()
     B.r = 10
     correct = Matrix(B) * Matrix(A) + Matrix(C)
-    BlochSim.muladd!(C, B, A)
+    muladd!(C, B, A)
 
-    return Matrix(C) == correct
+    @test Matrix(C) == correct
 
 end
 
 function subtractmul1()
 
     M2 = Magnetization()
-    A = BlochSim.BlochMatrix()
+    A = BlochMatrix()
     A.a11 = 1
     A.a21 = 2
     A.a31 = 3
@@ -691,10 +691,10 @@ function subtractmul1()
     A.a23 = 8
     A.a33 = 9
     M1 = Magnetization(10.0, 20.0, 30.0)
-    BlochSim.subtractmul!(M2, I, A, M1)
+    subtractmul!(M2, I, A, M1)
     correct = (I - Matrix(A)) * Vector(M1)
 
-    return Vector(M2) == correct
+    @test Vector(M2) == correct
 
 end
 
@@ -714,17 +714,17 @@ function subtractmul2()
         A.A[i][j].a33 = 9 + i + 10j
     end
     M1 = MagnetizationMC((10.0, 20.0, 30.0), (1.0, 2.0, 3.0))
-    BlochSim.subtractmul!(M2, I, A, M1)
+    subtractmul!(M2, I, A, M1)
     correct = (I - Matrix(A)) * Vector(M1)
 
-    return Vector(M2) == correct
+    @test Vector(M2) == correct
 
 end
 
 function subtractmuladd1()
 
     M2 = Magnetization(1.0, 1.0, 1.0)
-    A = BlochSim.BlochMatrix()
+    A = BlochMatrix()
     A.a11 = 1
     A.a21 = 2
     A.a31 = 3
@@ -735,10 +735,10 @@ function subtractmuladd1()
     A.a23 = 8
     A.a33 = 9
     M1 = Magnetization(10.0, 20.0, 30.0)
-    BlochSim.subtractmul!(M2, I, A, M1)
+    subtractmul!(M2, I, A, M1)
     correct = (I - Matrix(A)) * Vector(M1)
 
-    return Vector(M2) == correct
+    @test Vector(M2) == correct
 
 end
 
@@ -757,7 +757,7 @@ function getblock1()
               Matrix(BlochSim.getblock(A, 2, 1)) Matrix(BlochSim.getblock(A, 2, 2))]
     correct = Matrix(A)
 
-    return result == correct
+    @test result == correct
 
 end
 
@@ -779,7 +779,7 @@ function getblock2()
               Matrix(BlochSim.getblock(A, 2, 1)) Matrix(BlochSim.getblock(A, 2, 2))]
     correct = Matrix(A)
 
-    return result == correct
+    @test result == correct
 
 end
 
@@ -792,7 +792,7 @@ function absolutesum1()
     result = BlochSim.absolutesum(A)
     correct = norm(Matrix(A), 1)
 
-    return result == correct
+    @test result == correct
 
 end
 
@@ -803,7 +803,7 @@ function absolutesum2()
     result = BlochSim.absolutesum(A)
     correct = norm(Matrix(A), 1)
 
-    return result == correct
+    @test result == correct
 
 end
 
@@ -821,7 +821,7 @@ function absolutesum3()
     result = BlochSim.absolutesum(A)
     correct = norm(Matrix(A), 1)
 
-    return result == correct
+    @test result == correct
 
 end
 
@@ -829,67 +829,67 @@ end
 
     @testset "mul!" begin
 
-        @test mul1()
-        @test mul2()
-        @test mul3()
-        @test mul4()
-        @test mul5()
-        @test mul6()
-        @test mul7()
-        @test mul8()
-        @test mul9()
-        @test mul10()
-        @test mul11()
-        @test mul12()
-        @test mul13()
-        @test mul14()
-        @test mul15()
-        @test mul16()
+        mul1()
+        mul2()
+        mul3()
+        mul4()
+        mul5()
+        mul6()
+        mul7()
+        mul8()
+        mul9()
+        mul10()
+        mul11()
+        mul12()
+        mul13()
+        mul14()
+        mul15()
+        mul16()
 
     end
 
     @testset "muladd!" begin
 
-        @test muladd1()
-        @test muladd2()
-        @test muladd3()
-        @test muladd4()
-        @test muladd5()
-        @test muladd6()
-        @test muladd7()
-        @test muladd8()
-        @test muladd9()
-        @test muladd10()
-        @test muladd11()
-        @test muladd12()
+        muladd1()
+        muladd2()
+        muladd3()
+        muladd4()
+        muladd5()
+        muladd6()
+        muladd7()
+        muladd8()
+        muladd9()
+        muladd10()
+        muladd11()
+        muladd12()
 
     end
 
     @testset "subtractmul!" begin
 
-        @test subtractmul1()
-        @test subtractmul2()
+        subtractmul1()
+        subtractmul2()
 
     end
 
     @testset "subtractmuladd!" begin
 
-        @test subtractmuladd1()
+        subtractmuladd1()
 
     end
 
     @testset "getblock" begin
 
-        @test getblock1()
-        @test getblock2()
+        getblock1()
+        getblock2()
 
     end
 
     @testset "absolutesum" begin
 
-        @test absolutesum1()
-        @test absolutesum2()
-        @test absolutesum3()
+        absolutesum1()
+        absolutesum2()
+        absolutesum3()
 
     end
 

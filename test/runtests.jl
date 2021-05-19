@@ -18,4 +18,5 @@ using Test
 
     include("matlab.jl")
     include("magnetization.jl")
+    include("blochmatrix.jl")
 end
