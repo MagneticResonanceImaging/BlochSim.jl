@@ -12,6 +12,58 @@ BlochMcConnellWorkspace(::Type{SpinMC{T,N}}) where {T,N} = BlochMcConnellWorkspa
 BlochMcConnellWorkspace(spin::SpinMC) = BlochMcConnellWorkspace(typeof(spin))
 
 """
+    freeprecess(t, M0, T1, T2, Δf)
+
+Simulate free-precession, i.e., relaxation and off-resonance precession.
+
+# Arguments
+- `t::Real`: Duration of free-precession (ms)
+- `M0::Real`: Equilibrium magnetization
+- `T1::Real`: Spin-lattice recovery time constant (ms)
+- `T2::Real`: Spin-spin recovery time constant (ms)
+- `Δf::Real`: Off-resonance frequency (Hz)
+
+# Return
+- `A::Matrix`: 3×3 matrix that describes relaxation and precession
+- `B::Vector`: 3-vector that describes recovery
+
+# Examples
+```jldoctest
+julia> (A, B) = freeprecess(100, 1, 1000, 100, 3.75); A * [1, 0, 0] + B
+3-element Array{Float64,1}:
+ -0.2601300475114444
+ -0.2601300475114445
+  0.09516258196404048
+```
+"""
+function freeprecess(t::Real, M0::Real, T1::Real, T2::Real, Δf::Real)
+
+    A = FreePrecessionMatrix()
+    B = Magnetization()
+    freeprecess!(A, B, t, M0, T1, T2, Δf)
+    return (A, B)
+
+end
+
+function freeprecess!(A, B, t, M0, T1, T2, Δf)
+
+    E2 = exp(-t / T2)
+    θ = 2π * Δf * t / 1000
+    (s, c) = sincos(θ)
+
+    A.E1 = exp(-t / T1)
+    A.E2cosθ = E2 * c
+    A.E2sinθ = E2 * s
+
+    B.x = 0
+    B.y = 0
+    B.z = M0 * (1 - A.E1)
+
+    return nothing
+
+end
+
+"""
     freeprecess(spin, t)
 
 Simulate free-precession for the given spin.

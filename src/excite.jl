@@ -89,6 +89,59 @@ function ExcitationWorkspace(
 end
 
 """
+    rotatetheta(θ, α)
+
+Simulate left-handed rotation about an axis in the x-y plane that makes angle
+`θ` with the negative y-axis.
+
+# Arguments
+- `θ::Real`: Orientation of the axis about which to rotate (rad)
+- `α::Real`: Rotation angle (rad)
+
+# Return
+- `R::Matrix`: 3×3 matrix that describes rotation by angle `α` about an axis in
+    the x-y plane that makes angle `θ` with the negative y-axis
+
+## Note
+`rotatetheta(θ, α) == rotatez(θ) * rotatey(-α) * rotatez(-θ)`
+
+# Examples
+```jldoctest
+julia> R = rotatetheta(π/4, π/2); R * [0, 0, 1]
+3-element Array{Float64,1}:
+  0.7071067811865476
+ -0.7071067811865475
+  6.123233995736766e-17
+```
+"""
+function rotatetheta(θ::Real, α::Real)
+
+    A = BlochMatrix()
+    rotatetheta!(A, θ, α)
+    return A
+
+end
+
+function rotatetheta!(A, θ, α)
+
+    (sinθ, cosθ) = sincos(θ)
+    (sinα, cosα) = sincos(α)
+
+    A.a11 = sinθ^2 + cosα * cosθ^2
+    A.a21 = sinθ * cosθ - cosα * sinθ * cosθ
+    A.a31 = -sinα * cosθ
+    A.a12 = sinθ * cosθ - cosα * sinθ * cosθ
+    A.a22 = cosθ^2 + cosα * sinθ^2
+    A.a32 = sinα * sinθ
+    A.a13 = sinα * cosθ
+    A.a23 = -sinα * sinθ
+    A.a33 = cosα
+
+    return nothing
+
+end
+
+"""
     excitation(spin, θ, α)
 
 Simulate instantaneous excitation with flip angle `α` about an axis that makes
