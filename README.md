@@ -1,7 +1,7 @@
 # BlochSim.jl
 
-[![Build Status](https://travis-ci.org/StevenWhitaker/BlochSim.jl.svg?branch=master)](https://travis-ci.org/StevenWhitaker/BlochSim.jl)
-[![codecov](https://codecov.io/gh/StevenWhitaker/BlochSim.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/StevenWhitaker/BlochSim.jl)
+[![Build Status](https://travis-ci.com/StevenWhitaker/BlochSim.jl.svg?branch=main)](https://travis-ci.com/StevenWhitaker/BlochSim.jl)
+[![codecov](https://codecov.io/gh/StevenWhitaker/BlochSim.jl/branch/main/graph/badge.svg?token=tduieBgema)](https://codecov.io/gh/StevenWhitaker/BlochSim.jl)
 
 This package provides functionality for simulating arbitrary MRI sequences.
 It includes support for (traditional) single-compartment Bloch simulations
