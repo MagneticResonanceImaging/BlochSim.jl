@@ -13,6 +13,7 @@ Base.show(io::IO, ::MIME"text/plain", M::Magnetization{T}) where {T} =
     print(io, "Magnetization vector with eltype $T:\n Mx = ", M.x, "\n My = ", M.y, "\n Mz = ", M.z)
 
 Base.copy(M::Magnetization) = Magnetization(M.x, M.y, M.z)
+
 function Base.copyto!(dst::Magnetization, src::Magnetization)
 
     dst.x = src.x
@@ -93,7 +94,7 @@ function Base.show(io::IO, ::MIME"text/plain", M::MagnetizationMC{T,N}) where {T
 end
 
 Base.copy(M::MagnetizationMC{T,N}) where {T,N} = MagnetizationMC(ntuple(i -> copy(M[i]), N)...)
-Base.copyto!(dst::MagnetizationMC{T,N}, src::MagnetizationMC{S,N}) where {S,T,N} =
+Base.copyto!(dst::MagnetizationMC{T1,N}, src::MagnetizationMC{T2,N}) where {T1,T2,N} =
     foreach(i -> copyto!(dst[i], src[i]), 1:N)
 Base.copyto!(dst::MagnetizationMC{T,N}, src::AbstractVector) where {T,N} =
     foreach(i -> copyto!(dst[i], view(src, 3i-2:3i)), 1:N)
@@ -103,7 +104,7 @@ Base.copyto!(dst::AbstractVector, src::MagnetizationMC{T,N}) where {T,N} =
 Base.eltype(::MagnetizationMC{T,N}) where {T,N} = T
 Base.getindex(M::MagnetizationMC, i) = M.M[i]
 Base.iterate(M::MagnetizationMC{T,N}, i = 1) where {T,N} =  i > N ? nothing : (M.M[i], i + 1)
-Base.convert(::Type{MagnetizationMC{T,N}}, M::MagnetizationMC{S,N}) where {S,T,N} = MagnetizationMC((convert(Magnetization{T}, Mi) for Mi in M)...)
+Base.convert(::Type{MagnetizationMC{T1,N}}, M::MagnetizationMC{T2,N}) where {T1,T2,N} = MagnetizationMC((convert(Magnetization{T1}, Mi) for Mi in M)...)
 # This next definition of convert prevents StackOverflowErrors
 Base.convert(::Type{MagnetizationMC{T,N}}, M::MagnetizationMC{T,N}) where {T,N} = M
 
@@ -119,7 +120,7 @@ function Base.Vector(M::MagnetizationMC{T,N}) where {T,N}
 
 end
 
-Base.:(==)(M1::MagnetizationMC{T,N}, M2::MagnetizationMC{S,N}) where {S,T,N} = all(M1[i] == M2[i] for i = 1:N)
-Base.isapprox(M1::MagnetizationMC{T,N}, M2::MagnetizationMC{S,N}; kwargs...) where {S,T,N} = all(isapprox(M1[i], M2[i]; kwargs...) for i = 1:N)
+Base.:(==)(M1::MagnetizationMC{T1,N}, M2::MagnetizationMC{T2,N}) where {T1,T2,N} = all(M1[i] == M2[i] for i = 1:N)
+Base.isapprox(M1::MagnetizationMC{T1,N}, M2::MagnetizationMC{T2,N}; kwargs...) where {T1,T2,N} = all(isapprox(M1[i], M2[i]; kwargs...) for i = 1:N)
 
 signal(M::MagnetizationMC{T,N}) where {T,N} = sum(signal(M) for M in M)

@@ -17,4 +17,5 @@ using Test
 #    include("sequences.jl")
 
     include("matlab.jl")
+    include("magnetization.jl")
 end
