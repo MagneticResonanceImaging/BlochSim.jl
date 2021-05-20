@@ -1,5 +1,15 @@
 abstract type AbstractBlochMatrix{T<:Real} end
 
+"""
+    BlochMatrix(a11, a21, a31, a12, a22, a32, a13, a23, a33)
+    BlochMatrix{T}()
+    BlochMatrix()
+
+Create a mutable `BlochMatrix` object representing a fixed-size 3×3 matrix.
+
+# Properties
+- `aij::Real`: Matrix entry (i,j) ∈ {1, 2, 3}²
+"""
 mutable struct BlochMatrix{T<:Real} <: AbstractBlochMatrix{T}
     a11::T
     a21::T
@@ -72,6 +82,18 @@ function Base.Matrix(A::BlochMatrix{T}) where {T}
 
 end
 
+"""
+    BlochDynamicsMatrix(R1, R2, Δω)
+    BlochDynamicsMatrix{T}()
+    BlochDynamicsMatrix()
+
+Create a mutable `BlochDynamicsMatrix` object.
+
+# Properties
+- `R1::Real`: Spin-lattice relaxation rate
+- `R2::Real`: Spin-spin relaxation rate
+- `Δω::Real`: Off-resonance frequency
+"""
 mutable struct BlochDynamicsMatrix{T<:Real} <: AbstractBlochMatrix{T}
     R1::T
     R2::T
@@ -102,6 +124,36 @@ function Base.Matrix(A::BlochDynamicsMatrix{T}) where {T}
 
 end
 
+"""
+    FreePrecessionMatrix(E1, E2cosθ, E2sinθ)
+    FreePrecessionMatrix{T}()
+    FreePrecessionMatrix()
+
+Create a mutable `FreePrecessionMatrix` object encoding the effects of
+relaxation and off-resonance precession.
+
+# Properties
+- `E1::Real`: T1 relaxation
+- `E2cosθ::Real`: T2 relaxation and off-resonance precession
+- `E2sinθ::Real`: T2 relaxation and off-resonance precession
+
+# Examples
+```jldoctest
+julia> T1 = 1000; T2 = 100; Δω = π/600; t = 100;
+
+julia> F = FreePrecessionMatrix(exp(-t / T1), exp(-t / T2) * cos(Δω * t), exp(-t / T2) * sin(Δω * t))
+FreePrecessionMatrix{Float64}:
+ E1 = 0.9048374180359595
+ E2cosθ = 0.31859294158449203
+ E2sinθ = 0.18393972058572114
+
+julia> Matrix(F)
+3×3 Matrix{Float64}:
+  0.318593  0.18394   0.0
+ -0.18394   0.318593  0.0
+  0.0       0.0       0.904837
+```
+"""
 mutable struct FreePrecessionMatrix{T<:Real} <: AbstractBlochMatrix{T}
     E1::T
     E2cosθ::T
@@ -153,6 +205,16 @@ function Base.copyto!(dst::BlochMatrix{T}, src::FreePrecessionMatrix) where {T}
 
 end
 
+"""
+    ExchangeDynamicsMatrix(r)
+    ExchangeDynamicsMatrix{T}()
+    ExchangeDynamicsMatrix()
+
+Create a mutable `ExchangeDynamicsMatrix` object.
+
+# Properties
+- `r::Real`: Exchange rate from one compartment to another
+"""
 mutable struct ExchangeDynamicsMatrix{T<:Real} <: AbstractBlochMatrix{T}
     r::T
 end
@@ -182,6 +244,21 @@ end
 
 abstract type AbstractBlochMcConnellMatrix{T<:Real,N} end
 
+"""
+    BlochMcConnellDynamicsMatrix(A, E)
+    BlochMcConnellDynamicsMatrix{T}(N)
+    BlochMcConnellDynamicsMatrix(N)
+
+Create a `BlochMcConnellDynamicsMatrix` object with `N` compartments.
+
+# Properties
+- `A::NTuple{N,BlochDynamicsMatrix{<:Real}}`: List of `BlochDynamicsMatrix`es
+  that make up the main block diagonal of the `BlochMcConnellDynamicsMatrix`
+- `E::NTuple{M,ExchangeDynamicsMatrix{<:Real}}`: List of
+  `ExchangeDynamicsMatrix`es that describe exchange between the different
+  compartments; these matrices make up the remaining `M = N^2 - N` blocks of the
+  `BlochMcConnellDynamicsMatrix`, sorted by column-major ordering
+"""
 struct BlochMcConnellDynamicsMatrix{T<:Real,N,M} <: AbstractBlochMcConnellMatrix{T,N}
     A::NTuple{N,BlochDynamicsMatrix{T}}
     E::NTuple{M,ExchangeDynamicsMatrix{T}}
@@ -262,6 +339,48 @@ function Base.Matrix(A::BlochMcConnellDynamicsMatrix{T,N,M}) where {T,N,M}
 
 end
 
+"""
+    BlochMcConnellMatrix(A)
+    BlochMcConnellMatrix{T}(N)
+    BlochMcConnellMatrix(N)
+
+Create a `BlochMcConnellMatrix` object with `N` compartments and representing a
+fixed-size 3N×3N matrix.
+
+# Properties
+- `A::NTuple{N,NTuple{N,BlochMatrix{<:Real}}}`: List of 3×3 matrices that
+  comprise the blocks of the `BlochMcConnellMatrix`; `A[i][j]` is the (i,j)th
+  block
+
+# Examples
+```jldoctest
+julia> B = BlochMcConnellMatrix(3)
+BlochMcConnellMatrix{Float64,3}:
+ 0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0
+ 0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0
+ 0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0
+ 0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0
+ 0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0
+ 0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0
+ 0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0
+ 0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0
+ 0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0
+
+julia> fill!(B, 0.123456789)
+
+julia> B
+BlochMcConnellMatrix{Float64,3}:
+ 0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457
+ 0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457
+ 0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457
+ 0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457
+ 0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457
+ 0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457
+ 0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457
+ 0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457
+ 0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457  0.123457
+```
+"""
 struct BlochMcConnellMatrix{T<:Real,N} <: AbstractBlochMcConnellMatrix{T,N}
     A::NTuple{N,NTuple{N,BlochMatrix{T}}}
 end
@@ -374,10 +493,53 @@ function Base.isapprox(
     kwargs...
 )
 
-    isapprox(Matrix(A), Matrix(B); kwargs...)
+    return isapprox(Matrix(A), Matrix(B); kwargs...)
 
 end
 
+"""
+    ExcitationMatrix(A)
+    ExcitationMatrix{T}()
+    ExcitationMatrix()
+
+Create an `ExcitationMatrix` object. Multiplying by a `MagnetizationMC` object
+has the effect of multiplying each component of the multi-compartment
+magnetization by the `ExcitationMatrix`.
+
+# Properties
+- `A::BlochMatrix{<:Real}`: Matrix used to describe the excitation
+
+# Examples
+```jldoctest
+julia> E = ExcitationMatrix(BlochMatrix(0, 1, 0, 1, 0, 0, 0, 0, 1))
+ExcitationMatrix{Int64}:
+ 0  1  0
+ 1  0  0
+ 0  0  1
+
+julia> M = MagnetizationMC((1, 2, 3), (4, 5, 6))
+2-compartment Magnetization vector with eltype Int64:
+ Compartment 1:
+  Mx = 1
+  My = 2
+  Mz = 3
+ Compartment 2:
+  Mx = 4
+  My = 5
+  Mz = 6
+
+julia> E * M
+2-compartment Magnetization vector with eltype Int64:
+ Compartment 1:
+  Mx = 2
+  My = 1
+  Mz = 3
+ Compartment 2:
+  Mx = 5
+  My = 4
+  Mz = 6
+```
+"""
 struct ExcitationMatrix{T<:Real}
     A::BlochMatrix{T}
 end
@@ -393,6 +555,26 @@ function Base.show(io::IO, ::MIME"text/plain", A::ExcitationMatrix{T}) where {T}
 
 end
 
+"""
+    idealspoiling = IdealSpoilingMatrix()
+
+Matrix representing ideal spoiling. Multiplying by a `Magnetization` or
+`MagnetizationMC` has the effect of setting the x and y components to 0.
+
+# Examples
+```jldoctest
+julia> idealspoiling * MagnetizationMC((1, 1, 1), (2, 2, 2))
+2-compartment Magnetization vector with eltype Int64:
+ Compartment 1:
+  Mx = 0
+  My = 0
+  Mz = 1
+ Compartment 2:
+  Mx = 0
+  My = 0
+  Mz = 2
+```
+"""
 struct IdealSpoilingMatrix end
 const idealspoiling = IdealSpoilingMatrix()
 

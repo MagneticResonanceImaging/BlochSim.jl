@@ -98,8 +98,8 @@ signal(M::Magnetization) = complex(M.x, M.y)
     MagnetizationMC{T}(N)
     MagnetizationMC(N)
 
-Create a `MagnetizationMC` object representing multiple 3D magnetization vectors
-in the same physical location.
+Create a `MagnetizationMC` object representing `N` 3D magnetization vectors in
+the same physical location.
 
 One can access the ith component magnetization vector by indexing the
 `MagnetizationMC` object. Furthermore, iterating the `MagnetizationMC` object
