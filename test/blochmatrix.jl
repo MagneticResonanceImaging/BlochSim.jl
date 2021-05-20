@@ -3,6 +3,7 @@ function blochmatrix1()
     A = BlochMatrix()
     B = BlochMatrix(0.0, 0, 0, 0, 0, 0, 0, 0, 0)
 
+    show(devnull, "text/plain", A)
     @test eltype(A) == eltype(B)
     return A == B
 
@@ -25,6 +26,7 @@ function blochmatrix3()
     C = BlochMatrix(1, 2, 3, 4, 5, 6, 7, 8, 9)
     copyto!(C, A)
 
+    show(devnull, "text/plain", A)
     @test eltype(A) != eltype(B) == eltype(C)
     return A == B == C
 
@@ -111,6 +113,7 @@ function times3()
     B = A * M
     correct = Matrix(A) * Vector(M)
 
+    show(devnull, "text/plain", A)
     return Vector(B) == correct
 
 end
@@ -122,6 +125,7 @@ function times4()
     B = A * M
     correct = MagnetizationMC((2, 2, 2), (4, 4, 6))
 
+    show(devnull, "text/plain", A)
     return B == correct
 
 end

@@ -17,6 +17,14 @@ BlochMatrix{T}() where {T} = BlochMatrix(zero(T), zero(T), zero(T), zero(T),
                                     zero(T), zero(T), zero(T), zero(T), zero(T))
 BlochMatrix() = BlochMatrix{Float64}()
 
+function Base.show(io::IO, ::MIME"text/plain", A::BlochMatrix{T}) where {T}
+
+    print(io, "BlochMatrix{$T}:\n")
+    haskey(io, :compact) || (io = IOContext(io, :compact => true))
+    Base.print_array(io, Matrix(A))
+
+end
+
 function Base.fill!(A::BlochMatrix, v)
 
     A.a11 = v
@@ -103,6 +111,15 @@ end
 FreePrecessionMatrix{T}() where {T} = FreePrecessionMatrix(zero(T), zero(T), zero(T))
 FreePrecessionMatrix() = FreePrecessionMatrix{Float64}()
 FreePrecessionMatrix(E1, E2cosθ, E2sinθ) = FreePrecessionMatrix(promote(E1, E2cosθ, E2sinθ)...)
+
+function Base.show(io::IO, ::MIME"text/plain", A::FreePrecessionMatrix{T}) where {T}
+
+    print(io, "FreePrecessionMatrix{$T}:")
+    print(io, "\n E1 = ", A.E1)
+    print(io, "\n E2cosθ = ", A.E2cosθ)
+    print(io, "\n E2sinθ = ", A.E2sinθ)
+
+end
 
 function Base.Matrix(A::FreePrecessionMatrix{T}) where {T}
 
@@ -258,6 +275,14 @@ end
 
 BlochMcConnellMatrix(N) = BlochMcConnellMatrix{Float64}(N)
 
+function Base.show(io::IO, ::MIME"text/plain", A::BlochMcConnellMatrix{T,N}) where {T,N}
+
+    print(io, "BlochMcConnellMatrix{$T,$N}:\n")
+    haskey(io, :compact) || (io = IOContext(io, :compact => true))
+    Base.print_array(io, Matrix(A))
+
+end
+
 getblock(A::BlochMcConnellMatrix, i, j) = A.A[i][j]
 
 function Base.fill!(A::BlochMcConnellMatrix{T,N}, v) where {T,N}
@@ -359,6 +384,14 @@ end
 
 ExcitationMatrix{T}() where {T} = ExcitationMatrix(BlochMatrix{T}())
 ExcitationMatrix() = ExcitationMatrix(BlochMatrix())
+
+function Base.show(io::IO, ::MIME"text/plain", A::ExcitationMatrix{T}) where {T}
+
+    print(io, "ExcitationMatrix{$T}:\n")
+    haskey(io, :compact) || (io = IOContext(io, :compact => true))
+    Base.print_array(io, Matrix(A.A))
+
+end
 
 struct IdealSpoilingMatrix end
 const idealspoiling = IdealSpoilingMatrix()

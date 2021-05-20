@@ -20,7 +20,7 @@ function testA5b()
         mag[:,t] = Vector(spin.M)
     end
 
-    @test mag ≈ answer["M"]
+    return mag ≈ answer["M"]
 
 end
 
@@ -49,7 +49,7 @@ function testF1a()
     end
     sig = map(signal, spins)
 
-    @test sig ≈ vec(answer["sig"])
+    return sig ≈ vec(answer["sig"])
 
 end
 
@@ -81,7 +81,7 @@ function testF1b()
     end
     sig = map(signal, spins)
 
-    @test sig ≈ vec(answer["sig"])
+    return sig ≈ vec(answer["sig"])
 
 end
 
@@ -118,7 +118,7 @@ function testF1c()
     end
     sig = map(signal, spins)
 
-    @test sig ≈ vec(answer["sig"])
+    return sig ≈ vec(answer["sig"])
 
 end
 
@@ -141,7 +141,7 @@ function testF2c()
     end
     sig = map(signal, spins)
 
-    @test sig ≈ vec(answer["sig"])
+    return sig ≈ vec(answer["sig"])
 
 end
 
@@ -170,7 +170,7 @@ function testF3a()
     end
     sig = map(signal, spins)
 
-    @test sig ≈ vec(answer["sig"])
+    return sig ≈ vec(answer["sig"])
 
 end
 
@@ -206,7 +206,7 @@ function testF3c()
     Mz = map(spin -> spin.M.z, spins)
 
     @test sig ≈ vec(answer["sig"])
-    @test Mz ≈ vec(answer["mz"])
+    return Mz ≈ vec(answer["mz"])
 
 end
 
@@ -242,7 +242,7 @@ function testF3d()
     Mz = map(spin -> spin.M.z, spins)
 
     @test sig ≈ vec(answer["sig"])
-    @test Mz ≈ vec(answer["mz"])
+    return Mz ≈ vec(answer["mz"])
 
 end
 
@@ -278,7 +278,7 @@ function testF3f()
     Mz = map(spin -> spin.M.z, spins)
 
     @test sig ≈ vec(answer["sig"])
-    @test Mz ≈ vec(answer["mz"])
+    return Mz ≈ vec(answer["mz"])
 
 end
 
@@ -304,7 +304,7 @@ function testA5bMC()
         mag[:,t] = Vector(spin.M[1])
     end
 
-    @test mag ≈ answer["M"]
+    return mag ≈ answer["M"]
 
 end
 
@@ -341,7 +341,7 @@ function testF1cMC()
     end
     sig = map(signal, spins)
 
-    @test sig ≈ vec(answer["sig"])
+    return sig ≈ vec(answer["sig"])
 
 end
 
@@ -365,7 +365,7 @@ function testF2cMC()
     end
     sig = map(signal, spins)
 
-    @test sig ≈ vec(answer["sig"])
+    return sig ≈ vec(answer["sig"])
 
 end
 
@@ -402,7 +402,7 @@ function testF3cMC()
     Mz = map(spin -> spin.M[1].z, spins)
 
     @test sig ≈ vec(answer["sig"])
-    @test Mz ≈ vec(answer["mz"])
+    return Mz ≈ vec(answer["mz"])
 
 end
 
@@ -439,7 +439,7 @@ function testF3dMC()
     Mz = map(spin -> spin.M[1].z, spins)
 
     @test sig ≈ vec(answer["sig"])
-    @test Mz ≈ vec(answer["mz"])
+    return Mz ≈ vec(answer["mz"])
 
 end
 
@@ -475,7 +475,7 @@ function testF3fMC()
     Mz = map(spin -> spin.M[1].z, spins)
 
     @test sig ≈ vec(answer["sig"])
-    @test Mz ≈ vec(answer["mz"])
+    return Mz ≈ vec(answer["mz"])
 
 end
 
@@ -487,7 +487,7 @@ function testB2c()
     mese! = MESEBlochSim(1000, 50, 1)
     mag = mese!(spin)[1]
 
-    @test signal(mag) ≈ answer["sig"]
+    return signal(mag) ≈ answer["sig"]
 
 end
 
@@ -499,7 +499,7 @@ function testB2d()
     mese! = MESEBlochSim(1000, 50, 8)
     mag = mese!(spin)
 
-    @test map(signal, mag) ≈ vec(answer["sig"])
+    return map(signal, mag) ≈ vec(answer["sig"])
 
 end
 
@@ -511,7 +511,7 @@ function testB2dMC()
     mese! = MESEBlochSim(1000, 50, 8)
     mag = mese!(spin)
 
-    @test map(signal, mag) ≈ vec(answer["sig"])
+    return map(signal, mag) ≈ vec(answer["sig"])
 
 end
 
@@ -526,7 +526,9 @@ function testB3a()
     spgr! = SPGRBlochSim(10, 2, π/3, GradientSpoiling(0, 0, gradz, Tg))
     spgr!(spin)
 
-    @test Vector(spin.M) ≈ vec(answer["M"])
+    show(devnull, spgr!)
+    show(devnull, "text/plain", spgr!)
+    return Vector(spin.M) ≈ vec(answer["M"])
 
 end
 
@@ -543,7 +545,7 @@ function testB3b()
     foreach(spgr!, spins)
     M = mean(spin.M for spin in spins)
 
-    @test Vector(M) ≈ vec(answer["M"])
+    return Vector(M) ≈ vec(answer["M"])
 
 end
 
@@ -555,7 +557,7 @@ function testB3c()
     spgr! = SPGRBlochSim(10, 2, π/3)
     spgr!(spin)
 
-    @test Vector(spin.M) ≈ vec(answer["M"])
+    return Vector(spin.M) ≈ vec(answer["M"])
 
 end
 
@@ -572,7 +574,7 @@ function testB5a()
     foreach(spgr!, spins)
     sig = mean(signal(spin.M) for spin in spins)
 
-    @test sig ≈ answer["sig"]
+    return sig ≈ answer["sig"]
 
 end
 
@@ -600,7 +602,7 @@ function testB5b()
     end
 
     @test srf ≈ vec(answer["sig1"])
-    @test sideal ≈ vec(answer["sig2"])
+    return sideal ≈ vec(answer["sig2"])
 
 end
 
@@ -608,26 +610,26 @@ end
 
     @testset "Single Compartment" begin
 
-        testA5b()
-        testF1a()
-        testF1b()
-        testF1c()
-        testF2c()
-        testF3a()
-        testF3c()
-        testF3d()
-        testF3f()
+        @test testA5b()
+        @test testF1a()
+        @test testF1b()
+        @test testF1c()
+        @test testF2c()
+        @test testF3a()
+        @test testF3c()
+        @test testF3d()
+        @test testF3f()
 
     end
 
     @testset "Multicompartment" begin
 
-        testA5bMC()
-        testF1cMC()
-        testF2cMC()
-        testF3cMC()
-        testF3dMC()
-        testF3fMC()
+        @test testA5bMC()
+        @test testF1cMC()
+        @test testF2cMC()
+        @test testF3cMC()
+        @test testF3dMC()
+        @test testF3fMC()
 
     end
 
@@ -635,20 +637,20 @@ end
     
         @testset "MESE" begin
     
-            testB2c()
-            testB2d()
-            testB2dMC()
+            @test testB2c()
+            @test testB2d()
+            @test testB2dMC()
     
         end
     
         @testset "SPGR" begin
     
     
-            testB3a()
-            testB3b()
-            testB3c()
-            testB5a()
-            testB5b()
+            @test testB3a()
+            @test testB3b()
+            @test testB3c()
+            @test testB5a()
+            @test testB5b()
     
         end
     
