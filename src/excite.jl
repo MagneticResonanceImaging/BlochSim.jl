@@ -7,6 +7,10 @@ end
 
 InstantaneousRF(α, θ = zero(α)) = InstantaneousRF(promote(α, θ)...)
 
+Base.show(io::IO, rf::InstantaneousRF) = print(io, "InstantaneousRF(", rf.α, ", ", rf.θ, ")")
+Base.show(io::IO, ::MIME"text/plain", rf::InstantaneousRF{T}) where {T} =
+    print(io, "Instantaneous RF pulse with eltype $T:\n α = ", rf.α, " rad\n θ = ", rf.θ, " rad")
+
 struct RF{T<:Real,G<:Union{<:Gradient,<:AbstractVector{<:Gradient}}} <: AbstractRF
     α::Vector{T}
     θ::Vector{T}
@@ -30,6 +34,20 @@ struct RF{T<:Real,G<:Union{<:Gradient,<:AbstractVector{<:Gradient}}} <: Abstract
         new{T,typeof(grad)}(α, θ, Δt, Δθ, grad, Δθ)
 
     end
+end
+
+Base.show(io::IO, rf::RF) = print(io, "RF(", rf.α, ", ", rf.θ, ", ", rf.Δt, ", ", rf.Δθ_initial, ", ", rf.grad, ")")
+
+function Base.show(io::IO, ::MIME"text/plain", rf::RF{T,G}) where {T,G}
+
+    print(io, "RF{$T,$G}:")
+    print(io, "\n α = ", rf.α, " rad")
+    print(io, "\n θ = ", rf.θ, " rad")
+    print(io, "\n Δt = ", rf.Δt, " ms")
+    print(io, "\n Δθ (initial) = ", rf.Δθ_initial, " rad")
+    print(io, "\n Δθ (current) = ", rf.Δθ[], " rad")
+    print(io, "\n grad = ", rf.grad, " G/cm")
+
 end
 
 # waveform in Gauss, Δt in ms

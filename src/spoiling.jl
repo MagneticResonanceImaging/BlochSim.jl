@@ -6,7 +6,7 @@ end
 
 Gradient(x, y, z) = Gradient(promote(x, y, z)...)
 
-Base.show(io::IO, grad::Gradient) = print(io, "[", grad.x, ", ", grad.y, ", ", grad.z, "]")
+Base.show(io::IO, grad::Gradient) = print(io, "Gradient(", grad.x, ", ", grad.y, ", ", grad.z, ")")
 Base.show(io::IO, ::MIME"text/plain", grad::Gradient{T}) where {T} =
     print(io, "Gradient{$T}:\n Gx = ", grad.x, " G/cm\n Gy = ", grad.y, " G/cm\n Gz = ", grad.z, " G/cm")
 
@@ -33,6 +33,16 @@ end
 
 GradientSpoiling(x, y, z, Tg) = GradientSpoiling(Gradient(x, y, z), Tg)
 
+Base.show(io::IO, s::GradientSpoiling) = print(io, "GradientSpoiling(", s.gradient, ", ", s.Tg, ")")
+
+function Base.show(io::IO, ::MIME"text/plain", s::GradientSpoiling{T}) where {T}
+
+    print(io, "GradientSpoiling{$T}:")
+    print(io, "\n gradient = ", s.gradient, " G/cm")
+    print(io, "\n Tg = ", s.Tg, " ms")
+
+end
+
 # I almost removed RFSpoiling but decided against it because it can be used to
 # implement, e.g., phase cycling for bSSFP
 struct RFSpoiling{T<:Real} <: AbstractSpoiling
@@ -40,6 +50,10 @@ struct RFSpoiling{T<:Real} <: AbstractSpoiling
 end
 
 RFSpoiling() = RFSpoiling(deg2rad(117))
+
+Base.show(io::IO, s::RFSpoiling) = print(io, "RFSpoiling(", s.Δθ, ")")
+Base.show(io::IO, ::MIME"text/plain", s::RFSpoiling{T}) where {T} =
+    print(io, "RFSpoiling{$T}:\n Δθ = ", s.Δθ, " rad")
 
 struct RFandGradientSpoiling{T1<:Real,T2<:Real} <: AbstractSpoiling
     gradient::GradientSpoiling{T1}
@@ -56,6 +70,19 @@ RFandGradientSpoiling(grad::Union{<:Gradient,<:NTuple{3,Real}}, Tg) = RFandGradi
 RFandGradientSpoiling(rf::Union{<:RFSpoiling,<:Real}, grad::GradientSpoiling) = RFandGradientSpoiling(grad, rf)
 RFandGradientSpoiling(rf::Union{<:RFSpoiling,<:Real}, grad::Union{<:Gradient,<:NTuple{3,Real}}, Tg) = RFandGradientSpoiling(grad, Tg, rf)
 RFandGradientSpoiling(rf::RFSpoiling, gx, gy, gz, Tg) = RFandGradientSpoiling(gx, gy, gz, Tg, rf)
+
+Base.show(io::IO, s::RFandGradientSpoiling) = print(io, "RFandGradientSpoiling(", s.gradient, ", ", s.rf, ")")
+
+function Base.show(io::IO, ::MIME"text/plain", s::RFandGradientSpoiling{T1,T2}) where {T1,T2}
+
+    print(io, "RFandGradientSpoiling{$T1,$T2}:")
+    print(io, "\n gradient = GradientSpoiling{$T1}:")
+    print(io, "\n  gradient = ", s.gradient.gradient, " G/cm")
+    print(io, "\n  Tg = ", s.gradient.Tg, " ms")
+    print(io, "\n rf = RFSpoiling{$T2}:")
+    print(io, "\n  Δθ = ", s.rf.Δθ, " rad")
+
+end
 
 spoiler_gradient(s::GradientSpoiling) = s.gradient
 spoiler_gradient(s::RFandGradientSpoiling) = spoiler_gradient(s.gradient)

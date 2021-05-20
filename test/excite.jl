@@ -2,10 +2,14 @@ function excite1()
 
     θ = π/4
     α = π/2
+    rf = InstantaneousRF(α, θ)
     spin = Spin(1, 1000, 100, 1.25)
-    (A1,) = excite(spin, InstantaneousRF(α, θ))
+    (A1,) = excite(spin, rf)
     A2 = ExcitationMatrix()
-    excite!(A2, spin, InstantaneousRF(α, θ))
+    excite!(A2, spin, rf)
+
+    show(devnull, rf)
+    show(devnull, "text/plain", rf)
     return A1.A == A2.A
 
 end
@@ -26,11 +30,15 @@ function excite3()
     Δθ = π/3
     grad = [Gradient(0, 0, z) for z = 0:0.5:6]
     dt = 0.1
+    rf = RF(rf, dt, Δθ, grad)
     spin = Spin(1, 1000, 100, 1.25, Position(0, 0, 1))
-    (A1, B1) = excite(spin, RF(rf, dt, Δθ, grad))
+    (A1, B1) = excite(spin, rf)
     A2 = BlochMatrix()
     B2 = Magnetization()
-    excite!(A2, B2, spin, RF(rf, dt, Δθ, grad))
+    excite!(A2, B2, spin, rf)
+
+    show(devnull, rf)
+    show(devnull, "text/plain", rf)
     @test A1 == A2
     return B1 == B2
 

@@ -8,7 +8,7 @@ Magnetization(x, y, z) = Magnetization(promote(x, y, z)...)
 Magnetization{T}() where {T} = Magnetization(zero(T), zero(T), zero(T))
 Magnetization() = Magnetization(0.0, 0.0, 0.0)
 
-Base.show(io::IO, M::Magnetization) = print(io, "[", M.x, ", ", M.y, ", ", M.z, "]")
+Base.show(io::IO, M::Magnetization) = print(io, "Magnetization(", M.x, ", ", M.y, ", ", M.z, ")")
 Base.show(io::IO, ::MIME"text/plain", M::Magnetization{T}) where {T} =
     print(io, "Magnetization vector with eltype $T:\n Mx = ", M.x, "\n My = ", M.y, "\n Mz = ", M.z)
 
@@ -72,11 +72,11 @@ MagnetizationMC(N) = MagnetizationMC(ntuple(i -> Magnetization(), N)...)
 
 function Base.show(io::IO, M::MagnetizationMC{T,N}) where {T,N}
 
-    print(io, "[", M[1].x, ", ", M[1].y, ", ", M[1].z, ", ")
+    print(io, "MagnetizationMC((", M[1].x, ", ", M[1].y, ", ", M[1].z, "), (")
     for i = 2:N-1
-        print(io, M[i].x, ", ", M[i].y, ", ", M[i].z, ", ")
+        print(io, M[i].x, ", ", M[i].y, ", ", M[i].z, "), (")
     end
-    print(io, M[N].x, ", ", M[N].y, ", ", M[N].z, "]")
+    print(io, M[N].x, ", ", M[N].y, ", ", M[N].z, "))")
 
 end
 

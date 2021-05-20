@@ -20,7 +20,7 @@ end
 
 Position(x, y, z) = Position(promote(x, y, z)...)
 
-Base.show(io::IO, pos::Position) = print(io, "(", pos.x, ", ", pos.y, ", ", pos.z, ")")
+Base.show(io::IO, pos::Position) = print(io, "Position(", pos.x, ", ", pos.y, ", ", pos.z, ")")
 Base.show(io::IO, ::MIME"text/plain", pos::Position{T}) where {T} =
     print(io, "Position{$T}:\n x = ", pos.x, " cm\n y = ", pos.y, " cm\n z = ", pos.z, " cm")
 
@@ -99,10 +99,10 @@ function Base.show(io::IO, ::MIME"text/plain", spin::Spin{T}) where {T}
     print(io, "Spin{$T}:")
     print(io, "\n M = ", spin.M)
     print(io, "\n M0 = ", spin.M0)
-    print(io, "\n T1 = ", spin.T1)
-    print(io, "\n T2 = ", spin.T2)
-    print(io, "\n Δf = ", spin.Δf)
-    print(io, "\n pos = ", spin.pos)
+    print(io, "\n T1 = ", spin.T1, " ms")
+    print(io, "\n T2 = ", spin.T2, " ms")
+    print(io, "\n Δf = ", spin.Δf, " Hz")
+    print(io, "\n pos = ", spin.pos, " cm")
 
 end
 
@@ -228,11 +228,11 @@ function Base.show(io::IO, ::MIME"text/plain", spin::SpinMC{T,N}) where {T,N}
     print(io, "\n M = ", spin.M)
     print(io, "\n M0 = ", spin.M0)
     print(io, "\n frac = ", spin.frac)
-    print(io, "\n T1 = ", spin.T1)
-    print(io, "\n T2 = ", spin.T2)
-    print(io, "\n Δf = ", spin.Δf)
-    print(io, "\n r = ", spin.r)
-    print(io, "\n pos = ", spin.pos)
+    print(io, "\n T1 = ", spin.T1, " ms")
+    print(io, "\n T2 = ", spin.T2, " ms")
+    print(io, "\n Δf = ", spin.Δf, " Hz")
+    print(io, "\n r = ", spin.r, " 1/ms")
+    print(io, "\n pos = ", spin.pos, " cm")
 
 end
 

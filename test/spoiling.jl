@@ -5,6 +5,8 @@ function GradientSpoiling1()
 
     show(devnull, g.gradient)
     show(devnull, "text/plain", g.gradient)
+    show(devnull, g)
+    show(devnull, "text/plain", g)
     return rfspoiling_increment(g) == 0
 
 end
@@ -19,7 +21,10 @@ end
 
 function RFSpoiling1()
 
-    RFSpoiling(deg2rad(117))
+    s = RFSpoiling(deg2rad(117))
+
+    show(devnull, s)
+    show(devnull, "text/plain", s)
     return true
 
 end
@@ -48,7 +53,10 @@ function RFandGradientSpoiling1()
     RFandGradientSpoiling(RFSpoiling(deg2rad(117)), 0, 0, 0, 3)
     RFandGradientSpoiling(deg2rad(117), GradientSpoiling(0, 0, 0, 3))
     RFandGradientSpoiling(deg2rad(117), Gradient(0, 0, 0), 3)
-    RFandGradientSpoiling(deg2rad(117), (0, 0, 0), 3)
+    s = RFandGradientSpoiling(deg2rad(117), (0, 0, 0), 3)
+
+    show(devnull, s)
+    show(devnull, "text/plain", s)
     return true
 
 end
