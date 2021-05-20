@@ -385,7 +385,7 @@ function combine!(A, B, ::Nothing, ::Nothing, A2, B2)
 
 end
 
-combine!(A, A2, A1) = mul!(A, A2, A1)
+combine!(A, A1, A2) = mul!(A, A2, A1)
 
 """
     applydynamics!(spin, A[, B])

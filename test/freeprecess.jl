@@ -59,6 +59,17 @@ function freeprecess5()
 
 end
 
+function freeprecess6()
+
+    s = Spin(1, 1000, 100, 3.75)
+    (A1, B1) = freeprecess(s, 100)
+    (A2, B2) = freeprecess(100, s.M0, s.T1, s.T2, s.Δf)
+
+    @test A1 == A2
+    return B1 == B2
+
+end
+
 function freeprecessmc1()
 
     t = 20
@@ -110,6 +121,81 @@ function freeprecessmc3()
 
 end
 
+function freeprecessmc4()
+
+    s = SpinMC(1, (0.8, 0.2), (1000, 400), (100, 20), (0, 15), (Inf, Inf))
+    t = 100
+    (A1, B1) = freeprecess(s, t)
+    (A2, B2) = freeprecess(s, t, nothing)
+
+    @test A1 ≈ A2
+    return B1 ≈ B2
+
+end
+
+function combine1()
+
+    A = BlochMatrix()
+    B = Magnetization()
+    A1 = BlochMatrix(1, 2, 3, 4, 5, 6, 7, 8, 9)
+    B1 = nothing
+    A2 = BlochMatrix(1, 2, 3, 4, 5, 6, 7, 8, 9)
+    B2 = Magnetization(1, 1, 1)
+    combine!(A, B, A1, B1, A2, B2)
+    Ac = A2 * A1
+    Bc = B2
+
+    @test A == Ac
+    return B == Bc
+
+end
+
+function combine2()
+
+    A = BlochMatrix()
+    B = Magnetization()
+    A1 = BlochMatrix(1, 2, 3, 4, 5, 6, 7, 8, 9)
+    B1 = Magnetization(1, 1, 1)
+    A2 = nothing
+    B2 = nothing
+    combine!(A, B, A1, B1, A2, B2)
+    Ac = A1
+    Bc = B1
+
+    @test A == Ac
+    return B == Bc
+
+end
+
+function combine3()
+
+    A = BlochMatrix()
+    B = Magnetization()
+    A1 = nothing
+    B1 = nothing
+    A2 = BlochMatrix(1, 2, 3, 4, 5, 6, 7, 8, 9)
+    B2 = Magnetization(1, 1, 1)
+    combine!(A, B, A1, B1, A2, B2)
+    Ac = A2
+    Bc = B2
+
+    @test A == Ac
+    return B == Bc
+
+end
+
+function combine4()
+
+    A = BlochMatrix()
+    A1 = BlochMatrix(1, 1, 1, 1, 1, 1, 1, 1, 1)
+    A2 = BlochMatrix(1, 2, 3, 4, 5, 6, 7, 8, 9)
+    combine!(A, A1, A2)
+    Ac = A2 * A1
+
+    return A == Ac
+
+end
+
 @testset "Free Precession" begin
 
     @test freeprecess1()
@@ -117,8 +203,19 @@ end
     @test freeprecess3()
     @test freeprecess4()
     @test freeprecess5()
+    @test freeprecess6()
     @test freeprecessmc1()
     @test freeprecessmc2()
     @test freeprecessmc3()
+    @test freeprecessmc4()
+
+end
+
+@testset "combine!" begin
+
+    @test combine1()
+    @test combine2()
+    @test combine3()
+    @test combine4()
 
 end

@@ -14,4 +14,6 @@ using Test
     include("expm.jl")
     include("freeprecess.jl")
     include("excite.jl")
+    include("mese.jl")
+    include("spgr.jl")
 end

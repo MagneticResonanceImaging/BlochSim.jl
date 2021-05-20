@@ -1,8 +1,11 @@
 function GradientSpoiling1()
 
     GradientSpoiling(0, 1, 0, 1)
-    GradientSpoiling(0.0, 1, 0f0, 2//3)
-    return true
+    g = GradientSpoiling(0.0, 1, 0f0, 2//3)
+
+    show(devnull, g.gradient)
+    show(devnull, "text/plain", g.gradient)
+    return rfspoiling_increment(g) == 0
 
 end
 
@@ -38,6 +41,7 @@ function RFandGradientSpoiling1()
     RFandGradientSpoiling(GradientSpoiling(0, 0, 0, 3), deg2rad(117))
     RFandGradientSpoiling(Gradient(0, 0, 0), 3, deg2rad(117))
     RFandGradientSpoiling((0, 0, 0), 3, deg2rad(117))
+    RFandGradientSpoiling(GradientSpoiling(0, 0, 0, 3))
     RFandGradientSpoiling(RFSpoiling(deg2rad(117)), GradientSpoiling(0, 0, 0, 3))
     RFandGradientSpoiling(RFSpoiling(deg2rad(117)), Gradient(0, 0, 0), 3)
     RFandGradientSpoiling(RFSpoiling(deg2rad(117)), (0, 0, 0), 3)
@@ -76,6 +80,27 @@ function spoil2()
     spoil!(s)
     M_correct = Magnetization(0, 0, 5)
     return s.M ≈ M_correct
+
+end
+
+function spoil3()
+
+    s = Spin(1, 1000, 100, 0)
+    spoil!(nothing, nothing, s, RFSpoiling())
+    A = spoil(s, RFSpoiling())
+
+    return A === nothing
+
+end
+
+function spoil4()
+
+    s = Spin(1, 1000, 100, 0)
+    (A1, B1) = spoil(s, GradientSpoiling(1, 1, 1, 10))
+    (A2, B2) = freeprecess(s, 10)
+
+    @test A1 == A2
+    return B1 == B2
 
 end
 
@@ -128,6 +153,8 @@ end
 
     @test spoil1()
     @test spoil2()
+    @test spoil3()
+    @test spoil4()
     @test spoilmc1()
     @test spoilmc2()
 

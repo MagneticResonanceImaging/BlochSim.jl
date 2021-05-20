@@ -25,7 +25,6 @@ end
 
 Base.eltype(::Magnetization{T}) where {T} = T
 Base.convert(::Type{Magnetization{T}}, M::Magnetization) where {T} = Magnetization(T(M.x), T(M.y), T(M.z))
-Base.convert(::Type{Magnetization{T}}, M::Magnetization{T}) where {T} = M
 
 Base.Vector(M::Magnetization) = [M.x, M.y, M.z]
 
