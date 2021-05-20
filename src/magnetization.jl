@@ -1,3 +1,30 @@
+"""
+    Magnetization(x, y, z)
+    Magnetization{T}()
+    Magnetization()
+
+Create a mutable `Magnetization` object representing a 3D magnetization vector.
+
+# Properties
+- `x::Real`: x component of magnetization vector
+- `y::Real`: y component of magnetization vector
+- `z::Real`: z component of magnetization vector
+
+# Examples
+```jldoctest
+julia> M = Magnetization()
+Magnetization vector with eltype Float64:
+ Mx = 0.0
+ My = 0.0
+ Mz = 0.0
+
+julia> M.x = 1; M.y = 2; M.z = 3; M
+Magnetization vector with eltype Float64:
+ Mx = 1.0
+ My = 2.0
+ Mz = 3.0
+```
+"""
 mutable struct Magnetization{T<:Real}
     x::T
     y::T
@@ -50,8 +77,70 @@ Base.:(==)(M1::Magnetization, M2::Magnetization) = M1.x == M2.x && M1.y == M2.y 
 Base.isapprox(M1::Magnetization, M2::Magnetization; kwargs...) =
     isapprox(Vector(M1), Vector(M2); kwargs...)
 
+"""
+    signal(M)
+
+Return the signal detected from the given magnetization vector.
+
+# Examples
+```jldoctest
+julia> signal(Magnetization(1, 2, 3))
+1 + 2im
+
+julia> signal(MagnetizationMC((1, 2, 3), (1, 1, 1)))
+2 + 3im
+```
+"""
 signal(M::Magnetization) = complex(M.x, M.y)
 
+"""
+    MagnetizationMC((x1, y1, z1), ...)
+    MagnetizationMC{T}(N)
+    MagnetizationMC(N)
+
+Create a `MagnetizationMC` object representing multiple 3D magnetization vectors
+in the same physical location.
+
+One can access the ith component magnetization vector by indexing the
+`MagnetizationMC` object. Furthermore, iterating the `MagnetizationMC` object
+iterates through each of the component magnetization vectors.
+
+# Properties
+- `M::NTuple{N,Magnetization{<:Real}}`: List of component magnetization vectors
+
+# Examples
+```jldoctest
+julia> M = MagnetizationMC((1, 2, 3), (4, 5, 6))
+2-compartment Magnetization vector with eltype Int64:
+ Compartment 1:
+  Mx = 1
+  My = 2
+  Mz = 3
+ Compartment 2:
+  Mx = 4
+  My = 5
+  Mz = 6
+
+julia> M[2]
+Magnetization vector with eltype Int64:
+ Mx = 4
+ My = 5
+ Mz = 6
+
+julia> foreach(m -> (m.x = 0; m.y = 1; m.z = 2), M)
+
+julia> M
+2-compartment Magnetization vector with eltype Int64:
+ Compartment 1:
+  Mx = 0
+  My = 1
+  Mz = 2
+ Compartment 2:
+  Mx = 0
+  My = 1
+  Mz = 2
+```
+"""
 struct MagnetizationMC{T<:Real,N}
     M::NTuple{N,Magnetization{T}}
 
