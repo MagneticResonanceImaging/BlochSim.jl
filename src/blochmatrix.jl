@@ -17,8 +17,6 @@ BlochMatrix{T}() where {T} = BlochMatrix(zero(T), zero(T), zero(T), zero(T),
                                     zero(T), zero(T), zero(T), zero(T), zero(T))
 BlochMatrix() = BlochMatrix{Float64}()
 
-Base.eltype(::BlochMatrix{T}) where {T} = T
-
 function Base.fill!(A::BlochMatrix, v)
 
     A.a11 = v
@@ -78,7 +76,6 @@ BlochDynamicsMatrix(R1, R2, Δω) = BlochDynamicsMatrix(promote(R1, R2, Δω)...
 
 Base.convert(::Type{BlochDynamicsMatrix{T}}, A::BlochDynamicsMatrix) where {T} =
     BlochDynamicsMatrix(T(A.R1), T(A.R2), T(A.Δω))
-Base.convert(::Type{BlochDynamicsMatrix{T}}, A::BlochDynamicsMatrix{T}) where {T} = A
 
 function Base.Matrix(A::BlochDynamicsMatrix{T}) where {T}
 
@@ -148,7 +145,6 @@ ExchangeDynamicsMatrix() = ExchangeDynamicsMatrix{Float64}()
 
 Base.convert(::Type{ExchangeDynamicsMatrix{T}}, A::ExchangeDynamicsMatrix) where {T} =
     ExchangeDynamicsMatrix(T(A.r))
-Base.convert(::Type{ExchangeDynamicsMatrix{T}}, A::ExchangeDynamicsMatrix{T}) where {T} = A
 
 function Base.Matrix(A::ExchangeDynamicsMatrix{T}) where {T}
 
@@ -330,12 +326,20 @@ function Base.Matrix(A::BlochMcConnellMatrix{T,N}) where {T,N}
 
 end
 
+function Base.eltype(
+    ::Union{<:AbstractBlochMatrix{T},<:AbstractBlochMcConnellMatrix{T,N}}
+) where {T,N}
+
+    return T
+
+end
+
 function Base.:(==)(
     A::Union{<:AbstractBlochMatrix,<:AbstractBlochMcConnellMatrix},
     B::Union{<:AbstractBlochMatrix,<:AbstractBlochMcConnellMatrix}
 )
 
-    Matrix(A) == Matrix(B)
+    return Matrix(A) == Matrix(B)
 
 end
 
@@ -421,6 +425,7 @@ function Base.:*(A::BlochMcConnellMatrix{T1,N}, M::MagnetizationMC{T2,N}) where 
         for j = 2:N
             muladd!(Mc, getblock(A, i, j), M[j])
         end
+        Mc
     end...)
 
 end

@@ -75,7 +75,7 @@ end
 
 function magnetizationmc2()
 
-    M = MagnetizationMC(2)
+    M = MagnetizationMC(3)
     show(devnull, M)
     show(devnull, "text/plain", M)
 

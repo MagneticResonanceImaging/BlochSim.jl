@@ -1,3 +1,205 @@
+function blochmatrix1()
+
+    A = BlochMatrix()
+    B = BlochMatrix(0.0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+    @test eltype(A) == eltype(B)
+    return A == B
+
+end
+
+function blochmatrix2()
+
+    A = BlochSim.BlochDynamicsMatrix()
+    B = BlochSim.BlochDynamicsMatrix(0f0, 0, 0)
+
+    @test eltype(A) != eltype(B)
+    return A == B
+
+end
+
+function blochmatrix3()
+
+    A = FreePrecessionMatrix()
+    B = FreePrecessionMatrix(false, 0, 0)
+    C = BlochMatrix(1, 2, 3, 4, 5, 6, 7, 8, 9)
+    copyto!(C, A)
+
+    @test eltype(A) != eltype(B) == eltype(C)
+    return A == B == C
+
+end
+
+function sum1()
+
+    M1 = MagnetizationMC((1, 2, 3), (1, 2, 3))
+    M2 = MagnetizationMC((0.5, 0.5, 0.5), (0.1, 0.1, 0.1))
+    M = M1 + M2
+    correct = MagnetizationMC((1.5, 2.5, 3.5), (1.1, 2.1, 3.1))
+
+    return M == correct
+
+end
+
+function subtract1()
+
+    M1 = Magnetization(4, 3, 1)
+    M = M1 - M1
+    correct = Magnetization()
+
+    return M == correct
+
+end
+
+function subtract2()
+
+    M1 = MagnetizationMC((1, 2, 3), (1, 2, 3))
+    M2 = MagnetizationMC((0.5, 0.5, 0.5), (0.1, 0.1, 0.1))
+    M = M1 - M2
+    correct = MagnetizationMC((0.5, 1.5, 2.5), (0.9, 1.9, 2.9))
+
+    return M == correct
+
+end
+
+function subtract3()
+
+    A = BlochMatrix(1, 0, 0, 0, 1, 0, 0, 0, 1)
+    C = I - A
+    correct = BlochMatrix()
+
+    return C == correct
+
+end
+
+function times1()
+
+    M1 = MagnetizationMC((1, 1, 1), (2, 2, 2))
+    M = M1 * 2
+    correct = MagnetizationMC((2, 2, 2), (4, 4, 4))
+
+    return M == correct
+
+end
+
+function times2()
+
+    A = FreePrecessionMatrix(1, 1, 1)
+    M = Magnetization(1, 1, 1)
+    B = A * M
+    correct = Magnetization(2, 0, 1)
+
+    return B == correct
+
+end
+
+function times3()
+
+    A = BlochMcConnellMatrix{Int}(2)
+    for i = 1:2, j = 1:2
+        A.A[i][j].a11 = 1
+        A.A[i][j].a21 = 2
+        A.A[i][j].a31 = 3
+        A.A[i][j].a12 = 4
+        A.A[i][j].a22 = 5
+        A.A[i][j].a32 = 6
+        A.A[i][j].a13 = 7
+        A.A[i][j].a23 = 8
+        A.A[i][j].a33 = 9
+    end
+    M = MagnetizationMC((0, 0, 1), (0, 0, 1))
+    B = A * M
+    correct = Matrix(A) * Vector(M)
+
+    return Vector(B) == correct
+
+end
+
+function times4()
+
+    A = ExcitationMatrix(BlochMatrix(2, 0, 0, 0, 2, 0, 0, 0, 2))
+    M = MagnetizationMC((1, 1, 1), (2, 2, 3))
+    B = A * M
+    correct = MagnetizationMC((2, 2, 2), (4, 4, 6))
+
+    return B == correct
+
+end
+
+function times5()
+
+    M = idealspoiling * MagnetizationMC((1, 2, 1), (0.1, 0.2, 0.3))
+    correct = MagnetizationMC((0, 0, 1), (0, 0, 0.3))
+
+    return M == correct
+
+end
+
+function times6()
+
+    A = BlochMatrix(1, 2, 3, 4, 5, 6, 7, 8, 9)
+    B = FreePrecessionMatrix(1, 1, 1)
+    C = A * B
+    correct = Matrix(A) * Matrix(B)
+
+    return Matrix(C) == correct
+
+end
+
+function times7()
+
+    A = ExcitationMatrix(BlochMatrix(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
+    C = A * idealspoiling
+    correct = BlochMatrix(0, 0, 0, 0, 0, 0, 0.7, 0.8, 0.9)
+
+    return C == correct
+
+end
+
+function times8()
+
+    A = ExcitationMatrix(BlochMatrix(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
+    B = BlochMcConnellMatrix(3)
+    for i = 1:3, j = 1:3
+        B.A[i][j].a11 = 1
+        B.A[i][j].a21 = 2
+        B.A[i][j].a31 = 3
+        B.A[i][j].a12 = 4
+        B.A[i][j].a22 = 5
+        B.A[i][j].a32 = 6
+        B.A[i][j].a13 = 7
+        B.A[i][j].a23 = 8
+        B.A[i][j].a33 = 9
+    end
+    C = A * B
+    correct = kron(I(3), Matrix(A.A)) * Matrix(B)
+
+    return Matrix(C) ≈ correct
+
+end
+
+function times9()
+
+    A = idealspoiling
+    B = BlochMcConnellMatrix(3)
+    for i = 1:3, j = 1:3
+        B.A[i][j].a11 = 1
+        B.A[i][j].a21 = 2
+        B.A[i][j].a31 = 3
+        B.A[i][j].a12 = 4
+        B.A[i][j].a22 = 5
+        B.A[i][j].a32 = 6
+        B.A[i][j].a13 = 7
+        B.A[i][j].a23 = 8
+        B.A[i][j].a33 = 9
+    end
+    C = A * B
+    correct = kron(I(3), [0 0 0; 0 0 0; 0 0 1]) * Matrix(B)
+
+    return Matrix(C) == correct
+
+end
+
 function mul1()
 
     M2 = Magnetization()
@@ -138,10 +340,10 @@ function mul7()
     B.a13 = 70
     B.a23 = 80
     B.a33 = 90
-    correct = Matrix(A) * Matrix(B)
+    correct = A * B
     mul!(C, A, B)
 
-    return Matrix(C) == correct
+    return C == correct
 
 end
 
@@ -283,9 +485,9 @@ function mul14()
         B.A[i][j].a33 = 90 + i + 10j
     end
     mul!(C, A, B)
-    correct = Matrix(A) * Matrix(B)
+    correct = A * B
 
-    return Matrix(C) == correct
+    return C == correct
 
 end
 
@@ -826,6 +1028,48 @@ function absolutesum3()
 end
 
 @testset "Bloch Matrices" begin
+
+    @test blochmatrix1()
+    @test blochmatrix2()
+    @test blochmatrix3()
+
+end
+
+@testset "Bloch Matrix Math" begin
+
+    @testset "+" begin
+
+        @test sum1()
+
+    end
+
+    @testset "-" begin
+
+        @test subtract1()
+        @test subtract2()
+        @test subtract3()
+
+    end
+
+    @testset "*" begin
+
+        @test times1()
+        @test times2()
+        @test times3()
+        @test times4()
+        @test times5()
+        @test times6()
+        @test times7()
+        @test times8()
+        @test times9()
+
+    end
+
+    @testset "/" begin
+
+
+
+    end
 
     @testset "mul!" begin
 
