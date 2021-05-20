@@ -114,14 +114,6 @@ julia> R = rotatetheta(π/4, π/2); R * [0, 0, 1]
   6.123233995736766e-17
 ```
 """
-function rotatetheta(θ::Real, α::Real)
-
-    A = BlochMatrix()
-    rotatetheta!(A, θ, α)
-    return A
-
-end
-
 function rotatetheta!(A, θ, α)
 
     (sinθ, cosθ) = sincos(θ)

@@ -73,6 +73,8 @@ function excite6()
     rf = RF(fill(exp(im * π/8), 2), dt, Δθ)
     excite!(s, rf)
     M_correct = Magnetization(sqrt(2)/2, -sqrt(2)/2, 0)
+
+    @test duration(rf) == 2dt
     return s.M ≈ M_correct
 
 end
