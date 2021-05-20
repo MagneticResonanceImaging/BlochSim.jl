@@ -33,6 +33,27 @@ SPGRBlochSim(TR, TE, rf, nTR::Val, save_transients::Val = Val(false)) = SPGRBloc
 SPGRBlochSim(TR, TE, rf) = SPGRBlochSim(TR, TE, rf, IdealSpoiling(), Val(0), Val(false))
 SPGRBlochSim(TR, TE, α::Real, spoiling, nTR, save_transients) = SPGRBlochSim(TR, TE, InstantaneousRF(α), spoiling, nTR, save_transients)
 
+Base.show(io::IO, spgr::SPGRBlochSim{<:AbstractRF,<:AbstractSpoiling,nTR,save}) where {nTR,save} =
+    print(io, "SPGRBlochSim(", spgr.TR, ", ", spgr.TE, ", ", spgr.rf, ", ", spgr.spoiling, ", Val(", nTR, "), Val(", save, "))")
+
+function Base.show(io::IO, ::MIME"text/plain", spgr::SPGRBlochSim{<:AbstractRF,<:AbstractSpoiling,nTR,save}) where {nTR,save}
+
+    print(io, "Spoiled Gradient-Recalled Echo (SPGR) Bloch Simulation:")
+    print(io, "\n TR = ", spgr.TR, " ms")
+    print(io, "\n TE = ", spgr.TE, " ms")
+    print(io, "\n rf (excitation pulse) = ")
+    show(io, "text/plain", spgr.rf)
+    print(io, "\n spoiling = ")
+    show(io, "text/plain", spgr.spoiling)
+    if nTR == 0
+        print(io, "\n steady-state")
+    else
+        print(io, "\n nTR = ", nTR)
+        print(io, "\n save transients = ", save)
+    end
+
+end
+
 struct SPGRBlochSimWorkspace{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11}
     Aex::T1
     Bex::T2

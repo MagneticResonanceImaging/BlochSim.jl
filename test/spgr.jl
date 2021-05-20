@@ -4,6 +4,8 @@ function spgr1()
     s = Spin(1, 1000, 100, 0)
     spgr!(s)
 
+    show(devnull, spgr!)
+    show(devnull, "text/plain", spgr!)
     return true
 
 end

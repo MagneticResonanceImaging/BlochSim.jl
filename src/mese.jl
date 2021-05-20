@@ -19,6 +19,22 @@ end
 
 MESEBlochSim(TR, TE, nechoes) = MESEBlochSim(TR, TE, nechoes, InstantaneousRF(π/2), InstantaneousRF(π, -π/2))
 
+Base.show(io::IO, mese::MESEBlochSim) =
+    print(io, "MESEBlochSim(", mese.TR, ", ", mese.TE, ", ", mese.nechoes, ", ", mese.rfex, ", ", mese.rfref, ")")
+
+function Base.show(io::IO, ::MIME"text/plain", mese::MESEBlochSim)
+
+    print(io, "Multi-Echo Spin Echo (MESE) Bloch Simulation:")
+    print(io, "\n TR = ", mese.TR, " ms")
+    print(io, "\n TE (and echo spacing) = ", mese.TE, " ms")
+    print(io, "\n nechoes = ", mese.nechoes)
+    print(io, "\n rfex (excitation pulse) = ")
+    show(io, "text/plain", mese.rfex)
+    print(io, "\n rfref (refocussing pulses) = ")
+    show(io, "text/plain", mese.rfref)
+
+end
+
 struct MESEBlochSimWorkspace{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12}
     Aex::T1
     Bex::T2

@@ -8,6 +8,8 @@ function mese1()
     M1 = mese!(s1)
     M2 = mese!(s2)
 
+    show(devnull, mese!)
+    show(devnull, "text/plain", mese!)
     return all(M1[i] ≈ M2[i][1] for i = 1:32)
 
 end
