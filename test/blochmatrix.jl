@@ -200,6 +200,65 @@ function times9()
 
 end
 
+function rdiv1()
+
+    M = MagnetizationMC((2.0, 4.0, 8.0), (2.0, 4.0, 6.0)) / 2
+    correct = MagnetizationMC((1.0, 2.0, 4.0), (1.0, 2.0, 3.0))
+
+    return M == correct
+
+end
+
+function ldiv1()
+
+    M = Magnetization(1, 2, 3)
+    A = BlochMatrix(1, 0, 0, 0, 1, 0, 0, 0, 1)
+    B = A \ M
+    correct = Magnetization(1, 2, 3)
+
+    return B == correct
+
+end
+
+function ldiv2()
+
+    M = MagnetizationMC((1, 2, 3), (1, 2, 3))
+    A = BlochMcConnellMatrix(((
+        BlochMatrix(1, 0, 0, 0, 1, 0, 0, 0, 1),
+        BlochMatrix{Int}()), (
+        BlochMatrix{Int}(),
+        BlochMatrix(1, 0, 0, 0, 1, 0, 0, 0, 1)))
+    )
+    B = A \ M
+    correct = MagnetizationMC((1, 2, 3), (1, 2, 3))
+
+    return B == correct
+
+end
+
+function add1()
+
+    M1 = MagnetizationMC((1, 1, 1), (2, 2, 2))
+    M2 = MagnetizationMC((1, 2, 3), (1, 2, 3))
+    V = Vector{Int}(undef, 6)
+    add!(V, M1, M2)
+    correct = [2, 3, 4, 3, 4, 5]
+
+    return V == correct
+
+end
+
+function subtract1()
+
+    M1 = MagnetizationMC((1, 1, 1), (2, 2, 2))
+    M2 = MagnetizationMC((1, 2, 3), (1, 2, 3))
+    subtract!(M2, M1)
+    correct = MagnetizationMC((0, 1, 2), (-1, 0, 1))
+
+    return M2 == correct
+
+end
+
 function mul1()
 
     M2 = Magnetization()
@@ -546,6 +605,38 @@ function mul16()
     correct = Matrix(A) * Matrix(A)
 
     return Matrix(C) == correct
+
+end
+
+function mul17()
+
+    M = MagnetizationMC((1, 2, 3), (4, 5, 6))
+    mul!(M, 2)
+    correct = MagnetizationMC((2, 4, 6), (8, 10, 12))
+
+    return M == correct
+
+end
+
+function mul18()
+
+    A = ExcitationMatrix(BlochMatrix(1, 1, 1, 2, 2, 2, 3, 3, 3))
+    M = Magnetization(1, 2, 3)
+    V = Vector{Int}(undef, 3)
+    mul!(V, A, M)
+    correct = [14, 14, 14]
+
+    return V == correct
+
+end
+
+function div1()
+
+    M = MagnetizationMC((1, 2, 3), (4, 5, 6.0))
+    div!(M, 2)
+    correct = MagnetizationMC((0.5, 1, 1.5), (2, 2.5, 3))
+
+    return M == correct
 
 end
 
@@ -1067,7 +1158,26 @@ end
 
     @testset "/" begin
 
+        @test rdiv1()
 
+    end
+
+    @testset "\\" begin
+
+        @test ldiv1()
+        @test ldiv2()
+
+    end
+
+    @testset "add!" begin
+
+        @test add1()
+
+    end
+
+    @testset "subtract!" begin
+
+        @test subtract1()
 
     end
 
@@ -1089,6 +1199,14 @@ end
         @test mul14()
         @test mul15()
         @test mul16()
+        @test mul17()
+        @test mul18()
+
+    end
+
+    @testset "div!" begin
+
+        @test div1()
 
     end
 
