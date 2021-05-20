@@ -4,21 +4,19 @@ function excite1()
     α = π/2
     spin = Spin(1, 1000, 100, 1.25)
     (A1,) = excite(spin, InstantaneousRF(α, θ))
-    A2 = BlochSim.ExcitationMatrix()
+    A2 = ExcitationMatrix()
     excite!(A2, spin, InstantaneousRF(α, θ))
-    return Matrix(A1.A) == Matrix(A2.A)
+    return A1.A == A2.A
 
 end
 
 function excite2()
 
-    θ = π/4
-    α = π/2
-    spin = SpinMC(1, (0.7, 0.2, 0.1), (1000, 400, 1000), (100, 20, 0.01), (0, 15, 0), (100, 100, 25, Inf, Inf, Inf))
-    (A1,) = excite(spin, InstantaneousRF(α, θ))
-    A2 = BlochSim.ExcitationMatrix()
-    excite!(A2, spin, InstantaneousRF(α, θ))
-    return Matrix(A1.A) == Matrix(A2.A)
+    s = Spin(1, 1000, 100, 3.75)
+    rf = InstantaneousRF(π/2, π/4)
+    excite!(s, rf)
+    M_correct = Magnetization(sqrt(2)/2, -sqrt(2)/2, 0)
+    return s.M ≈ M_correct
 
 end
 
@@ -26,14 +24,15 @@ function excite3()
 
     rf = sinc.(-3:0.5:3)
     Δθ = π/3
-    grad = [zeros(1, length(rf)); zeros(1, length(rf)); (0:0.5:6)']
+    grad = [Gradient(0, 0, z) for z = 0:0.5:6]
     dt = 0.1
     spin = Spin(1, 1000, 100, 1.25, Position(0, 0, 1))
-    (A1, B1) = excite(spin, RF(rf, dt, Δθ, [Gradient(grad[:,i]...) for i = 1:length(rf)]))
-    A2 = BlochSim.BlochMatrix()
+    (A1, B1) = excite(spin, RF(rf, dt, Δθ, grad))
+    A2 = BlochMatrix()
     B2 = Magnetization()
-    excite!(A2, B2, spin, RF(rf, dt, Δθ, [Gradient(grad[:,i]...) for i = 1:length(rf)]))
-    return Matrix(A1) == Matrix(A2) && B1 == B2
+    excite!(A2, B2, spin, RF(rf, dt, Δθ, grad))
+    @test A1 == A2
+    return B1 == B2
 
 end
 
@@ -41,29 +40,77 @@ function excite4()
 
     rf = sinc.(-3:0.5:3)
     Δθ = π/3
-    grad = [0, 0, 0.5]
+    grad = Gradient(0, 0, 0.5)
     dt = 0.1
     spin = Spin(1, 1000, 100, 1.25, Position(0, 0, 1))
-    (A1, B1) = excite(spin, RF(rf, dt, Δθ, Gradient(grad...)))
-    A2 = BlochSim.BlochMatrix()
+    (A1, B1) = excite(spin, RF(rf, dt, Δθ, grad))
+    A2 = BlochMatrix()
     B2 = Magnetization()
-    excite!(A2, B2, spin, RF(rf, dt, Δθ, Gradient(grad...)))
-    return Matrix(A1) == Matrix(A2) && B1 == B2
+    excite!(A2, B2, spin, RF(rf, dt, Δθ, grad))
+    @test A1 == A2
+    return B1 == B2
 
 end
 
 function excite5()
 
+    s = Spin(1, Inf, Inf, 0)
+    dt = 250π / GAMMA
+    Δθ = π/8
+    grad = [Gradient(0, 0, 0) for i = 1:2]
+    rf = RF(fill(exp(im * π/8), length(grad)), dt, Δθ, grad)
+    excite!(s, rf)
+    M_correct = Magnetization(sqrt(2)/2, -sqrt(2)/2, 0)
+    return s.M ≈ M_correct
+
+end
+
+function excite6()
+
+    s = Spin(1, Inf, Inf, 0)
+    dt = 250π / GAMMA
+    Δθ = π/8
+    rf = RF(fill(exp(im * π/8), 2), dt, Δθ)
+    excite!(s, rf)
+    M_correct = Magnetization(sqrt(2)/2, -sqrt(2)/2, 0)
+    return s.M ≈ M_correct
+
+end
+
+function excitemc1()
+
+    θ = π/4
+    α = π/2
+    spin = SpinMC(1, (0.7, 0.2, 0.1), (1000, 400, 1000), (100, 20, 0.01), (0, 15, 0), (100, 100, 25, Inf, Inf, Inf))
+    (A1,) = excite(spin, InstantaneousRF(α, θ))
+    A2 = ExcitationMatrix()
+    excite!(A2, spin, InstantaneousRF(α, θ))
+    return A1.A == A2.A
+
+end
+
+function excitemc2()
+
     rf = sinc.(-3:0.5:3)
     Δθ = π/3
-    grad = [zeros(1, length(rf)); zeros(1, length(rf)); (0:0.5:6)']
+    grad = [Gradient(0, 0, z) for z = 0:0.5:6]
     dt = 0.1
     spin = SpinMC(1, (0.8, 0.2), (1000, 400), (100, 20), (0, 15), (100, 25), Position(0, 0, 1))
-    (A1, B1) = excite(spin, RF(rf, dt, Δθ, [Gradient(grad[:,i]...) for i = 1:length(rf)]))
-    A2 = BlochSim.BlochMcConnellMatrix(2)
+    (A1, B1) = excite(spin, RF(rf, dt, Δθ, grad))
+    A2 = BlochMcConnellMatrix(2)
     B2 = MagnetizationMC(2)
-    excite!(A2, B2, spin, RF(rf, dt, Δθ, [Gradient(grad[:,i]...) for i = 1:length(rf)]))
-    return Matrix(A1) == Matrix(A2) && B1 == B2
+    excite!(A2, B2, spin, RF(rf, dt, Δθ, grad))
+    @test A1 == A2
+    return B1 == B2
+
+end
+
+function excitemc3()
+
+    s = SpinMC(1.5, [1/3, 2/3], [400, 1000], [20, 100], [3.75, 3.75], [20, 40])
+    excite!(s, InstantaneousRF(π/2, π/4))
+    M_correct = MagnetizationMC((sqrt(2)/4, -sqrt(2)/4, 0), (sqrt(2)/2, -sqrt(2)/2, 0))
+    return s.M ≈ M_correct
 
 end
 
@@ -74,5 +121,9 @@ end
     @test excite3()
     @test excite4()
     @test excite5()
+    @test excite6()
+    @test excitemc1()
+    @test excitemc2()
+    @test excitemc3()
 
 end

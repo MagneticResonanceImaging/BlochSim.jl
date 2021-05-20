@@ -313,7 +313,8 @@ Apply free-precession to the given spin.
 function freeprecess!(spin::AbstractSpin, args...)
 
     (A, B) = freeprecess(spin, args...)
-    applydynamics!(spin, A, B)
+    BtoM = copy(spin.M)
+    applydynamics!(spin, BtoM, A, B)
 
 end
 

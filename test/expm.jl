@@ -21,7 +21,7 @@ function expm1()
     correct = exp(Matrix(A))
     BlochSim.expm!(expA, A)
 
-    @test Matrix(expA) ≈ correct
+    return Matrix(expA) ≈ correct
 
 end
 
@@ -32,7 +32,7 @@ function dfrexp1()
     df_correct = 2BlochSim.frexp1.(x) .+ 2x .* BlochSim.dfrexp1.(x)
     df_forwarddiff = ForwardDiff.derivative.(f, x)
 
-    @test df_forwarddiff ≈ df_correct
+    return df_forwarddiff ≈ df_correct
 
 end
 
@@ -43,7 +43,7 @@ function dfrexp2()
     df_correct = 2BlochSim.frexp2.(x) .+ 2x .* BlochSim.dfrexp2.(x)
     df_forwarddiff = ForwardDiff.derivative.(f, x)
 
-    @test df_forwarddiff ≈ df_correct
+    return df_forwarddiff ≈ df_correct
 
 end
 
@@ -66,7 +66,7 @@ function autodiff1()
     end
     correct = [0.0, 0.0009048374180359595]
 
-    @test grad ≈ correct
+    return grad ≈ correct
 
 end
 
@@ -89,7 +89,7 @@ function autodiff2()
     end
     correct = [0.0, 0.0007660512555728833]
 
-    @test grad ≈ correct
+    return grad ≈ correct
 
 end
 
@@ -112,7 +112,7 @@ function autodiff3()
     end
     correct = [0.0, 0.00016657611260161996]
 
-    @test grad ≈ correct
+    return grad ≈ correct
 
 end
 
@@ -135,7 +135,7 @@ function autodiff4()
     end
     correct = [0.0, 8.414639502122038e-5]
 
-    @test grad ≈ correct
+    return grad ≈ correct
 
 end
 
@@ -158,7 +158,7 @@ function autodiff5()
     end
     correct = [0.0, 8.491495820718459e-6]
 
-    @test grad ≈ correct
+    return grad ≈ correct
 
 end
 
@@ -181,7 +181,7 @@ function autodiff6()
     end
     correct = [0.0, 8.499149957624547e-7]
 
-    @test grad ≈ correct
+    return grad ≈ correct
 
 end
 
@@ -189,25 +189,25 @@ end
 
     @testset "expm Accuracy" begin
 
-        expm1()
+        @test expm1()
 
     end
 
     @testset "frexp Derivatives" begin
 
-        dfrexp1()
-        dfrexp2()
+        @test dfrexp1()
+        @test dfrexp2()
 
     end
 
     @testset "AutoDiff" begin
 
-        autodiff1()
-        autodiff2()
-        autodiff3()
-        autodiff4()
-        autodiff5()
-        autodiff6()
+        @test autodiff1()
+        @test autodiff2()
+        @test autodiff3()
+        @test autodiff4()
+        @test autodiff5()
+        @test autodiff6()
 
     end
 

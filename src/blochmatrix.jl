@@ -330,6 +330,25 @@ function Base.Matrix(A::BlochMcConnellMatrix{T,N}) where {T,N}
 
 end
 
+function Base.:(==)(
+    A::Union{<:AbstractBlochMatrix,<:AbstractBlochMcConnellMatrix},
+    B::Union{<:AbstractBlochMatrix,<:AbstractBlochMcConnellMatrix}
+)
+
+    Matrix(A) == Matrix(B)
+
+end
+
+function Base.isapprox(
+    A::Union{<:AbstractBlochMatrix,<:AbstractBlochMcConnellMatrix},
+    B::Union{<:AbstractBlochMatrix,<:AbstractBlochMcConnellMatrix};
+    kwargs...
+)
+
+    isapprox(Matrix(A), Matrix(B); kwargs...)
+
+end
+
 struct ExcitationMatrix{T<:Real}
     A::BlochMatrix{T}
 end

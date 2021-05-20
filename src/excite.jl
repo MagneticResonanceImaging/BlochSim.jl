@@ -266,6 +266,7 @@ Apply excitation to the given spin.
 function excite!(spin::AbstractSpin, args...)
 
     (A, B) = excite(spin, args...)
-    applydynamics(spin, A, B)
+    BtoM = copy(spin.M)
+    applydynamics!(spin, BtoM, A, B)
 
 end

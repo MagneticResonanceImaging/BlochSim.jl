@@ -15,7 +15,7 @@ function mul1()
     mul!(M2, A, M1)
     correct = Matrix(A) * Vector(M1)
 
-    @test Vector(M2) == correct
+    return Vector(M2) == correct
 
 end
 
@@ -29,7 +29,7 @@ function mul2()
     correct = Matrix(A) * t
     mul!(A, t)
 
-    @test Matrix(A) == correct
+    return Matrix(A) == correct
 
 end
 
@@ -41,7 +41,7 @@ function mul3()
     correct = Matrix(A) * t
     mul!(A, t)
 
-    @test Matrix(A) == correct
+    return Matrix(A) == correct
 
 end
 
@@ -67,7 +67,7 @@ function mul4()
     correct = Matrix(A) * t
     mul!(A, t)
 
-    @test Matrix(A) == correct
+    return Matrix(A) == correct
 
 end
 
@@ -88,7 +88,7 @@ function mul5()
     mul!(C, A, t)
     correct = Matrix(A) * t
 
-    @test Matrix(C) == correct
+    return Matrix(C) == correct
 
 end
 
@@ -111,7 +111,7 @@ function mul6()
     mul!(C, A, t)
     correct = Matrix(A) * t
 
-    @test Matrix(C) == correct
+    return Matrix(C) == correct
 
 end
 
@@ -141,7 +141,7 @@ function mul7()
     correct = Matrix(A) * Matrix(B)
     mul!(C, A, B)
 
-    @test Matrix(C) == correct
+    return Matrix(C) == correct
 
 end
 
@@ -165,7 +165,7 @@ function mul8()
     correct = Matrix(A) * Matrix(B)
     mul!(C, A, B)
 
-    @test Matrix(C) == correct
+    return Matrix(C) == correct
 
 end
 
@@ -187,7 +187,7 @@ function mul9()
     correct = Matrix(A) * Matrix(B)
     mul!(C, A, B)
 
-    @test Matrix(C) == correct
+    return Matrix(C) == correct
 
 end
 
@@ -205,7 +205,7 @@ function mul10()
     correct = Matrix(A) * Matrix(B)
     mul!(C, A, B)
 
-    @test Matrix(C) == correct
+    return Matrix(C) == correct
 
 end
 
@@ -219,7 +219,7 @@ function mul11()
     correct = Matrix(A) * Matrix(B)
     mul!(C, A, B)
 
-    @test Matrix(C) == correct
+    return Matrix(C) == correct
 
 end
 
@@ -235,7 +235,7 @@ function mul12()
     correct = Matrix(A) * Matrix(B)
     mul!(C, A, B)
 
-    @test Matrix(C) == correct
+    return Matrix(C) == correct
 
 end
 
@@ -251,7 +251,7 @@ function mul13()
     correct = Matrix(B) * Matrix(A)
     mul!(C, B, A)
 
-    @test Matrix(C) == correct
+    return Matrix(C) == correct
 
 end
 
@@ -285,7 +285,7 @@ function mul14()
     mul!(C, A, B)
     correct = Matrix(A) * Matrix(B)
 
-    @test Matrix(C) == correct
+    return Matrix(C) == correct
 
 end
 
@@ -317,7 +317,7 @@ function mul15()
     mul!(C, A, B)
     correct = Matrix(A) * Matrix(B)
 
-    @test Matrix(C) == correct
+    return Matrix(C) == correct
 
 end
 
@@ -343,7 +343,7 @@ function mul16()
     mul!(C, A, A)
     correct = Matrix(A) * Matrix(A)
 
-    @test Matrix(C) == correct
+    return Matrix(C) == correct
 
 end
 
@@ -364,7 +364,7 @@ function muladd1()
     correct = Matrix(A) * Vector(M1) + Vector(M2)
     muladd!(M2, A, M1)
 
-    @test Vector(M2) == correct
+    return Vector(M2) == correct
 
 end
 
@@ -394,7 +394,7 @@ function muladd2()
     correct = Matrix(A) * t + Matrix(C)
     muladd!(C, A, t)
 
-    @test Matrix(C) == correct
+    return Matrix(C) == correct
 
 end
 
@@ -428,7 +428,7 @@ function muladd3()
     correct = Matrix(A) * t + Matrix(C)
     muladd!(C, A, t)
 
-    @test Matrix(C) == correct
+    return Matrix(C) == correct
 
 end
 
@@ -448,7 +448,7 @@ function muladd4()
     correct = I(3) * t + Matrix(C)
     muladd!(C, I, t)
 
-    @test Matrix(C) == correct
+    return Matrix(C) == correct
 
 end
 
@@ -470,7 +470,7 @@ function muladd5()
     correct = I(9) * t + Matrix(C)
     muladd!(C, I, t)
 
-    @test Matrix(C) == correct
+    return Matrix(C) == correct
 
 end
 
@@ -509,7 +509,7 @@ function muladd6()
     correct = Matrix(A) * Matrix(B) + Matrix(C)
     muladd!(C, A, B)
 
-    @test Matrix(C) == correct
+    return Matrix(C) == correct
 
 end
 
@@ -542,7 +542,7 @@ function muladd7()
     correct = Matrix(A) * Matrix(B) + Matrix(C)
     muladd!(C, A, B)
 
-    @test Matrix(C) == correct
+    return Matrix(C) == correct
 
 end
 
@@ -573,7 +573,7 @@ function muladd8()
     correct = Matrix(A) * Matrix(B) + Matrix(C)
     muladd!(C, A, B)
 
-    @test Matrix(C) == correct
+    return Matrix(C) == correct
 
 end
 
@@ -600,7 +600,7 @@ function muladd9()
     correct = Matrix(A) * Matrix(B) + Matrix(C)
     muladd!(C, A, B)
 
-    @test Matrix(C) == correct
+    return Matrix(C) == correct
 
 end
 
@@ -623,7 +623,7 @@ function muladd10()
     correct = Matrix(A) * Matrix(B) + Matrix(C)
     muladd!(C, A, B)
 
-    @test Matrix(C) == correct
+    return Matrix(C) == correct
 
 end
 
@@ -648,7 +648,7 @@ function muladd11()
     correct = Matrix(A) * Matrix(B) + Matrix(C)
     muladd!(C, A, B)
 
-    @test Matrix(C) == correct
+    return Matrix(C) == correct
 
 end
 
@@ -673,7 +673,7 @@ function muladd12()
     correct = Matrix(B) * Matrix(A) + Matrix(C)
     muladd!(C, B, A)
 
-    @test Matrix(C) == correct
+    return Matrix(C) == correct
 
 end
 
@@ -694,7 +694,7 @@ function subtractmul1()
     subtractmul!(M2, I, A, M1)
     correct = (I - Matrix(A)) * Vector(M1)
 
-    @test Vector(M2) == correct
+    return Vector(M2) == correct
 
 end
 
@@ -717,7 +717,7 @@ function subtractmul2()
     subtractmul!(M2, I, A, M1)
     correct = (I - Matrix(A)) * Vector(M1)
 
-    @test Vector(M2) == correct
+    return Vector(M2) == correct
 
 end
 
@@ -738,7 +738,7 @@ function subtractmuladd1()
     subtractmul!(M2, I, A, M1)
     correct = (I - Matrix(A)) * Vector(M1)
 
-    @test Vector(M2) == correct
+    return Vector(M2) == correct
 
 end
 
@@ -757,7 +757,7 @@ function getblock1()
               Matrix(BlochSim.getblock(A, 2, 1)) Matrix(BlochSim.getblock(A, 2, 2))]
     correct = Matrix(A)
 
-    @test result == correct
+    return result == correct
 
 end
 
@@ -779,7 +779,7 @@ function getblock2()
               Matrix(BlochSim.getblock(A, 2, 1)) Matrix(BlochSim.getblock(A, 2, 2))]
     correct = Matrix(A)
 
-    @test result == correct
+    return result == correct
 
 end
 
@@ -792,7 +792,7 @@ function absolutesum1()
     result = BlochSim.absolutesum(A)
     correct = norm(Matrix(A), 1)
 
-    @test result == correct
+    return result == correct
 
 end
 
@@ -803,7 +803,7 @@ function absolutesum2()
     result = BlochSim.absolutesum(A)
     correct = norm(Matrix(A), 1)
 
-    @test result == correct
+    return result == correct
 
 end
 
@@ -821,7 +821,7 @@ function absolutesum3()
     result = BlochSim.absolutesum(A)
     correct = norm(Matrix(A), 1)
 
-    @test result == correct
+    return result == correct
 
 end
 
@@ -829,67 +829,67 @@ end
 
     @testset "mul!" begin
 
-        mul1()
-        mul2()
-        mul3()
-        mul4()
-        mul5()
-        mul6()
-        mul7()
-        mul8()
-        mul9()
-        mul10()
-        mul11()
-        mul12()
-        mul13()
-        mul14()
-        mul15()
-        mul16()
+        @test mul1()
+        @test mul2()
+        @test mul3()
+        @test mul4()
+        @test mul5()
+        @test mul6()
+        @test mul7()
+        @test mul8()
+        @test mul9()
+        @test mul10()
+        @test mul11()
+        @test mul12()
+        @test mul13()
+        @test mul14()
+        @test mul15()
+        @test mul16()
 
     end
 
     @testset "muladd!" begin
 
-        muladd1()
-        muladd2()
-        muladd3()
-        muladd4()
-        muladd5()
-        muladd6()
-        muladd7()
-        muladd8()
-        muladd9()
-        muladd10()
-        muladd11()
-        muladd12()
+        @test muladd1()
+        @test muladd2()
+        @test muladd3()
+        @test muladd4()
+        @test muladd5()
+        @test muladd6()
+        @test muladd7()
+        @test muladd8()
+        @test muladd9()
+        @test muladd10()
+        @test muladd11()
+        @test muladd12()
 
     end
 
     @testset "subtractmul!" begin
 
-        subtractmul1()
-        subtractmul2()
+        @test subtractmul1()
+        @test subtractmul2()
 
     end
 
     @testset "subtractmuladd!" begin
 
-        subtractmuladd1()
+        @test subtractmuladd1()
 
     end
 
     @testset "getblock" begin
 
-        getblock1()
-        getblock2()
+        @test getblock1()
+        @test getblock2()
 
     end
 
     @testset "absolutesum" begin
 
-        absolutesum1()
-        absolutesum2()
-        absolutesum3()
+        @test absolutesum1()
+        @test absolutesum2()
+        @test absolutesum3()
 
     end
 

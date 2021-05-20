@@ -5,7 +5,7 @@ function magnetization1()
     M3 = Magnetization(0, 0, 0.0)
 
     @test eltype(M1) == eltype(M3) != eltype(M2)
-    @test M1 == M2 == M3
+    return M1 == M2 == M3
 
 end
 
@@ -15,7 +15,7 @@ function magnetization2()
     show(devnull, M)
     show(devnull, "text/plain", M)
 
-    @test true
+    return true
 
 end
 
@@ -28,7 +28,7 @@ function magnetization3()
 
     @test M ≈ Mcopy ≈ Mcopyto
     @test M == Mcopy == Mcopyto
-    @test signal(M) == 1 + 2im
+    return signal(M) == 1 + 2im
 
 end
 
@@ -38,7 +38,7 @@ function magnetization4()
     MInt = convert(Magnetization{Int}, M)
     MF64 = convert(Magnetization{Float64}, M)
 
-    @test M == MInt == MF64
+    return M == MInt == MF64
 
 end
 
@@ -48,7 +48,7 @@ function magnetization5()
     dst = Magnetization(3, 2, 1)
     copyto!(dst, src)
 
-    @test Vector(dst) == src
+    return Vector(dst) == src
 
 end
 
@@ -58,7 +58,7 @@ function magnetization6()
     dst = [0, 0, 0]
     copyto!(dst, src)
 
-    @test dst == Vector(src)
+    return dst == Vector(src)
 
 end
 
@@ -69,7 +69,7 @@ function magnetizationmc1()
     M3 = MagnetizationMC((0, 0, 0), (0, 0, 0), (0, 0, 0))
 
     @test eltype(M1) != eltype(M2) == eltype(M3)
-    @test M1 == M2 == M3
+    return M1 == M2 == M3
 
 end
 
@@ -79,7 +79,7 @@ function magnetizationmc2()
     show(devnull, M)
     show(devnull, "text/plain", M)
 
-    @test true
+    return true
 
 end
 
@@ -92,7 +92,7 @@ function magnetizationmc3()
 
     @test M ≈ Mcopy ≈ Mcopyto
     @test M == Mcopy == Mcopyto
-    @test signal(M) == 4 + 4im
+    return signal(M) == 4 + 4im
 
 end
 
@@ -102,7 +102,7 @@ function magnetizationmc4()
     MInt = convert(MagnetizationMC{Int,3}, M)
     MF64 = convert(MagnetizationMC{Float64,3}, M)
 
-    @test M == MInt == MF64
+    return M == MInt == MF64
 
 end
 
@@ -112,7 +112,7 @@ function magnetizationmc5()
     dst = MagnetizationMC((3, 2, 1), (4, 5, 6))
     copyto!(dst, src)
 
-    @test Vector(dst) == src
+    return Vector(dst) == src
 
 end
 
@@ -122,28 +122,28 @@ function magnetizationmc6()
     dst = [0, 0, 0, 0, 0, 0]
     copyto!(dst, src)
 
-    @test dst == Vector(src)
+    return dst == Vector(src)
 
 end
 
 @testset "Magnetization" begin
 
-    magnetization1()
-    magnetization2()
-    magnetization3()
-    magnetization4()
-    magnetization5()
-    magnetization6()
+    @test magnetization1()
+    @test magnetization2()
+    @test magnetization3()
+    @test magnetization4()
+    @test magnetization5()
+    @test magnetization6()
 
 end
 
 @testset "MagnetizationMC" begin
 
-    magnetizationmc1()
-    magnetizationmc2()
-    magnetizationmc3()
-    magnetizationmc4()
-    magnetizationmc5()
-    magnetizationmc6()
+    @test magnetizationmc1()
+    @test magnetizationmc2()
+    @test magnetizationmc3()
+    @test magnetizationmc4()
+    @test magnetizationmc5()
+    @test magnetizationmc6()
 
 end
