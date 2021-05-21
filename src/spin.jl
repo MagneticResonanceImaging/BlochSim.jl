@@ -12,6 +12,16 @@ Gyromagnetic ratio for ¹H with units rad/s/G.
 """
 const GAMMA  = 2π * GAMBAR
 
+"""
+    Position(x, y, z)
+
+Create a mutable `Position` object representing a 3D location. Units are cm.
+
+# Properties
+- `x::Real`: x position
+- `y::Real`: y position
+- `z::Real`: z position
+"""
 mutable struct Position{T<:Real}
     x::T
     y::T
@@ -38,23 +48,38 @@ Abstract type for representing individual spins.
 abstract type AbstractSpin end
 
 """
-    Spin([M,] M0, T1, T2, Δf[, pos]) <: AbstractSpin
+    Spin([M], M0, T1, T2, Δf, [pos]) <: AbstractSpin
 
 Create an object that represents a single spin.
 
 # Properties
-- `M::Vector{Float64} = [0.0, 0.0, M0]`: Magnetization vector [Mx, My, Mz]
+- `M::Magnetization = Magnetization(0, 0, M0)`: Magnetization vector
 - `M0::Real`: Equilibrium magnetization
 - `T1::Real`: Spin-lattice recovery time constant (ms)
 - `T2::Real`: Spin-spin recovery time constant (ms)
 - `Δf::Real`: Off-resonance frequency (Hz)
-- `pos::Vector{<:Real} = [0, 0, 0]`: Spatial location [x, y, z] (cm)
-- `signal::Complex{Float64}`: Signal produced by the spin
+- `pos::Position = Position(0, 0, 0)`: Spatial location (cm)
+- `N::Int = 1`: Number of compartments
 
 # Examples
 ```jldoctest
-julia> spin = Spin([1.0, 2.0, 3.0], 1, 1000, 100, 3); spin.signal
-1.0 + 2.0im
+julia> Spin(1, 1000, 100, 0, Position(1, 2, 3))
+Spin{Float64}:
+ M = Magnetization(0.0, 0.0, 1.0)
+ M0 = 1.0
+ T1 = 1000.0 ms
+ T2 = 100.0 ms
+ Δf = 0.0 Hz
+ pos = Position(1.0, 2.0, 3.0) cm
+
+julia> Spin(Magnetization(1, 2, 3), 1, 1000, 100, 0)
+Spin{Float64}:
+ M = Magnetization(1.0, 2.0, 3.0)
+ M0 = 1.0
+ T1 = 1000.0 ms
+ T2 = 100.0 ms
+ Δf = 0.0 Hz
+ pos = Position(0.0, 0.0, 0.0) cm
 ```
 """
 struct Spin{T<:DualFloat64} <: AbstractSpin
@@ -109,38 +134,41 @@ end
 Base.eltype(::Spin{T}) where {T} = T
 
 """
-    SpinMC([M,] M0, frac, T1, T2, Δf, τ[, pos]) <: AbstractSpin
+    SpinMC([M], M0, frac, T1, T2, Δf, τ, [pos]) <: AbstractSpin
 
 Create an object that represents a single spin with multiple compartments.
 
 # Properties
-- `N::Integer = length(frac)`: Number of compartments
-- `Meq::Vector{Float64} = vcat([[0, 0, frac[n] * M0] for n = 1:N]...)`:
-    Equilibrium magnetization vector
-- `M::Vector{Float64} = Meq`: Magnetization vector
-    [M1x, M1y, M1z, M2x, M2y, M2z, ...]
+- `M::MagnetizationMC = Meq`: Magnetization vector
+- `Meq::MagnetizationMC = MagnetizationMC((0, 0, frac[1] * M0), ...)`:
+  Equilibrium magnetization vector
 - `M0::Real`: Equilibrium magnetization
-- `frac::Vector{<:Real}`: Volume fraction of each compartment
-- `T1::Vector{<:Real}`: Spin-lattice recovery time constants (ms)
-- `T2::Vector{<:Real}`: Spin-spin recovery time constants (ms)
-- `Δf::Vector{<:Real}`: Off-resonance frequencies (Hz)
-- `τ::Vector{<:Real}`: Residence times (inverse exchange rates) (ms)
-    [τ12, τ13, ..., τ1N, τ21, τ23, ..., τ2N, ...]
-- `pos::Vector{<:Real} = [0, 0, 0]`: Spatial location [x, y, z] (cm)
-- `A::Matrix{Float64} = ...`: Matrix of system dynamics; see slide 22 in
-    https://web.stanford.edu/class/rad229/Notes/B1-Bloch-Simulations.pdf
-- `signal::Complex{Float64}`: Signal produced by the spin
+- `frac::Tuple{<:Real}`: Water fraction of each compartment
+- `T1::Tuple{<:Real}`: Spin-lattice recovery time constants (ms)
+- `T2::Tuple{<:Real}`: Spin-spin recovery time constants (ms)
+- `Δf::Tuple{<:Real}`: Off-resonance frequencies (Hz)
+- `r::Tuple{Tuple{<:Real}}`: Exchange rates (1/ms); `r[i][j]` is the exchange
+  rate from compartment `i` to compartment `j`
+- `pos::Position = Position(0, 0, 0)`: Spatial location (cm)
+- `N::Int = length(frac)`: Number of compartments
+
+## Note
+The `SpinMC` constructor takes `τ` (inverse exchange rate, or residence time) as
+input, *not* `r`. Furthermore, `τ` is given as a `Tuple` with `N^2 - N`
+elements, arranged like (τ12, τ13, ..., τ1N, τ21, τ23, ..., τ2N, ...).
 
 # Examples
 ```jldoctest
-julia> M = [1.0, 2.0, 3.0, 0.2, 0.1, 1.0];
-
-julia> frac = [0.8, 0.2];
-
-julia> τ = [Inf, Inf];
-
-julia> spin = SpinMC(M, 1, frac, [900, 400], [80, 20], [3, 13], τ); spin.signal
-1.2 + 2.1im
+julia> SpinMC(1, (0.2, 0.8), (400, 1000), (20, 100), (15, 0), (100, 25))
+SpinMC{Float64,2}:
+ M = MagnetizationMC((0.0, 0.0, 0.2), (0.0, 0.0, 0.8))
+ M0 = 1.0
+ frac = (0.2, 0.8)
+ T1 = (400.0, 1000.0) ms
+ T2 = (20.0, 100.0) ms
+ Δf = (15.0, 0.0) Hz
+ r = ((0.0, 0.01), (0.04, 0.0)) 1/ms
+ pos = Position(0.0, 0.0, 0.0) cm
 ```
 """
 struct SpinMC{T<:DualFloat64,N} <: AbstractSpin
