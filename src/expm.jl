@@ -78,6 +78,11 @@ MatrixExponentialWorkspace{T}(N) where {T} =
                                Matrix{T}(undef, 3N, 3N),
                                Matrix{T}(undef, 3N, 3N))
 
+"""
+    expm!(expA, A, [workspace])
+
+Compute the matrix exponential of `A`, storing it in `expA`.
+"""
 function expm!(
     expA::BlochMcConnellMatrix{T1,N},
     A::BlochMcConnellDynamicsMatrix{T2,N,M},

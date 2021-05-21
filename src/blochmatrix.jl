@@ -1125,6 +1125,12 @@ function LinearAlgebra.mul!(C::BlochMatrix{T}, A::FreePrecessionMatrix, B::FreeP
 
 end
 
+function LinearAlgebra.mul!(C::BlochMatrix, A::FreePrecessionMatrix, B::ExcitationMatrix)
+
+    mul!(C, A, B.A)
+
+end
+
 function LinearAlgebra.mul!(C::BlochMatrix, A::ExcitationMatrix, B::FreePrecessionMatrix)
 
     mul!(C, A.A, B)

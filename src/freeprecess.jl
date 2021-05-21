@@ -13,7 +13,10 @@ BlochMcConnellWorkspace(spin::SpinMC) = BlochMcConnellWorkspace(typeof(spin))
 """
     freeprecess(t, M0, T1, T2, Δf)
 
-Simulate free-precession, i.e., relaxation and off-resonance precession.
+Simulate free-precession, i.e., relaxation and off-resonance precession. Returns
+`(A, B)` such that `A * M + B` applies free-precession to the magnetization `M`.
+
+For an in-place version, see [`freeprecess!`](@ref).
 
 # Arguments
 - `t::Real`: Duration of free-precession (ms)
@@ -22,17 +25,13 @@ Simulate free-precession, i.e., relaxation and off-resonance precession.
 - `T2::Real`: Spin-spin recovery time constant (ms)
 - `Δf::Real`: Off-resonance frequency (Hz)
 
-# Return
-- `A::Matrix`: 3×3 matrix that describes relaxation and precession
-- `B::Vector`: 3-vector that describes recovery
-
 # Examples
 ```jldoctest
-julia> (A, B) = freeprecess(100, 1, 1000, 100, 3.75); A * [1, 0, 0] + B
-3-element Array{Float64,1}:
- -0.2601300475114444
- -0.2601300475114445
-  0.09516258196404048
+julia> (A, B) = freeprecess(100, 1, 1000, 100, 3.75); A * Magnetization(1, 0, 0) + B
+Magnetization vector with eltype Float64:
+ Mx = -0.2601300475114444
+ My = -0.2601300475114445
+ Mz = 0.09516258196404048
 ```
 """
 function freeprecess(t::Real, M0::Real, T1::Real, T2::Real, Δf::Real)
@@ -44,6 +43,16 @@ function freeprecess(t::Real, M0::Real, T1::Real, T2::Real, Δf::Real)
 
 end
 
+"""
+    freeprecess!(A, B, t, M0, T1, T2, Δf)
+    freeprecess!(A, B, spin, t, [nothing])
+    freeprecess!(A, B, spinmc, t, [workspace])
+    freeprecess!(A, B, spin, t, grad, [nothing])
+    freeprecess!(A, B, spinmc, t, grad, [workspace])
+
+Simulate free-precession, overwriting `A` and `B` (in-place version of
+[`freeprecess`](@ref)).
+"""
 function freeprecess!(A, B, t, M0, T1, T2, Δf)
 
     E2 = exp(-t / T2)
@@ -63,28 +72,51 @@ function freeprecess!(A, B, t, M0, T1, T2, Δf)
 end
 
 """
-    freeprecess(spin, t)
+    freeprecess(spin, t, [nothing])
+    freeprecess(spinmc, t, [workspace])
+    freeprecess(spin, t, grad, [nothing])
+    freeprecess(spinmc, t, grad, [workspace])
 
-Simulate free-precession for the given spin.
+Simulate free-precession for the given spin for time `t` ms, optionally in the
+presence of a B0 gradient. Returns `(A, B)` such that `A * M + B` applies
+free-precession to the magnetization `M`.
 
-# Arguments
-- `spin::AbstractSpin`: Spin that is free-precessing
-- `t::Real`: Duration of free-precession (ms)
+For `SpinMC` objects, pass in `nothing` for `workspace` to use an approximate
+matrix exponential to solve the Bloch-McConnell equation.
 
-# Return
-- `A::Matrix`: Matrix that describes relaxation and precession
-- `B::Vector`: Vector that describes recovery
+For an in-place version, see [`freeprecess!`](@ref).
 
 # Examples
 ```jldoctest
-julia> spin = Spin([1.0, 0.0, 0.0], 1, 1000, 100, 3.75)
-Spin([1.0, 0.0, 0.0], 1.0, 1000.0, 100.0, 3.75, [0.0, 0.0, 0.0])
+julia> s = Spin(Magnetization(1, 0, 0), 1, 1000, 100, 3.75)
+Spin{Float64}:
+ M = Magnetization(1.0, 0.0, 0.0)
+ M0 = 1.0
+ T1 = 1000.0 ms
+ T2 = 100.0 ms
+ Δf = 3.75 Hz
+ pos = Position(0.0, 0.0, 0.0) cm
 
-julia> (A, B) = freeprecess(spin, 100); A * spin.M + B
-3-element Array{Float64,1}:
- -0.2601300475114444
- -0.2601300475114445
-  0.09516258196404048
+julia> (A, B) = freeprecess(s, 100); A * s.M + B
+Magnetization vector with eltype Float64:
+ Mx = -0.2601300475114444
+ My = -0.2601300475114445
+ Mz = 0.09516258196404048
+
+julia> s = Spin(Magnetization(1, 0, 0), 1, 1000, 100, 0, Position(0, 0, 3.75))
+Spin{Float64}:
+ M = Magnetization(1.0, 0.0, 0.0)
+ M0 = 1.0
+ T1 = 1000.0 ms
+ T2 = 100.0 ms
+ Δf = 0.0 Hz
+ pos = Position(0.0, 0.0, 3.75) cm
+
+julia> (A, B) = freeprecess(s, 100, Gradient(0, 0, 1/GAMBAR)); A * s.M + B
+Magnetization vector with eltype Float64:
+ Mx = -0.2601300475114444
+ My = -0.2601300475114445
+ Mz = 0.09516258196404048
 ```
 """
 function freeprecess(spin::Spin, t, ::Nothing = nothing)
@@ -131,32 +163,6 @@ function freeprecess!(
 
 end
 
-"""
-    freeprecess(spin, t, grad)
-
-Simulate free-precession for the given spin in the presence of a gradient.
-
-# Arguments
-- `spin::AbstractSpin`: Spin that is free-precessing
-- `t::Real`: Duration of free-precession (ms)
-- `grad::AbstractVector{<:Real}`: Gradient amplitudes [gx, gy, gz] (G/cm)
-
-# Return
-- `A::Matrix`: Matrix that describes relaxation and precession
-- `B::Vector`: Vector that describes recovery
-
-# Examples
-```jldoctest
-julia> spin = Spin([1.0, 0.0, 0.0], 1, 1000, 100, 0, [0, 0, 3.75])
-Spin([1.0, 0.0, 0.0], 1.0, 1000.0, 100.0, 0.0, [0.0, 0.0, 3.75])
-
-julia> (A, B) = freeprecess(spin, 100, [0, 0, 1/GAMBAR]); A * spin.M + B
-3-element Array{Float64,1}:
- -0.2601300475114444
- -0.2601300475114445
-  0.09516258196404048
-```
-"""
 function freeprecess(spin::Spin, t::Real, grad::Gradient, ::Nothing = nothing)
 
     A = FreePrecessionMatrix{eltype(spin)}()
@@ -308,7 +314,8 @@ end
 """
     freeprecess!(spin, ...)
 
-Apply free-precession to the given spin.
+Apply free-precession to the given spin, overwriting the spin's magnetization
+vector.
 """
 function freeprecess!(spin::AbstractSpin, args...)
 
@@ -319,34 +326,29 @@ function freeprecess!(spin::AbstractSpin, args...)
 end
 
 """
-    combine(D...)
+    combine!(A, B, A1, B1, A2, B2)
+    combine!(A, A1, A2)
 
 Combine the matrices and vectors that describe the dynamics of a spin into one
-matrix and one vector.
-
-# Arguments
-- `D::Tuple{<:AbstractArray{<:Real,2},<:AbstractVector{<:Real}}...`: List of
-    pairs of matrices and vectors, i.e., ((A1, B1), (A2, B2), ...), where the
-    A's are matrices and the B's are vectors
-
-# Return
-- `A::Matrix`: Matrix that describes the spin dynamics
-- `B::Vector`: Vector that describes the spin dynamics
+matrix and one vector, overwriting `A` and `B`. The dynamics described by `A1`
+and `B1` apply first, then those described by `A2` and `B2`. In other words,
+`A = A2 * A1` and `B = A2 * B1 + B2`.
 
 # Examples
 ```jldoctest
-julia> spin = Spin(1, 1000, 100, 3.75)
-Spin([0.0, 0.0, 1.0], 1.0, 1000.0, 100.0, 3.75, [0.0, 0.0, 0.0])
+julia> s = Spin(1, 1000, 100, 3.75);
 
-julia> D1 = excitation(spin, 0, π/2);
+julia> A = BlochMatrix(); B = Magnetization();
 
-julia> D2 = freeprecess(spin, 100);
+julia> (A1, B1) = excite(s, InstantaneousRF(π/2));
 
-julia> (A, B) = combine(D1, D2); A * spin.M + B
-3-element Array{Float64,1}:
- -0.2601300475114444
- -0.2601300475114445
-  0.09516258196404054
+julia> (A2, B2) = freeprecess(s, 100);
+
+julia> combine!(A, B, A1, B1, A2, B2); A * s.M + B
+Magnetization vector with eltype Float64:
+ Mx = -0.2601300475114444
+ My = -0.2601300475114445
+ Mz = 0.09516258196404054
 ```
 """
 function combine!(A, B, A1, B1, A2, B2)
@@ -388,29 +390,32 @@ end
 combine!(A, A1, A2) = mul!(A, A2, A1)
 
 """
-    applydynamics!(spin, A[, B])
+    applydynamics!(spin, BtoM, A, [B])
 
-Apply dynamics to the given spin.
-
-# Arguments
-- `spin::AbstractSpin`: Spin to which to apply dynamics
-- `A::Matrix`: Matrix with dynamics
-- `B::Vector = zeros(length(spin.M))`: Vector with dynamics
+Apply dynamics to the given spin, overwriting the spin's magnetization vector.
+`BtoM` is used to store intermediate results (and is thus overwritten).
 
 # Examples
 ```jldoctest
-julia> spin = Spin(1, 1000, 100, 3.75)
-Spin([0.0, 0.0, 1.0], 1.0, 1000.0, 100.0, 3.75, [0.0, 0.0, 0.0])
+julia> s = Spin(1, 1000, 100, 3.75); s.M
+Magnetization vector with eltype Float64:
+ Mx = 0.0
+ My = 0.0
+ Mz = 1.0
 
-julia> (A, _) = excitation(spin, 0, π/2); applydynamics!(spin, A)
+julia> BtoM = Magnetization();
 
-julia> (A, B) = freeprecess(spin, 100); applydynamics!(spin, A, B)
+julia> (A,) = excite(s, InstantaneousRF(π/2)); applydynamics!(s, BtoM, A); s.M
+Magnetization vector with eltype Float64:
+ Mx = 1.0
+ My = 0.0
+ Mz = 6.123233995736766e-17
 
-julia> spin.M
-3-element Array{Float64,1}:
- -0.2601300475114444
- -0.2601300475114445
-  0.09516258196404054
+julia> (A, B) = freeprecess(s, 100); applydynamics!(s, BtoM, A, B); s.M
+Magnetization vector with eltype Float64:
+ Mx = -0.2601300475114444
+ My = -0.2601300475114445
+ Mz = 0.09516258196404054
 ```
 """
 function applydynamics!(spin::AbstractSpin, BtoM, A, B)

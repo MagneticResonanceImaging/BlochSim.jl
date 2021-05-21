@@ -634,6 +634,18 @@ function mul18()
 
 end
 
+function mul19()
+
+    C = BlochMatrix()
+    A = FreePrecessionMatrix(1, 1, 1)
+    B = ExcitationMatrix(BlochMatrix(1, 2, 3, 4, 5, 6, 7, 8, 9))
+    mul!(C, A, B)
+    correct = BlochMatrix(3, 1, 3, 9, 1, 6, 15, 1, 9)
+
+    return C == correct
+
+end
+
 function div1()
 
     M = MagnetizationMC((1, 2, 3), (4, 5, 6.0))
@@ -1205,6 +1217,7 @@ end
         @test mul16()
         @test mul17()
         @test mul18()
+        @test mul19()
 
     end
 
