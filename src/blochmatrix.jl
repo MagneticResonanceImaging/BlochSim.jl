@@ -732,7 +732,11 @@ function Base.:\(A::BlochMcConnellMatrix{T1,N}, M::MagnetizationMC{T2,N}) where 
 
 end
 
-# add! (A = A + B)
+"""
+    add!(A, B)
+
+Compute `A + B`, storing the result in `A`.
+"""
 function add!(M1::Magnetization, M2::Magnetization)
 
     M1.x += M2.x
@@ -750,8 +754,11 @@ function add!(M1::MagnetizationMC{T1,N}, M2::MagnetizationMC{T2,N}) where {T1,T2
 
 end
 
-# add! (C = A + B)
-# Shortcut for cpy = copy(A); add!(cpy, B); copyto!(C, cpy)
+"""
+    add!(C, A, B)
+
+Compute `A + B`, storing the result in `C`.
+"""
 function add!(C::AbstractVector, M1::Magnetization, M2::Magnetization)
 
     C[1] = M1.x + M2.x
@@ -787,7 +794,11 @@ function add!(C::AbstractMatrix, A::BlochMcConnellMatrix{T1,N}, B::BlochMcConnel
 
 end
 
-# subtract! (A = A - B)
+"""
+    subtract!(A, B)
+
+Compute `A - B`, storing the result in `A`.
+"""
 function subtract!(M1::Magnetization, M2::Magnetization)
 
     M1.x -= M2.x
@@ -805,7 +816,11 @@ function subtract!(M1::MagnetizationMC{T1,N}, M2::MagnetizationMC{T2,N}) where {
 
 end
 
-# subtract! (C = A - B)
+"""
+    subtract!(C, A, B)
+
+Compute `A - B`, storing the result in `C`.
+"""
 function subtract!(C::AbstractMatrix{T}, ::UniformScaling, B::BlochMatrix) where {T}
 
     C[1,1] = one(T) - B.a11
@@ -868,7 +883,11 @@ function subtract!(C::AbstractMatrix{T1}, A::UniformScaling, B::BlochMcConnellMa
 
 end
 
-# mul! (A = A * a)
+"""
+    mul!(A, a)
+
+Compute `A * a`, storing the result in `A`.
+"""
 LinearAlgebra.mul!(M::Magnetization, a) = (M.x *= a; M.y *= a; M.z *= a; nothing)
 LinearAlgebra.mul!(M::MagnetizationMC{T,N}, a) where {T,N} = foreach(M -> mul!(M, a), M)
 
@@ -899,7 +918,11 @@ function LinearAlgebra.mul!(A::BlochMcConnellDynamicsMatrix, t::Real)
 
 end
 
-# mul! (C = A * B)
+"""
+    mul!(C, A, B)
+
+Compute `A * B`, storing the result in `C`.
+"""
 function LinearAlgebra.mul!(M2::Magnetization, A::BlochMatrix, M1::Magnetization)
 
     M2.x = A.a11 * M1.x + A.a12 * M1.y + A.a13 * M1.z
@@ -1221,11 +1244,19 @@ function LinearAlgebra.mul!(
 
 end
 
-# div! (A = A / a)
+"""
+    div!(A, a)
+
+Compute `A / a`, storing the result in `A`.
+"""
 div!(M::Magnetization, a) = (M.x /= a; M.y /= a; M.z /= a; nothing)
 div!(M::MagnetizationMC{T,N}, a) where {T,N} = foreach(M -> div!(M, a), M)
 
-# muladd! (C = A * B + C)
+"""
+    muladd!(C, A, B)
+
+Compute `A * B + C`, storing the result in `C`.
+"""
 function muladd!(M2::Magnetization, A::BlochMatrix, M1::Magnetization)
 
     M2.x += A.a11 * M1.x + A.a12 * M1.y + A.a13 * M1.z
@@ -1377,7 +1408,11 @@ function muladd!(C::BlochMcConnellMatrix{T,N}, I::UniformScaling, t::Real) where
 
 end
 
-# subtractmul! (C = (X - A) * B)
+"""
+    subtractmul!(C, X, A, B)
+
+Compute `(X - A) * B`, storing the result in `C`.
+"""
 function subtractmul!(
     M2::Magnetization,
     ::Nothing,
@@ -1431,7 +1466,11 @@ function subtractmul!(
 
 end
 
-# subtractmuladd! (C = (X - A) * B + C)
+"""
+    subtractmuladd!(C, X, A, B)
+
+Compute `(X - A) * B + C`, storing the result in `C`.
+"""
 function subtractmuladd!(
     M2::Magnetization,
     ::Nothing,
@@ -1460,7 +1499,11 @@ function subtractmuladd!(
 
 end
 
-# absolutesum (vector 1-norm)
+"""
+    absolutesum(A)
+
+Compute the sum of the absolute values of the elements of `A`.
+"""
 function absolutesum(A::BlochDynamicsMatrix)
 
     return 2 * abs(A.R2) + 2 * abs(A.Δω) + abs(A.R1)
