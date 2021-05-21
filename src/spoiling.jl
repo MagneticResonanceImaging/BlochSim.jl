@@ -160,9 +160,22 @@ rfspoiling_increment(s::RFandGradientSpoiling) = rfspoiling_increment(s.rf)
     spoil(spin, spoiling, [nothing])
     spoil(spinmc, spoiling, [workspace])
 
-Return `(A, B)`, where `A * M + B` applies spoiling to the magnetization `M`.
-If `B` is `nothing`, then `A * M` applies spoiling, and if both `A` and `B` are
-`nothing` then there is no spoiling.
+Simulate gradient or ideal spoiling for the given spin. Returns `(A, B)`, such
+that `A * M + B` applies spoiling to the magnetization `M`. If `B` is `nothing`
+(as is the case for `IdealSpoiling`), then `A * M` applies spoiling, and if both
+`A` and `B` are `nothing` (as is the case for `RFSpoiling`) then there is no
+spoiling.
+
+For `SpinMC` objects and for `GradientSpoiling` and `RFandGradientSpoiling`,
+`workspace isa BlochMcConnellWorkspace`. Pass in `nothing` instead to use an
+approximate matrix exponential to solve the Bloch-McConnell equation.
+
+## Note
+This function only simulates gradient or ideal spoiling, *not* RF spoiling. RF
+spoiling must be implemented by updating the phase of the RF pulse(s) in your
+sequence from TR to TR.
+
+For an in-place version, see [`spoil!`](@ref).
 ```
 """
 spoil(::AbstractSpin, ::IdealSpoiling = IdealSpoiling(), ::Any = nothing) = (idealspoiling, nothing)
@@ -206,10 +219,8 @@ applydynamics!(spin::AbstractSpin, ::IdealSpoilingMatrix) = spoil!(spin)
     spoil!(A, B, spin, spoiling, [nothing])
     spoil!(A, B, spinmc, spoiling, [workspace])
 
-Overwrite `A` and `B` such that `A * M + B` applies spoiling to the
-magnetization `M`.
-If `B` is `nothing`, then `A * M` applies spoiling, and if both `A` and `B` are
-`nothing` then there is no spoiling.
+Simulate gradient or ideal spoiling, overwriting `A` and `B` (in-place version
+of [`spoil`](@ref)).
 """
 spoil!(A::IdealSpoilingMatrix, ::Nothing, ::AbstractSpin, ::IdealSpoiling, ::Any = nothing) = nothing
 spoil!(::Nothing, ::Nothing, ::AbstractSpin, ::RFSpoiling, ::Any = nothing) = nothing

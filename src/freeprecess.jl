@@ -81,8 +81,9 @@ Simulate free-precession for the given spin for time `t` ms, optionally in the
 presence of a B0 gradient. Returns `(A, B)` such that `A * M + B` applies
 free-precession to the magnetization `M`.
 
-For `SpinMC` objects, pass in `nothing` for `workspace` to use an approximate
-matrix exponential to solve the Bloch-McConnell equation.
+For `SpinMC` objects, `workspace isa BlochMcConnellWorkspace`. Pass in `nothing`
+instead to use an approximate matrix exponential to solve the Bloch-McConnell
+equation.
 
 For an in-place version, see [`freeprecess!`](@ref).
 

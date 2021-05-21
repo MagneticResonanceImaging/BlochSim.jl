@@ -82,6 +82,8 @@ MatrixExponentialWorkspace{T}(N) where {T} =
     expm!(expA, A, [workspace])
 
 Compute the matrix exponential of `A`, storing it in `expA`.
+
+`workspace isa MatrixExponentialWorkspace`.
 """
 function expm!(
     expA::BlochMcConnellMatrix{T1,N},

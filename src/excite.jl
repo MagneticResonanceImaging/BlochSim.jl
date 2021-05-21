@@ -1,5 +1,16 @@
+"""
+    AbstractRF
+
+Abstract type for representing radiofrequency (RF) pulses.
+"""
 abstract type AbstractRF end
 
+"""
+    InstantaneousRF(α, θ = 0) <: AbstractRF
+
+Represents an idealized instantaneous RF pulse with flip angle `α` and phase
+`θ`.
+"""
 struct InstantaneousRF{T<:Real} <: AbstractRF
     α::T
     θ::T
@@ -11,13 +22,35 @@ Base.show(io::IO, rf::InstantaneousRF) = print(io, "InstantaneousRF(", rf.α, ",
 Base.show(io::IO, ::MIME"text/plain", rf::InstantaneousRF{T}) where {T} =
     print(io, "Instantaneous RF pulse with eltype $T:\n α = ", rf.α, " rad\n θ = ", rf.θ, " rad")
 
+"""
+    RF(waveform, Δt, [Δθ], [grad]) <: AbstractRF
+
+Represents an RF pulse with the given (possibly complex-valued) waveform (G) and
+time step `Δt` (ms). `Δθ` is additional phase added to the waveform (defaults to
+`0`), and `grad` is the B0 gradient that is turned on during the RF pulse
+(defaults to `Gradient(0, 0, 0)`, i.e., turned off).
+
+# Properties
+- `α::Vector{<:Real}`: Instantaneous flip angles (rad) at each time point;
+  computed from the magnitude of `waveform`
+- `θ::Vector{<:Real}`: Instantaneous phase (rad) at each time point; computed
+  from the phase of `waveform`
+- `Δt::Real`: Time step (ms)
+- `Δθ_initial::Real`: Phase added to `θ` before any phase-cycling increment has
+  been applied
+- `Δθ::Ref{<:Real}`: Phase to be added to `θ`; can be updated to simulate
+  phase-cycling/RF spoiling
+- `grad`: Gradient applied during the RF pulse
+  - `::Gradient`: Constant gradient
+  - `::Vector{<:Gradient}`: Time-varying gradient
+"""
 struct RF{T<:Real,G<:Union{<:Gradient,<:AbstractVector{<:Gradient}}} <: AbstractRF
     α::Vector{T}
     θ::Vector{T}
     Δt::Float64
     Δθ_initial::T
-    grad::G
     Δθ::Ref{T} # Type Ref to enable RF-spoiling, which requires updating Δθ
+    grad::G
 
     function RF(
         α::AbstractVector{<:Real},
@@ -31,10 +64,16 @@ struct RF{T<:Real,G<:Union{<:Gradient,<:AbstractVector{<:Gradient}}} <: Abstract
         grad isa AbstractVector && (length(grad) == length(α) ||
             error("grad is a vector but has a different number of elements than α"))
         T = promote_type(eltype(α), eltype(θ), typeof(Δθ))
-        new{T,typeof(grad)}(α, θ, Δt, Δθ, grad, Δθ)
+        new{T,typeof(grad)}(α, θ, Δt, Δθ, Δθ, grad)
 
     end
 end
+
+# waveform in Gauss, Δt in ms
+RF(waveform, Δt, Δθ, grad) = RF(GAMMA .* abs.(waveform) .* (Δt / 1000), angle.(waveform), Δt, Δθ, grad)
+RF(waveform, Δt, Δθ::Real) = RF(waveform, Δt, Δθ, Gradient(0, 0, 0))
+RF(waveform, Δt, grad) = RF(waveform, Δt, 0, grad)
+RF(waveform, Δt) = RF(waveform, Δt, 0, Gradient(0, 0, 0))
 
 Base.show(io::IO, rf::RF) = print(io, "RF(", rf.α, ", ", rf.θ, ", ", rf.Δt, ", ", rf.Δθ_initial, ", ", rf.grad, ")")
 
@@ -50,14 +89,13 @@ function Base.show(io::IO, ::MIME"text/plain", rf::RF{T,G}) where {T,G}
 
 end
 
-# waveform in Gauss, Δt in ms
-RF(waveform, Δt, Δθ, grad) = RF(GAMMA .* abs.(waveform) .* (Δt / 1000), angle.(waveform), Δt, Δθ, grad)
-RF(waveform, Δt, Δθ::Real) = RF(waveform, Δt, Δθ, Gradient(0, 0, 0))
-RF(waveform, Δt, grad) = RF(waveform, Δt, 0, grad)
-RF(waveform, Δt) = RF(waveform, Δt, 0, Gradient(0, 0, 0))
-
 Base.length(rf::RF) = length(rf.α)
 
+"""
+    duration(rf)
+
+Return the duration (ms) of the RF pulse.
+"""
 duration(::InstantaneousRF) = 0
 duration(rf::RF) = length(rf) * rf.Δt
 
@@ -107,30 +145,10 @@ function ExcitationWorkspace(
 end
 
 """
-    rotatetheta(θ, α)
+    rotatetheta!(A, θ, α)
 
-Simulate left-handed rotation about an axis in the x-y plane that makes angle
-`θ` with the negative y-axis.
-
-# Arguments
-- `θ::Real`: Orientation of the axis about which to rotate (rad)
-- `α::Real`: Rotation angle (rad)
-
-# Return
-- `R::Matrix`: 3×3 matrix that describes rotation by angle `α` about an axis in
-    the x-y plane that makes angle `θ` with the negative y-axis
-
-## Note
-`rotatetheta(θ, α) == rotatez(θ) * rotatey(-α) * rotatez(-θ)`
-
-# Examples
-```jldoctest
-julia> R = rotatetheta(π/4, π/2); R * [0, 0, 1]
-3-element Array{Float64,1}:
-  0.7071067811865476
- -0.7071067811865475
-  6.123233995736766e-17
-```
+Simulate left-handed rotation by angle `α` about an axis in the x-y plane that
+makes angle `θ` with the negative y-axis, overwriting `A`.
 """
 function rotatetheta!(A, θ, α)
 
@@ -152,31 +170,32 @@ function rotatetheta!(A, θ, α)
 end
 
 """
-    excitation(spin, θ, α)
+    excite(spin, rf::InstantaneousRF, [nothing])
+    excite(spin, rf::RF, [workspace])
 
-Simulate instantaneous excitation with flip angle `α` about an axis that makes
-angle `θ` with the positive x-axis.
+Simulate excitation for the given spin. Returns `(A, B)` such that `A * M + B`
+applies excitation to the magnetization `M`. If `isnothing(B)` (as is the case
+for `InstantaneousRF`s), then `A * M` applies excitation to `M`.
 
-# Arguments
-- `spin::AbstractSpin`: Spin to excite
-- `θ::Real`: Orientation of the axis about which to excite (rad)
-- `α::Real`: Flip angle (rad)
+For `RF` objects, `workspace isa ExcitationWorkspace`. For `SpinMC` objects, use
+`workspace = ExcitationWorkspace(spin, nothing)` to use an approximate matrix
+exponential to solve the Bloch-McConnell equation.
 
-# Return
-- `A::Matrix`: Matrix that describes the excitation
-- `B::Vector = zeros(length(spin.M))`: Not used, but included because other
-    methods of `excitation` return a nontrivial value here
+For an in-place version, see [`excite!`](@ref).
 
 # Examples
 ```jldoctest
-julia> spin = Spin(1, 1000, 100, 3.75)
-Spin([0.0, 0.0, 1.0], 1.0, 1000.0, 100.0, 3.75, [0.0, 0.0, 0.0])
+julia> s = Spin(1, 1000, 100, 3.75); s.M
+Magnetization vector with eltype Float64:
+ Mx = 0.0
+ My = 0.0
+ Mz = 1.0
 
-julia> (A, _) = excitation(spin, π/4, π/2); A * spin.M
-3-element Array{Float64,1}:
-  0.7071067811865476
- -0.7071067811865475
-  6.123233995736766e-17
+julia> (A,) = excite(s, InstantaneousRF(π/2, π/4)); A * s.M
+Magnetization vector with eltype Float64:
+ Mx = 0.7071067811865476
+ My = -0.7071067811865475
+ Mz = 6.123233995736766e-17
 ```
 """
 function excite(spin::AbstractSpin, rf::InstantaneousRF, ::Nothing = nothing)
@@ -187,6 +206,13 @@ function excite(spin::AbstractSpin, rf::InstantaneousRF, ::Nothing = nothing)
 
 end
 
+"""
+    excite!(A, [nothing], spin, rf::InstantaneousRF, [nothing])
+    excite!(A, B, spin, rf::RF, [workspace])
+
+Simulate excitation, overwriting `A` and `B` (in-place version of
+[`excite`](@ref)).
+"""
 function excite!(A::ExcitationMatrix, spin::AbstractSpin, rf::InstantaneousRF)
 
     rotatetheta!(A.A, rf.θ, rf.α)
@@ -199,25 +225,6 @@ function excite!(A::ExcitationMatrix, ::Nothing, spin::AbstractSpin, rf::Instant
 
 end
 
-"""
-    excitation(spin, rf, Δθ, grad, dt)
-
-Simulate non-instantaneous excitation using the hard pulse approximation.
-
-# Arguments
-- `spin::AbstractSpin`: Spin to excite
-- `rf::Vector{<:Number}`: RF waveform (G); its magnitude determines the flip
-    angle and its phase determines the axis of rotation
-- `Δθ::Real`: Additional RF phase (e.g., for RF spoiling) (rad)
-- `grad::Union{Matrix{<:Real},Vector{<:Real}}`: Gradients to play during
-    excitation (G/cm); should be a 3-vector if the gradients are constant during
-    excitation, otherwise it should be a 3×(length(rf)) matrix
-- `dt::Real`: Time step (ms)
-
-# Return
-- `A::Matrix`: Matrix that describes excitation and relaxation
-- `B::Vector`: Vector that describes excitation and relaxation
-"""
 function excite(spin::AbstractSpin, rf::RF, workspace = ExcitationWorkspace(spin))
 
     T = eltype(spin)
@@ -271,7 +278,7 @@ end
 """
     excite!(spin, ...)
 
-Apply excitation to the given spin.
+Apply excitation to the given spin, overwriting the spin's magnetization vector.
 """
 function excite!(spin::AbstractSpin, args...)
 
