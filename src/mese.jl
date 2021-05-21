@@ -1,3 +1,20 @@
+"""
+    mese! = MESEBlochSim(TR, TE, nechoes, [rfex, rfref])
+    mese!(spin, [workspace])
+
+Simulate a multi-echo spin echo (MESE) scan on `spin`, overwriting the spin's
+magnetization vector. Returns a `Vector` with the magnetization vectors at each
+echo.
+
+# Arguments
+- `TR::Real`: Repetition time (ms)
+- `TE::Real`: First echo time, and echo spacing (ms)
+- `nechoes::Integer`: Number of echoes to readout
+- `rfex::AbstractRF = InstantaneousRF(π/2)`: Excitation RF pulse
+- `rfref::AbstractRF = InstantaneousRF(π, -π/2)`: Refocussing RF pulse
+
+`workspace isa MESEBlochSimWorkspace`.
+"""
 struct MESEBlochSim{T1<:AbstractRF,T2<:AbstractRF}
     TR::Float64
     TE::Float64
