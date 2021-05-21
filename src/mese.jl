@@ -153,7 +153,7 @@ function (scan::MESEBlochSim)(spin::AbstractSpin, workspace::MESEBlochSimWorkspa
     freeprecess!(workspace.Ate1, workspace.Bte1, spin, (scan.TE - duration(scan.rfex) - duration(scan.rfref)) / 2, workspace.bm_workspace)
     freeprecess!(workspace.Ate, workspace.Bte, spin, (scan.TE - duration(scan.rfref)) / 2, workspace.bm_workspace)
     freeprecess!(workspace.Atr, workspace.Btr, spin, scan.TR - scan.TE * scan.nechoes, workspace.bm_workspace)
-    S = spoil(spin)
+    (S,) = spoil(spin)
 
     combine!(workspace.tmpA1, workspace.tmpB1, workspace.Ate, workspace.Bte, workspace.Aref, workspace.Bref)
     combine!(workspace.Aecho, workspace.Becho, workspace.tmpA1, workspace.tmpB1, workspace.Ate, workspace.Bte)

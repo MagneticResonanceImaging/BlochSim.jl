@@ -1,3 +1,14 @@
+"""
+    Gradient(x, y, z)
+
+Create a `Gradient` object representing x, y, and z B0 gradients. Units are
+G/cm.
+
+# Properties
+- `x::Real`: x gradient
+- `y::Real`: y gradient
+- `z::Real`: z gradient
+"""
 struct Gradient{T<:Real}
     x::T
     y::T
@@ -10,16 +21,40 @@ Base.show(io::IO, grad::Gradient) = print(io, "Gradient(", grad.x, ", ", grad.y,
 Base.show(io::IO, ::MIME"text/plain", grad::Gradient{T}) where {T} =
     print(io, "Gradient{$T}:\n Gx = ", grad.x, " G/cm\n Gy = ", grad.y, " G/cm\n Gz = ", grad.z, " G/cm")
 
+"""
+    gradient_frequency(grad, pos)
+
+Compute the off-resonance frequency in Hz induced by the given B0 gradient
+`grad` at position `pos`.
+"""
 function gradient_frequency(grad::Gradient, pos::Position)
 
     return GAMBAR * (grad.x * pos.x + grad.y * pos.y + grad.z * pos.z) # Hz
 
 end
 
+"""
+    AbstractSpoiling
+
+Abstract type for representing spoiling.
+"""
 abstract type AbstractSpoiling end
 
+"""
+    IdealSpoiling() <: AbstractSpoiling
+
+Represents ideal spoiling, i.e., setting the transverse (x and y) components of
+a spin's magnetization to 0.
+"""
 struct IdealSpoiling <: AbstractSpoiling end
 
+"""
+    GradientSpoiling(grad, Tg) <: AbstractSpoiling
+    GradientSpoiling(gx, gy, gz, Tg)
+
+Represents gradient spoiling, i.e., applying a gradient
+`grad = Gradient(gx, gy, gz)` for time `Tg` (ms).
+"""
 struct GradientSpoiling{T<:Real} <: AbstractSpoiling
     gradient::Gradient{T}
     Tg::Float64
@@ -31,7 +66,7 @@ struct GradientSpoiling{T<:Real} <: AbstractSpoiling
     end
 end
 
-GradientSpoiling(x, y, z, Tg) = GradientSpoiling(Gradient(x, y, z), Tg)
+GradientSpoiling(gx, gy, gz, Tg) = GradientSpoiling(Gradient(gx, gy, gz), Tg)
 
 Base.show(io::IO, s::GradientSpoiling) = print(io, "GradientSpoiling(", s.gradient, ", ", s.Tg, ")")
 
@@ -45,6 +80,12 @@ end
 
 # I almost removed RFSpoiling but decided against it because it can be used to
 # implement, e.g., phase cycling for bSSFP
+"""
+    RFSpoiling(Δθ = 117°) <: AbstractSpoiling
+
+Represents RF spoiling, i.e., quadratically incrementing the phase of the RF
+pulses from TR to TR.
+"""
 struct RFSpoiling{T<:Real} <: AbstractSpoiling
     Δθ::T
 end
@@ -55,6 +96,11 @@ Base.show(io::IO, s::RFSpoiling) = print(io, "RFSpoiling(", s.Δθ, ")")
 Base.show(io::IO, ::MIME"text/plain", s::RFSpoiling{T}) where {T} =
     print(io, "RFSpoiling{$T}:\n Δθ = ", s.Δθ, " rad")
 
+"""
+    RFandGradientSpoiling(grad_spoiling, rf_spoiling) <: AbstractSpoiling
+
+Represents both RF and gradient spoiling.
+"""
 struct RFandGradientSpoiling{T1<:Real,T2<:Real} <: AbstractSpoiling
     gradient::GradientSpoiling{T1}
     rf::RFSpoiling{T2}
@@ -84,41 +130,43 @@ function Base.show(io::IO, ::MIME"text/plain", s::RFandGradientSpoiling{T1,T2}) 
 
 end
 
+"""
+    spoiler_gradient(spoiling)
+
+Get the `Gradient` object used for gradient spoiling.
+"""
 spoiler_gradient(s::GradientSpoiling) = s.gradient
 spoiler_gradient(s::RFandGradientSpoiling) = spoiler_gradient(s.gradient)
+
+"""
+    spoiler_gradient_duration(spoiling)
+
+Return the duration of the spoiler gradient (ms).
+"""
 spoiler_gradient_duration(::AbstractSpoiling) = 0
 spoiler_gradient_duration(s::GradientSpoiling) = s.Tg
 spoiler_gradient_duration(s::RFandGradientSpoiling) = spoiler_gradient_duration(s.gradient)
+
+"""
+    rfspoiling_increment(spoiling)
+
+Return the quadratic phase increment used for RF spoiling.
+"""
 rfspoiling_increment(::AbstractSpoiling) = 0
 rfspoiling_increment(s::RFSpoiling) = s.Δθ
 rfspoiling_increment(s::RFandGradientSpoiling) = rfspoiling_increment(s.rf)
 
 """
-    spoil(spin)
+    spoil(spin, spoiling, [nothing])
+    spoil(spinmc, spoiling, [workspace])
 
-Simulate ideal spoiling (i.e., setting the transverse component of the spin's
-magnetization to 0).
-
-# Arguments
-- `spin::AbstractSpin`: Spin to spoil
-
-# Return
-- `S::Matrix`: Matrix that describes ideal spoiling
-
-# Examples
-```jldoctest
-julia> spin = Spin([1, 0.4, 5], 1, 1000, 100, 0)
-Spin([1.0, 0.4, 5.0], 1.0, 1000.0, 100.0, 0.0, [0.0, 0.0, 0.0])
-
-julia> S = spoil(spin); S * spin.M
-3-element Array{Float64,1}:
- 0.0
- 0.0
- 5.0
+Return `(A, B)`, where `A * M + B` applies spoiling to the magnetization `M`.
+If `B` is `nothing`, then `A * M` applies spoiling, and if both `A` and `B` are
+`nothing` then there is no spoiling.
 ```
 """
-spoil(::AbstractSpin, ::IdealSpoiling = IdealSpoiling(), ::Any = nothing) = idealspoiling
-spoil(::AbstractSpin, ::RFSpoiling, ::Any = nothing) = nothing
+spoil(::AbstractSpin, ::IdealSpoiling = IdealSpoiling(), ::Any = nothing) = (idealspoiling, nothing)
+spoil(::AbstractSpin, ::RFSpoiling, ::Any = nothing) = (nothing, nothing)
 
 function spoil(
     spin::AbstractSpin,
@@ -154,6 +202,15 @@ end
 
 applydynamics!(spin::AbstractSpin, ::IdealSpoilingMatrix) = spoil!(spin)
 
+"""
+    spoil!(A, B, spin, spoiling, [nothing])
+    spoil!(A, B, spinmc, spoiling, [workspace])
+
+Overwrite `A` and `B` such that `A * M + B` applies spoiling to the
+magnetization `M`.
+If `B` is `nothing`, then `A * M` applies spoiling, and if both `A` and `B` are
+`nothing` then there is no spoiling.
+"""
 spoil!(A::IdealSpoilingMatrix, ::Nothing, ::AbstractSpin, ::IdealSpoiling, ::Any = nothing) = nothing
 spoil!(::Nothing, ::Nothing, ::AbstractSpin, ::RFSpoiling, ::Any = nothing) = nothing
 

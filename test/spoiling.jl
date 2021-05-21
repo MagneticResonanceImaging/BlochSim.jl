@@ -74,7 +74,7 @@ end
 function spoil1()
 
     s = Spin(Magnetization(1, 0.4, 5), 1, 1000, 100, 0)
-    S = spoil(s)
+    (S,) = spoil(s)
     applydynamics!(s, S)
     M_correct = Magnetization(0, 0, 5)
     @test s.M ≈ M_correct
@@ -95,7 +95,7 @@ function spoil3()
 
     s = Spin(1, 1000, 100, 0)
     spoil!(nothing, nothing, s, RFSpoiling())
-    A = spoil(s, RFSpoiling())
+    (A,) = spoil(s, RFSpoiling())
 
     return A === nothing
 
@@ -115,7 +115,7 @@ end
 function spoilmc1()
 
     s = SpinMC(MagnetizationMC((1, 0.4, 5), (0.2, 10, 0.2)), 1, [0.2, 0.8], [400, 1000], [20, 100], [15, 0], [20, 40])
-    S = spoil(s)
+    (S,) = spoil(s)
     applydynamics!(s, S)
     M_correct = MagnetizationMC((0, 0, 5), (0, 0, 0.2))
     @test s.M ≈ M_correct
