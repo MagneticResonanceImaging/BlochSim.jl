@@ -1,0 +1,18 @@
+# Copied from https://github.com/JeffFessler/MIRT.jl/blob/master/.editorconfig
+# on 2019-10-07
+
+# top-most EditorConfig file
+root = true
+
+# Unix-style newlines with a newline ending every file
+[*]
+end_of_line = lf
+
+# Set default charset
+[*.jl]
+charset = utf-8
+
+# 4 space indentation
+[*.jl]
+indent_style = space
+indent_size = 4
