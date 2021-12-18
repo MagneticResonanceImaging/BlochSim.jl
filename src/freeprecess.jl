@@ -245,6 +245,16 @@ end
 # Approximate matrix exponential
 # See page 2 of http://doi.org/10.1137/0714065
 # (unnumbered equation with o(||E||) term)
+# Referring to A and E from the paper:
+# - A is block diagonal where each block along the diagonal is the traditional
+#   Bloch matrix for the corresponding compartment (except the 1/T1 and 1/T2
+#   terms also include exchange out of the compartment)
+# - E is an "inverse" block diagonal matrix (i.e., the diagonal blocks are 0)
+#   where the off-diagonal blocks are diagonal matrices with the exchange terms
+# With this choice of A, e^At has an analytical solution. The code in this
+# function follows the analytical solution of the aforementioned equation after
+# manually taking e^At and doing the matrix-matrix products and integrating
+# over s.
 function expm!(expAt, ::Nothing, spin, t, gradfreq = 0)
 
     for j = 1:spin.N, i = 1:spin.N
