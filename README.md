@@ -3,7 +3,8 @@
 [![action status](https://github.com/StevenWhitaker/BlochSim.jl/actions/workflows/runtests.yml/badge.svg)](https://github.com/StevenWhitaker/BlochSim.jl/actions)
 [![codecov](https://codecov.io/gh/StevenWhitaker/BlochSim.jl/branch/main/graph/badge.svg?token=tduieBgema)](https://codecov.io/gh/StevenWhitaker/BlochSim.jl)
 
-This package provides functionality for simulating arbitrary MRI sequences.
+This Julia package provides functionality
+for simulating arbitrary MRI pulse sequences.
 It includes support for (traditional) single-compartment Bloch simulations
 (using `Spin` objects) as well as multi-compartment Bloch-McConnell simulations
 (using `SpinMC` objects).
@@ -13,12 +14,13 @@ This package is registered in the
 [General](https://github.com/JuliaRegistries/General) registry, so you can
 install it at the REPL with `] add BlochSim`.
 
-The main functionality is provided by the functions `freeprecess`, `excite`, and
-`spoil` (and their mutating variants `freeprecess!`, `excite!`, and `spoil!`).
-These functions can be used to simulate a wide variety of MRI sequences. In
-addition, this package provides implementations for a multi-echo spin echo
-(MESE) scan (`MESEBlochSim`) and a spoiled gradient-recalled echo (SPGR) scan
-(`SPGRBlochSim`).
+The main functionality is provided by the functions
+`freeprecess`, `excite`, and `spoil`
+(and their mutating variants `freeprecess!`, `excite!`, and `spoil!`).
+These functions can be used to simulate a wide variety of MRI sequences.
+In addition, this package provides implementations for
+a multi-echo spin echo (MESE) scan (`MESEBlochSim`)
+and a spoiled gradient-recalled echo (SPGR) scan (`SPGRBlochSim`).
 
 ## Examples
 See the examples given in the documentation strings for how to use the provided
@@ -107,6 +109,12 @@ julia> signal(spin) # Grab the observed signal from the spin
 julia> signal(spinmc)
 0.060535257436693427 + 0.02465189787771933im
 ```
+
+## Related package(s)
+
+* [MRIgeneralizedBloch.jl](https://github.com/JakobAsslaender/MRIgeneralizedBloch.jl)
+  focuses on [magnetization transfer](https://doi-org/10.1002/mrm.29071)
+
 
 ## Acknowledgement
 This package was developed based on
