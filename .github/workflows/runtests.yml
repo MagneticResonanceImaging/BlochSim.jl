@@ -6,9 +6,15 @@ on:
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   push:
     branches:
       - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   schedule:
     - cron: '0 1 * * 1' # Every Monday at 1am
 
