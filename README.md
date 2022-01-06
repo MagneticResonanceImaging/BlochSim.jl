@@ -113,7 +113,7 @@ julia> signal(spinmc)
 ## Related package(s)
 
 * [MRIgeneralizedBloch.jl](https://github.com/JakobAsslaender/MRIgeneralizedBloch.jl)
-  focuses on [magnetization transfer](https://doi-org/10.1002/mrm.29071)
+  focuses on [magnetization transfer](https://doi.org/10.1002/mrm.29071)
 
 
 ## Acknowledgement
