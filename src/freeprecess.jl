@@ -36,9 +36,21 @@ Magnetization vector with eltype Float64:
 """
 function freeprecess(t::Real, M0::Real, T1::Real, T2::Real, Δf::Real)
 
-    A = FreePrecessionMatrix()
-    B = Magnetization()
-    freeprecess!(A, B, t, M0, T1, T2, Δf)
+    E2 = exp(-t / T2)
+    θ = 2π * Δf * t / 1000
+    (s, c) = sincos(θ)
+
+    E1 = exp(-t / T1)
+    E2cosθ = E2 * c
+    E2sinθ = E2 * s
+
+    x = 0
+    y = 0
+    z = M0 * (1 - E1)
+
+    A = FreePrecessionMatrix(E1, E2cosθ, E2sinθ)
+    B = Magnetization(x, y, z)
+
     return (A, B)
 
 end
@@ -52,6 +64,10 @@ end
 
 Simulate free-precession, overwriting `A` and `B` (in-place version of
 [`freeprecess`](@ref)).
+
+For `SpinMC` objects, `workspace isa BlochMcConnellWorkspace`. Pass in `nothing`
+instead to use an approximate matrix exponential to solve the Bloch-McConnell
+equation.
 """
 function freeprecess!(A, B, t, M0, T1, T2, Δf)
 
@@ -72,18 +88,14 @@ function freeprecess!(A, B, t, M0, T1, T2, Δf)
 end
 
 """
-    freeprecess(spin, t, [nothing])
-    freeprecess(spinmc, t, [workspace])
-    freeprecess(spin, t, grad, [nothing])
-    freeprecess(spinmc, t, grad, [workspace])
+    freeprecess(spin, t)
+    freeprecess(spinmc, t)
+    freeprecess(spin, t, grad)
+    freeprecess(spinmc, t, grad)
 
 Simulate free-precession for the given spin for time `t` ms, optionally in the
 presence of a B0 gradient. Returns `(A, B)` such that `A * M + B` applies
 free-precession to the magnetization `M`.
-
-For `SpinMC` objects, `workspace isa BlochMcConnellWorkspace`. Pass in `nothing`
-instead to use an approximate matrix exponential to solve the Bloch-McConnell
-equation.
 
 For an in-place version, see [`freeprecess!`](@ref).
 
@@ -120,20 +132,16 @@ Magnetization vector with eltype Float64:
  Mz = 0.09516258196404048
 ```
 """
-function freeprecess(spin::Spin, t, ::Nothing = nothing)
+function freeprecess(spin::Spin, t)
 
-    A = FreePrecessionMatrix{eltype(spin)}()
-    B = Magnetization{eltype(spin)}()
-    freeprecess!(A, B, spin, t)
-    return (A, B)
+    freeprecess(t, spin.M0, spi.T1, spin.T2, spin.Δf)
 
 end
 
-function freeprecess(spin::SpinMC{T,N}, t, workspace = BlochMcConnellWorkspace(spin)) where {T,N}
+function freeprecess(spin::SpinMC, t)
 
-    A = BlochMcConnellMatrix{T}(N)
-    B = MagnetizationMC{T}(N)
-    freeprecess!(A, B, spin, t, workspace)
+    A = expm(spin, t)
+    B = (I - A) * spin.Meq
     return (A, B)
 
 end
@@ -164,20 +172,18 @@ function freeprecess!(
 
 end
 
-function freeprecess(spin::Spin, t::Real, grad::Gradient, ::Nothing = nothing)
+function freeprecess(spin::Spin, t::Real, grad::Gradient)
 
-    A = FreePrecessionMatrix{eltype(spin)}()
-    B = Magnetization{eltype(spin)}()
-    freeprecess!(A, B, spin, t, grad)
-    return (A, B)
+    gradfreq = gradient_frequency(grad, spin.pos) # Hz
+    freeprecess(t, spin.M0, spin.T1, spin.T2, spin.Δf + gradfreq)
 
 end
 
-function freeprecess(spin::SpinMC{T,N}, t::Real, grad::Gradient, workspace = BlochMcConnellWorkspace(spin)) where {T,N}
+function freeprecess(spin::SpinMC, t::Real, grad::Gradient)
 
-    A = BlochMcConnellMatrix{T}(N)
-    B = MagnetizationMC{T}(N)
-    freeprecess!(A, B, spin, t, grad, workspace)
+    gradfreq = gradient_frequency(grad, spin.pos) # Hz
+    A = expm(spin, t, gradfreq)
+    B = (I - A) * spin.Meq
     return (A, B)
 
 end
@@ -209,6 +215,85 @@ function freeprecess!(
     expm!(A, workspace, spin, t, gradfreq)
     subtractmul!(B, I, A, spin.Meq)
     return nothing
+
+end
+
+# Exact matrix exponential
+function expm(spin, t, gradfreq = 0)
+
+    B = ntuple(spin.N) do i
+        r_out = sum(spin.r[i][k] for k = 1:spin.N) # 1/ms
+        R1 = -1 / spin.T1[i] - r_out # 1/ms
+        R2 = -1 / spin.T2[i] - r_out # 1/ms
+        Δω = 2π * (spin.Δf[i] + gradfreq) / 1000 # rad/ms
+        BlochDynamicsMatrix(R1 * t, R2 * t, Δω * t)
+    end
+
+    E = ntuple(spin.N * (spin.N - 1)) do k
+        # k indexes off-diagonal blocks
+        # First convert k to a linear index including the diagonal blocks
+        # Then convert the linear index to Cartesian indexes
+        kk = k + (k - 1) ÷ spin.N + 1
+        (i, j) = divrem(kk - 1, spin.N) .+ 1
+        @assert 1 < kk < spin.N^2
+        @assert (kk - 1) % (spin.N + 1) != 0 "kk should not correspond to a diagonal block"
+        @assert kk == j + (i - 1) * spin.N "linear index doesn't match Cartesian indexes"
+        @assert k == (i - 1) * spin.N - i + j + (j < i)
+        ExchangeDynamicsMatrix(spin.r[i][j] * t)
+    end
+
+    T = promote_type(eltype(spin), typeof(t))
+    A = T[begin
+            (bi, ii) = divrem(i - 1, spin.N) .+ 1
+            (bj, jj) = divrem(j - 1, spin.N) .+ 1
+            if bi == bj
+                if ii == 1 && jj == 1
+                    B[bi].R2
+                elseif ii == 2 && jj == 1
+                    -B[bi].Δω
+                elseif ii == 3 && jj == 1
+                    zero(T)
+                elseif ii == 1 && jj == 2
+                    B[bi].Δω
+                elseif ii == 2 && jj == 2
+                    B[bi].R2
+                elseif ii == 3 && jj == 2
+                    zero(T)
+                elseif ii == 1 && jj == 3
+                    zero(T)
+                elseif ii == 2 && jj == 3
+                    zero(T)
+                elseif ii == 3 && jj == 3
+                    B[bi].R1
+                end
+            else
+                k = (j - 1) * spin.N - j + i + (i < j)
+                if ii == 1 && jj == 1
+                    E[k].r
+                elseif ii == 2 && jj == 1
+                    zero(T)
+                elseif ii == 3 && jj == 1
+                    zero(T)
+                elseif ii == 1 && jj == 2
+                    zero(T)
+                elseif ii == 2 && jj == 2
+                    E[k].r
+                elseif ii == 3 && jj == 2
+                    zero(T)
+                elseif ii == 1 && jj == 3
+                    zero(T)
+                elseif ii == 2 && jj == 3
+                    zero(T)
+                elseif ii == 3 && jj == 3
+                    E[k].r
+                end
+            end
+        end
+        for i = 1:spin.N, j = 1:spin.N
+    ]
+    expA = exp(A)
+
+    return BlochMcConnellMatrix(expA) # TODO: implement
 
 end
 
