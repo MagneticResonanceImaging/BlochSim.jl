@@ -170,16 +170,12 @@ function rotatetheta!(A, θ, α)
 end
 
 """
-    excite(spin, rf::InstantaneousRF, [nothing])
-    excite(spin, rf::RF, [workspace])
+    excite(spin, rf::InstantaneousRF)
+    excite(spin, rf::RF)
 
 Simulate excitation for the given spin. Returns `(A, B)` such that `A * M + B`
 applies excitation to the magnetization `M`. If `isnothing(B)` (as is the case
 for `InstantaneousRF`s), then `A * M` applies excitation to `M`.
-
-For `RF` objects, `workspace isa ExcitationWorkspace`. For `SpinMC` objects, use
-`workspace = ExcitationWorkspace(spin, nothing)` to use an approximate matrix
-exponential to solve the Bloch-McConnell equation.
 
 For an in-place version, see [`excite!`](@ref).
 
@@ -198,10 +194,23 @@ Magnetization vector with eltype Float64:
  Mz = 6.123233995736766e-17
 ```
 """
-function excite(spin::AbstractSpin, rf::InstantaneousRF, ::Nothing = nothing)
+function excite(spin::AbstractSpin, rf::InstantaneousRF)
 
-    A = ExcitationMatrix{eltype(spin)}()
-    excite!(A, spin, rf)
+    (sinθ, cosθ) = sincos(rf.θ)
+    (sinα, cosα) = sincos(rf.α)
+
+    A = ExcitationMatrix(BlochMatrix(
+        sinθ^2 + cosα * cosθ^2,
+        sinθ * cosθ - cosα * sinθ * cosθ,
+        -sinα * cosθ,
+        sinθ * cosθ - cosα * sinθ * cosθ,
+        cosθ^2 + cosα * sinθ^2,
+        sinα * sinθ,
+        sinα * cosθ,
+        -sinα * sinθ,
+        cosα
+    ))
+
     return (A, nothing)
 
 end
@@ -212,6 +221,10 @@ end
 
 Simulate excitation, overwriting `A` and `B` (in-place version of
 [`excite`](@ref)).
+
+For `RF` objects, `workspace isa ExcitationWorkspace`. For `SpinMC` objects, use
+`workspace = ExcitationWorkspace(spin, nothing)` to use an approximate matrix
+exponential to solve the Bloch-McConnell equation.
 """
 function excite!(A::ExcitationMatrix, spin::AbstractSpin, rf::InstantaneousRF)
 
@@ -225,18 +238,31 @@ function excite!(A::ExcitationMatrix, ::Nothing, spin::AbstractSpin, rf::Instant
 
 end
 
-function excite(spin::AbstractSpin, rf::RF, workspace = ExcitationWorkspace(spin))
+function excite(spin::AbstractSpin, rf::RF{T,G}) where {T,G}
 
-    T = eltype(spin)
-    if spin isa Spin
-        A = BlochMatrix{T}()
-        B = Magnetization{T}()
+    Δtby2 = rf.Δt / 2
+    if G <: AbstractVector
+        (Af, Bf) = freeprecess(spin, Δtby2, rf.grad[1])
     else
-        N = spin.N
-        A = BlochMcConnellMatrix{T}(N)
-        B = MagnetizationMC{T}(N)
+        (Af, Bf) = freeprecess(spin, Δtby2, rf.grad)
     end
-    excite!(A, B, spin, rf, workspace)
+    (Ae,) = excite(spin, InstantaneousRF(rf.α[1], rf.θ[1] + rf.Δθ[]))
+
+    A = Af * Ae * Af
+    B = Af * (Ae * Bf) + Bf
+
+    for t = 2:length(rf)
+
+        if G <: AbstractVector
+            (Af, Bf) = freeprecess(spin, Δtby2, rf.grad[t])
+        end
+        (Ae,) = excite(spin, InstantaneousRF(rf.α[t], rf.θ[t] + rf.Δθ[]))
+
+        A = Af * Ae * Af * A
+        B = Af * (Ae * (Af * B + Bf)) + Bf
+
+    end
+
     return (A, B)
 
 end
