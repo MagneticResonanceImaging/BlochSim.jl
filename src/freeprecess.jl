@@ -469,6 +469,13 @@ end
 
 combine(A1, A2) = A2 * A1
 
+function combine(A1, B1, A2, B2, A3, B3, args...)
+
+    (A, B) = combine(A1, B1, A2, B2)
+    combine(A, B, A3, B3, args...)
+
+end
+
 """
     combine!(A, B, A1, B1, A2, B2)
     combine!(A, A1, A2)
