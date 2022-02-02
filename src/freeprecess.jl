@@ -242,7 +242,7 @@ function expm(spin, t, gradfreq = 0)
         ExchangeDynamicsMatrix(spin.r[i][j] * t)
     end
 
-    T = promote_type(eltype(spin), typeof(t))
+    T = eltype(B[1])
     A = T[begin
             (bi, ii) = divrem(i - 1, spin.N) .+ 1
             (bj, jj) = divrem(j - 1, spin.N) .+ 1
@@ -293,7 +293,7 @@ function expm(spin, t, gradfreq = 0)
     ]
     expA = exp(A)
 
-    return BlochMcConnellMatrix(expA) # TODO: implement
+    return BlochMcConnellMatrix(expA)
 
 end
 

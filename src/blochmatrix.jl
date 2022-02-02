@@ -394,6 +394,22 @@ end
 
 BlochMcConnellMatrix(N) = BlochMcConnellMatrix{Float64}(N)
 
+function BlochMcConnellMatrix(M::AbstractMatrix)
+
+    size(M, 1) == size(M, 2) || error("BlochMcConnellMatrix must be square")
+    (N, r) = divrem(size(M, 1), 3)
+    r == 0 || error("size(M, 1) must be a multiple of 3")
+    A = ntuple(N) do i
+        ntuple(N) do j
+            BlochMatrix(M[3i-2,3j-2], M[3i-1,3j-2], M[3i,3j-2],
+                        M[3i-2,3j-1], M[3i-1,3j-1], M[3i,3j-1],
+                        M[3i-2,3j  ], M[3i-1,3j  ], M[3i,3j  ])
+        end
+    end
+    BlochMcConnellMatrix(A)
+
+end
+
 function Base.show(io::IO, ::MIME"text/plain", A::BlochMcConnellMatrix{T,N}) where {T,N}
 
     print(io, "BlochMcConnellMatrix{$T,$N}:\n")
