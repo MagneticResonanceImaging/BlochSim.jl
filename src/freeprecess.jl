@@ -422,6 +422,54 @@ function freeprecess!(spin::AbstractSpin, args...)
 end
 
 """
+    combine(A1, B1, A2, B2)
+    combine(A1, A2)
+
+Combine the matrices and vectors that describe the dynamics of a spin into one
+matrix and one vector. Returns `(A, B)` such that `A * M + B` applies the
+combined dynamics to the magnetization `M`.
+
+For an in-place version, see [`combine!`](@ref).
+"""
+function combine(A1, B1, A2, B2)
+
+    A = A2 * A1
+    B = A2 * B1 + B2
+    return (A, B)
+
+end
+
+function combine(A1, B1, A2, ::Nothing)
+
+    A = A2 * A1
+    B = A2 * B1
+    return (A, B)
+
+end
+
+function combine(A1, ::Nothing, A2, B2)
+
+    A = A2 * A1
+    B = B2
+    return (A, B)
+
+end
+
+function combine(A1, B1, ::Nothing, ::Nothing)
+
+    return (A1, B1)
+
+end
+
+function combine(::Nothing, ::Nothing, A2, B2)
+
+    return (A2, B2)
+
+end
+
+combine(A1, A2) = A2 * A1
+
+"""
     combine!(A, B, A1, B1, A2, B2)
     combine!(A, A1, A2)
 
@@ -429,6 +477,8 @@ Combine the matrices and vectors that describe the dynamics of a spin into one
 matrix and one vector, overwriting `A` and `B`. The dynamics described by `A1`
 and `B1` apply first, then those described by `A2` and `B2`. In other words,
 `A = A2 * A1` and `B = A2 * B1 + B2`.
+
+(In-place version of [`combine`](@ref)).
 
 # Examples
 ```jldoctest
