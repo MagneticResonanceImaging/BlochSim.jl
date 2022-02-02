@@ -157,18 +157,14 @@ rfspoiling_increment(s::RFSpoiling) = s.Δθ
 rfspoiling_increment(s::RFandGradientSpoiling) = rfspoiling_increment(s.rf)
 
 """
-    spoil(spin, spoiling, [nothing])
-    spoil(spinmc, spoiling, [workspace])
+    spoil(spin, spoiling)
+    spoil(spinmc, spoiling)
 
 Simulate gradient or ideal spoiling for the given spin. Returns `(A, B)`, such
 that `A * M + B` applies spoiling to the magnetization `M`. If `B` is `nothing`
 (as is the case for `IdealSpoiling`), then `A * M` applies spoiling, and if both
 `A` and `B` are `nothing` (as is the case for `RFSpoiling`) then there is no
 spoiling.
-
-For `SpinMC` objects and for `GradientSpoiling` and `RFandGradientSpoiling`,
-`workspace isa BlochMcConnellWorkspace`. Pass in `nothing` instead to use an
-approximate matrix exponential to solve the Bloch-McConnell equation.
 
 ## Note
 This function only simulates gradient or ideal spoiling, *not* RF spoiling. RF
@@ -178,16 +174,15 @@ sequence from TR to TR.
 For an in-place version, see [`spoil!`](@ref).
 ```
 """
-spoil(::AbstractSpin, ::IdealSpoiling = IdealSpoiling(), ::Any = nothing) = (idealspoiling, nothing)
-spoil(::AbstractSpin, ::RFSpoiling, ::Any = nothing) = (nothing, nothing)
+spoil(::AbstractSpin, ::IdealSpoiling = IdealSpoiling()) = (idealspoiling, nothing)
+spoil(::AbstractSpin, ::RFSpoiling) = (nothing, nothing)
 
 function spoil(
     spin::AbstractSpin,
-    spoiling::AbstractSpoiling,
-    workspace = spin isa Spin ? nothing : BlochMcConnellWorkspace(spin)
+    spoiling::AbstractSpoiling
 )
 
-    return freeprecess(spin, spoiler_gradient_duration(spoiling), spoiler_gradient(spoiling), workspace)
+    return freeprecess(spin, spoiler_gradient_duration(spoiling), spoiler_gradient(spoiling))
 
 end
 
@@ -221,6 +216,10 @@ applydynamics!(spin::AbstractSpin, ::IdealSpoilingMatrix) = spoil!(spin)
 
 Simulate gradient or ideal spoiling, overwriting `A` and `B` (in-place version
 of [`spoil`](@ref)).
+
+For `SpinMC` objects and for `GradientSpoiling` and `RFandGradientSpoiling`,
+`workspace isa BlochMcConnellWorkspace`. Pass in `nothing` instead to use an
+approximate matrix exponential to solve the Bloch-McConnell equation.
 """
 spoil!(A::IdealSpoilingMatrix, ::Nothing, ::AbstractSpin, ::IdealSpoiling, ::Any = nothing) = nothing
 spoil!(::Nothing, ::Nothing, ::AbstractSpin, ::RFSpoiling, ::Any = nothing) = nothing
