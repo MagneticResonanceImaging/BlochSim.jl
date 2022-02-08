@@ -4,9 +4,13 @@ authors = ["Steven Whitaker <stwhit@umich.edu>"]
 version = "0.6.0-DEV"
 
 [deps]
+ChainRules = "082447d4-558c-5d27-93f4-14fc19e9eca2"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
 
 [compat]
+ChainRules = "1"
 ForwardDiff = "0.10"
+ReverseDiff = "1"
 julia = "1.2"

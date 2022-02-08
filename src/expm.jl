@@ -51,6 +51,100 @@ function getPadeCoefficients(m)
     return c
 end
 
+function PadeApproximantOfDegree(A,m)
+#PADEAPPROXIMANTOFDEGREE  Pade approximant to exponential.
+#   F = PADEAPPROXIMANTOFDEGREE(M) is the degree M diagonal
+#   Pade approximant to EXP(A), where M = 3, 5, 7, 9 or 13.
+#   Series are evaluated in decreasing order of powers, which is
+#   in approx. increasing order of maximum norms of the terms.
+
+    n = maximum(size(A));
+    c = getPadeCoefficients(m);
+
+    # Evaluate Pade approximant.
+    if (m == 13)
+        # For optimal evaluation need different formula for m >= 12.
+        A2 = A*A
+        A4 = A2*A2
+        A6 = A2*A4
+        U = A * (A6*(c[14]*A6 + c[12]*A4 + c[10]*A2) + c[8]*A6 + c[6]*A4 + c[4]*A2 + c[2]*Matrix{Float64}(I,n,n) )
+        V = A6*(c[13]*A6 + c[11]*A4 + c[9]*A2) + c[7]*A6 + c[5]*A4 + c[3]*A2 + c[1]*Matrix{Float64}(I,n,n)
+
+        F = (V-U)\(V+U)
+
+    else # m == 3, 5, 7, 9
+        T = eltype(A)
+        Apowers = Array{Matrix{T}}(undef,ceil(Int,(m+1)/2))
+
+        Apowers[1] = Matrix{T}(I,n,n)
+        Apowers[2] = A*A
+
+        for j = 3:ceil(Int,(m+1)/2)
+            Apowers[j] = Apowers[j-1]*Apowers[2]
+        end
+
+        T = T <: ForwardDiff.Dual ? T : Float64
+        U = zeros(T,n,n)
+        V = zeros(T,n,n)
+
+        for j = m+1:-2:2
+            U = U + c[j]*Apowers[convert(Int,j/2)]
+        end
+
+        U = A*U
+
+        for j = m:-2:1
+            V = V + c[j]*Apowers[convert(Int,(j+1)/2)]
+        end
+
+        F = (V-U)\(V+U)
+    end
+
+    return F
+end
+
+expm(A) = exp(A)
+
+ReverseDiff.@grad_from_chainrules Base.exp(x::ReverseDiff.TrackedMatrix)
+
+# Only use expm when ForwardDiff is needed
+function expm(A::AbstractMatrix{<:ForwardDiff.Dual})
+# EXPM   Matrix exponential.
+#   EXPM(X) is the matrix exponential of X.  EXPM is computed using
+#   a scaling and squaring algorithm with a Pade approximation.
+#
+# Julia implementation closely based on MATLAB code by Nicholas Higham
+#
+    # Initialization
+    m_vals, theta = expmchk()
+
+    normA = norm(A,1)
+
+    if normA <= theta[end]
+        # no scaling and squaring is required.
+        for i = 1:length(m_vals)
+            if normA <= theta[i]
+                F = PadeApproximantOfDegree(A,m_vals[i])
+                break
+            end
+        end
+    else
+        # t,s = frexp(normA/theta[end])
+        tmp = normA / theta[end]
+        t = frexp1(tmp)
+        s = frexp2(tmp)
+        s = s - (t == 0.5) # adjust s if normA/theta(end) is a power of 2.
+        A = A/2^s          # Scaling
+        F = PadeApproximantOfDegree(A,m_vals[end])
+
+        for i = 1:s
+            F = F*F   # Squaring
+        end
+    end
+
+    return F
+end # expm
+
 struct MatrixExponentialWorkspace{T<:Real,N}
     expA2::BlochMcConnellMatrix{T,N}
     A2::BlochMcConnellMatrix{T,N}

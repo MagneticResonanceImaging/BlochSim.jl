@@ -199,12 +199,7 @@ Base.convert(::Type{MagnetizationMC{T,N}}, M::MagnetizationMC{T,N}) where {T,N} 
 
 function Base.Vector(M::MagnetizationMC{T,N}) where {T,N}
 
-    v = Vector{T}(undef, 3N)
-    for i = 1:N
-        v[3i-2] = M[i].x
-        v[3i-1] = M[i].y
-        v[3i]   = M[i].z
-    end
+    v = vcat(ntuple(i -> Vector(M[i]), N)...)
     return v
 
 end

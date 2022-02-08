@@ -242,56 +242,8 @@ function expm(spin, t, gradfreq = 0)
         ExchangeDynamicsMatrix(spin.r[i][j] * t)
     end
 
-    T = eltype(B[1])
-    A = T[begin
-            (bi, ii) = divrem(i - 1, spin.N) .+ 1
-            (bj, jj) = divrem(j - 1, spin.N) .+ 1
-            if bi == bj
-                if ii == 1 && jj == 1
-                    B[bi].R2
-                elseif ii == 2 && jj == 1
-                    -B[bi].Δω
-                elseif ii == 3 && jj == 1
-                    zero(T)
-                elseif ii == 1 && jj == 2
-                    B[bi].Δω
-                elseif ii == 2 && jj == 2
-                    B[bi].R2
-                elseif ii == 3 && jj == 2
-                    zero(T)
-                elseif ii == 1 && jj == 3
-                    zero(T)
-                elseif ii == 2 && jj == 3
-                    zero(T)
-                elseif ii == 3 && jj == 3
-                    B[bi].R1
-                end
-            else
-                k = (j - 1) * spin.N - j + i + (i < j)
-                if ii == 1 && jj == 1
-                    E[k].r
-                elseif ii == 2 && jj == 1
-                    zero(T)
-                elseif ii == 3 && jj == 1
-                    zero(T)
-                elseif ii == 1 && jj == 2
-                    zero(T)
-                elseif ii == 2 && jj == 2
-                    E[k].r
-                elseif ii == 3 && jj == 2
-                    zero(T)
-                elseif ii == 1 && jj == 3
-                    zero(T)
-                elseif ii == 2 && jj == 3
-                    zero(T)
-                elseif ii == 3 && jj == 3
-                    E[k].r
-                end
-            end
-        end
-        for i = 1:spin.N, j = 1:spin.N
-    ]
-    expA = exp(A)
+    A = Matrix(BlochMcConnellDynamicsMatrix(B, E))
+    expA = expm(A)
 
     return BlochMcConnellMatrix(expA)
 

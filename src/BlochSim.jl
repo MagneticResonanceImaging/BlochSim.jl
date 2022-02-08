@@ -1,7 +1,9 @@
 module BlochSim
 
+using ChainRules
 using ForwardDiff
 using LinearAlgebra
+using ReverseDiff
 
 export GAMMA
 export GAMBAR
@@ -50,6 +52,7 @@ export subtractmul!
 export mul!
 export muladd!
 export div!
+export combine
 export combine!
 export applydynamics!
 

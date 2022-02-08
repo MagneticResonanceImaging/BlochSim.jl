@@ -38,7 +38,7 @@ Base.convert(::Type{Position{T}}, p::Position) where {T} = Position(T(p.x), T(p.
 
 Base.:(==)(p1::Position, p2::Position) = p1.x == p2.x && p1.y == p2.y && p1.z == p2.z
 
-const DualFloat64 = Union{Float64,<:ForwardDiff.Dual}
+const DualFloat64 = Union{Float64,<:ForwardDiff.Dual,<:ReverseDiff.TrackedReal}
 
 """
     AbstractSpin
@@ -231,7 +231,7 @@ end
 SpinMC{T}(M::NTuple{N,Magnetization}, args...) where {T,N} = SpinMC{T}(MagnetizationMC(M...), args...)
 SpinMC{T}(M::NTuple{N,NTuple{3,Real}}, args...) where {T,N} = SpinMC{T}(MagnetizationMC(M...), args...)
 SpinMC{T}(M0::Real, frac, T1, T2, Δf, τ, pos::Position...) where {T} =
-    SpinMC{T}(MagnetizationMC((Magnetization(0.0, 0.0, frac[i] * M0) for i = 1:length(frac))...), M0, frac, T1, T2, Δf, τ, pos...)
+    SpinMC{T}(MagnetizationMC([Magnetization(0.0, 0.0, frac[i] * M0) for i = 1:length(frac)]...), M0, frac, T1, T2, Δf, τ, pos...)
 SpinMC(M::NTuple{N,Magnetization}, args...) where {N} = SpinMC(MagnetizationMC(M...), args...)
 SpinMC(M::NTuple{N,NTuple{3,Real}}, args...) where {N} = SpinMC(MagnetizationMC(M...), args...)
 SpinMC(M0::Real, frac, T1, T2, Δf, τ, pos::Position...) =

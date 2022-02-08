@@ -302,37 +302,56 @@ end
 
 function Base.Matrix(A::BlochMcConnellDynamicsMatrix{T,N,M}) where {T,N,M}
 
-    mat = Matrix{T}(undef, 3N, 3N)
-    index = 0
-    for j = 1:N, i = 1:N
-
-        if i == j
-
-            mat[3i-2,3j-2] = A.A[i].R2
-            mat[3i-1,3j-2] = -A.A[i].Δω
-            mat[3i  ,3j-2] = zero(T)
-            mat[3i-2,3j-1] = A.A[i].Δω
-            mat[3i-1,3j-1] = A.A[i].R2
-            mat[3i  ,3j-1] = zero(T)
-            mat[3i-2,3j]   = zero(T)
-            mat[3i-1,3j]   = zero(T)
-            mat[3i  ,3j]   = A.A[i].R1
-
+    mat = map(Iterators.product(1:3N, 1:3N)) do (i, j)
+        (bi, ii) = divrem(i - 1, 3) .+ 1
+        (bj, jj) = divrem(j - 1, 3) .+ 1
+        if bi == bj
+            if ii == 1 && jj == 1
+                A.A[bi].R2
+            elseif ii == 2 && jj == 1
+                -A.A[bi].Δω
+            elseif ii == 3 && jj == 1
+                zero(T)
+            elseif ii == 1 && jj == 2
+                A.A[bi].Δω
+            elseif ii == 2 && jj == 2
+                A.A[bi].R2
+            elseif ii == 3 && jj == 2
+                zero(T)
+            elseif ii == 1 && jj == 3
+                zero(T)
+            elseif ii == 2 && jj == 3
+                zero(T)
+            elseif ii == 3 && jj == 3
+                A.A[bi].R1
+            end
         else
-
-            index += 1
-            mat[3i-2,3j-2] = A.E[index].r
-            mat[3i-1,3j-2] = zero(T)
-            mat[3i  ,3j-2] = zero(T)
-            mat[3i-2,3j-1] = zero(T)
-            mat[3i-1,3j-1] = A.E[index].r
-            mat[3i  ,3j-1] = zero(T)
-            mat[3i-2,3j]   = zero(T)
-            mat[3i-1,3j]   = zero(T)
-            mat[3i  ,3j]   = A.E[index].r
-
+            k = (bj - 1) * N - bj + bi + (bi < bj)
+            if ii == 1 && jj == 1
+                A.E[k].r
+            elseif ii == 2 && jj == 1
+                zero(T)
+            elseif ii == 3 && jj == 1
+                zero(T)
+            elseif ii == 1 && jj == 2
+                zero(T)
+            elseif ii == 2 && jj == 2
+                A.E[k].r
+            elseif ii == 3 && jj == 2
+                zero(T)
+            elseif ii == 1 && jj == 3
+                zero(T)
+            elseif ii == 2 && jj == 3
+                zero(T)
+            elseif ii == 3 && jj == 3
+                A.E[k].r
+            end
         end
+    end
 
+    if T <: ReverseDiff.TrackedReal
+        mat = ReverseDiff.TrackedArray(ReverseDiff.value.(mat),
+            ReverseDiff.deriv.(mat), ReverseDiff.tape(mat[1]))
     end
 
     return mat
@@ -467,19 +486,29 @@ end
 function Base.Matrix(A::BlochMcConnellMatrix{T,N}) where {T,N}
 
     mat = Matrix{T}(undef, 3N, 3N)
-    for j = 1:N, i = 1:N
-
-        b = getblock(A, i, j)
-        mat[3i-2,3j-2] = b.a11
-        mat[3i-1,3j-2] = b.a21
-        mat[3i  ,3j-2] = b.a31
-        mat[3i-2,3j-1] = b.a12
-        mat[3i-1,3j-1] = b.a22
-        mat[3i  ,3j-1] = b.a32
-        mat[3i-2,3j]   = b.a13
-        mat[3i-1,3j]   = b.a23
-        mat[3i  ,3j]   = b.a33
-
+    mat = map(Iterators.product(1:3N, 1:3N)) do (i, j)
+        (bi, ii) = divrem(i - 1, 3) .+ 1
+        (bj, jj) = divrem(j - 1, 3) .+ 1
+        b = getblock(A, bi, bj)
+        if ii == 1 && jj == 1
+            b.a11
+        elseif ii == 2 && jj == 1
+            b.a21
+        elseif ii == 3 && jj == 1
+            b.a31
+        elseif ii == 1 && jj == 2
+            b.a12
+        elseif ii == 2 && jj == 2
+            b.a22
+        elseif ii == 3 && jj == 2
+            b.a32
+        elseif ii == 1 && jj == 3
+            b.a13
+        elseif ii == 2 && jj == 3
+            b.a23
+        elseif ii == 3 && jj == 3
+            b.a33
+        end
     end
 
     return mat
@@ -622,6 +651,43 @@ function Base.:-(::UniformScaling, B::BlochMatrix{T}) where {T}
 
 end
 
+function Base.:-(::UniformScaling, B::BlochMcConnellMatrix{T,N}) where {T,N}
+
+    A = ntuple(N) do i
+        ntuple(N) do j
+            b = getblock(B, i, j)
+            if i == j
+                BlochMatrix(
+                    one(T) - b.a11,
+                    -b.a21,
+                    -b.a31,
+                    -b.a12,
+                    one(T) - b.a22,
+                    -b.a32,
+                    -b.a13,
+                    -b.a23,
+                    one(T) - b.a33
+                )
+            else
+                BlochMatrix(
+                    -b.a11,
+                    -b.a21,
+                    -b.a31,
+                    -b.a12,
+                    -b.a22,
+                    -b.a32,
+                    -b.a13,
+                    -b.a23,
+                    -b.a33
+                )
+            end
+        end
+    end
+
+    return BlochMcConnellMatrix(A)
+
+end
+
 # *
 Base.:*(M::Magnetization, a) = Magnetization(M.x * a, M.y * a, M.z * a)
 Base.:*(M::MagnetizationMC{T,N}, a) where {T,N} = MagnetizationMC(ntuple(i -> M[i] * a, N)...)
@@ -652,17 +718,13 @@ Base.:*(::IdealSpoilingMatrix, M::Magnetization{T}) where {T} = Magnetization(ze
 function Base.:*(A::BlochMcConnellMatrix{T1,N}, M::MagnetizationMC{T2,N}) where {T1,T2,N}
 
     return MagnetizationMC(ntuple(N) do i
-        Mc = getblock(A, i, 1) * M[1]
-        for j = 2:N
-            muladd!(Mc, getblock(A, i, j), M[j])
-        end
-        Mc
+        sum(j -> getblock(A, i, j) * M[j], 1:N)
     end...)
 
 end
 
-Base.:*(A::ExcitationMatrix, M::MagnetizationMC) = MagnetizationMC((A * Mc for Mc in M)...)
-Base.:*(A::IdealSpoilingMatrix, M::MagnetizationMC) = MagnetizationMC((A * Mc for Mc in M)...)
+Base.:*(A::ExcitationMatrix, M::MagnetizationMC{T,N}) where {T,N} = MagnetizationMC([A * M[i] for i = 1:N]...)
+Base.:*(A::IdealSpoilingMatrix, M::MagnetizationMC{T,N}) where {T,N} = MagnetizationMC([A * M[i] for i = 1:N]...)
 
 function Base.:*(A::BlochMatrix, B::BlochMatrix)
 
