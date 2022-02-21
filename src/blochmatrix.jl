@@ -631,6 +631,22 @@ const idealspoiling = IdealSpoilingMatrix()
 Base.:+(M1::Magnetization, M2::Magnetization) = Magnetization(M1.x + M2.x, M1.y + M2.y, M1.z + M2.z)
 Base.:+(M1::MagnetizationMC{T1,N}, M2::MagnetizationMC{T2,N}) where {T1,T2,N} = MagnetizationMC(ntuple(i -> M1[i] + M2[i], N)...)
 
+function Base.:+(A::BlochMatrix, B::BlochMatrix)
+
+    return BlochMatrix(
+        A.a11 + B.a11,
+        A.a21 + B.a21,
+        A.a31 + B.a31,
+        A.a12 + B.a12,
+        A.a22 + B.a22,
+        A.a32 + B.a32,
+        A.a13 + B.a13,
+        A.a23 + B.a23,
+        A.a33 + B.a33
+    )
+
+end
+
 # -
 Base.:-(M1::Magnetization, M2::Magnetization) = Magnetization(M1.x - M2.x, M1.y - M2.y, M1.z - M2.z)
 Base.:-(M1::MagnetizationMC{T1,N}, M2::MagnetizationMC{T2,N}) where {T1,T2,N} = MagnetizationMC(ntuple(i -> M1[i] - M2[i], N)...)
@@ -765,29 +781,45 @@ function Base.:*(A::BlochMatrix, ::IdealSpoilingMatrix)
 
 end
 
+function Base.:*(::IdealSpoilingMatrix, B::BlochMatrix)
+
+    T = eltype(B)
+    return BlochMatrix(zero(T), zero(T), B.a31, zero(T), zero(T), B.a32, zero(T), zero(T), B.a33)
+
+end
+
 Base.:*(A::ExcitationMatrix, ::IdealSpoilingMatrix) = A.A * idealspoiling
 
 function Base.:*(A::BlochMcConnellMatrix{T1,N}, B::BlochMcConnellMatrix{T2,N}) where {T1,T2,N}
 
-    C = BlochMcConnellMatrix{promote_type(T1, T2)}(N)
-    mul!(C, A, B)
-    return C
+    C = ntuple(N) do i
+        ntuple(N) do j
+            sum(k -> getblock(A, i, k) * getblock(B, k, j), 1:N)
+        end
+    end
+    return BlochMcConnellMatrix(C)
 
 end
 
 function Base.:*(A::ExcitationMatrix{T1}, B::BlochMcConnellMatrix{T2,N}) where {T1,T2,N}
 
-    C = BlochMcConnellMatrix{promote_type(T1, T2)}(N)
-    mul!(C, A, B)
-    return C
+    C = ntuple(N) do i
+        ntuple(N) do j
+            A.A * getblock(B, i, j)
+        end
+    end
+    return BlochMcConnellMatrix(C)
 
 end
 
 function Base.:*(A::IdealSpoilingMatrix, B::BlochMcConnellMatrix{T,N}) where {T,N}
 
-    C = BlochMcConnellMatrix{T}(N)
-    mul!(C, A, B)
-    return C
+    C = ntuple(N) do i
+        ntuple(N) do j
+            A * getblock(B, i, j)
+        end
+    end
+    return BlochMcConnellMatrix(C)
 
 end
 

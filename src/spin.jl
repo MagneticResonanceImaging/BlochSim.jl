@@ -194,10 +194,7 @@ struct SpinMC{T<:DualFloat64,N} <: AbstractSpin
     ) where {T<:DualFloat64,S,N}
 
         N > 1 || error(sprint(print, "SpinMC expects 2 or more compartments, got ", N))
-        Meq = MagnetizationMC{T}(N)
-        for i = 1:N
-            Meq[i].z = frac[i] * M0
-        end
+        Meq = MagnetizationMC(ntuple(i -> Magnetization(0, 0, frac[i] * M0), N)...)
         itmp = 0
         r = ntuple(N) do i
             ntuple(N) do j
