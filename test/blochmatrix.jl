@@ -608,7 +608,7 @@ function mul16()
     mul!(C, A, A)
     correct = Matrix(A) * Matrix(A)
 
-    return Matrix(C) == correct
+    return Matrix(C) ≈ correct
 
 end
 

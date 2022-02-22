@@ -39,7 +39,7 @@ function excite3()
 
     show(devnull, rf)
     show(devnull, "text/plain", rf)
-    @test A1 == A2
+    @test A1 ≈ A2
     return B1 == B2
 
 end
@@ -55,7 +55,7 @@ function excite4()
     A2 = BlochMatrix()
     B2 = Magnetization()
     excite!(A2, B2, spin, RF(rf, dt, Δθ, grad))
-    @test A1 == A2
+    @test A1 ≈ A2
     return B1 == B2
 
 end
@@ -110,8 +110,8 @@ function excitemc2()
     A2 = BlochMcConnellMatrix(2)
     B2 = MagnetizationMC(2)
     excite!(A2, B2, spin, RF(rf, dt, Δθ, grad))
-    @test A1 == A2
-    return B1 == B2
+    @test A1 ≈ A2
+    return B1 ≈ B2
 
 end
 

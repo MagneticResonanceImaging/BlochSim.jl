@@ -78,8 +78,8 @@ function freeprecessmc1()
     A2 = BlochMcConnellMatrix(3)
     B2 = MagnetizationMC(3)
     freeprecess!(A2, B2, spin, t)
-    @test A1 == A2
-    return B1 == B2
+    @test A1 ≈ A2
+    return B1 ≈ B2
 
 end
 
@@ -126,7 +126,9 @@ function freeprecessmc4()
     s = SpinMC(1, (0.8, 0.2), (1000, 400), (100, 20), (0, 15), (Inf, Inf))
     t = 100
     (A1, B1) = freeprecess(s, t)
-    (A2, B2) = freeprecess(s, t, nothing)
+    A2 = BlochMcConnellMatrix(2)
+    B2 = MagnetizationMC(2)
+    freeprecess!(A2, B2, s, t, nothing)
 
     @test A1 ≈ A2
     return B1 ≈ B2

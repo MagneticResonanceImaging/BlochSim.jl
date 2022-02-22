@@ -774,6 +774,22 @@ function Base.:*(A::BlochMatrix, B::FreePrecessionMatrix)
 
 end
 
+function Base.:*(A::FreePrecessionMatrix, B::BlochMatrix)
+
+    return BlochMatrix(
+        A.E2cosθ * B.a11 + A.E2sinθ * B.a21,
+        A.E2cosθ * B.a21 - A.E2sinθ * B.a11,
+        A.E1 * B.a31,
+        A.E2cosθ * B.a12 + A.E2sinθ * B.a22,
+        A.E2cosθ * B.a22 - A.E2sinθ * B.a12,
+        A.E1 * B.a32,
+        A.E2cosθ * B.a13 + A.E2sinθ * B.a23,
+        A.E2cosθ * B.a23 - A.E2sinθ * B.a13,
+        A.E1 * B.a33
+    )
+
+end
+
 function Base.:*(A::BlochMatrix, ::IdealSpoilingMatrix)
 
     T = eltype(A)
@@ -788,6 +804,8 @@ function Base.:*(::IdealSpoilingMatrix, B::BlochMatrix)
 
 end
 
+Base.:*(A::FreePrecessionMatrix, B::ExcitationMatrix) = A * B.A
+
 Base.:*(A::ExcitationMatrix, ::IdealSpoilingMatrix) = A.A * idealspoiling
 
 function Base.:*(A::BlochMcConnellMatrix{T1,N}, B::BlochMcConnellMatrix{T2,N}) where {T1,T2,N}
@@ -801,7 +819,18 @@ function Base.:*(A::BlochMcConnellMatrix{T1,N}, B::BlochMcConnellMatrix{T2,N}) w
 
 end
 
-function Base.:*(A::ExcitationMatrix{T1}, B::BlochMcConnellMatrix{T2,N}) where {T1,T2,N}
+function Base.:*(A::BlochMcConnellMatrix{T,N}, B::ExcitationMatrix) where {T,N}
+
+    C = ntuple(N) do i
+        ntuple(N) do j
+            getblock(A, i, j) * B.A
+        end
+    end
+    return BlochMcConnellMatrix(C)
+
+end
+
+function Base.:*(A::ExcitationMatrix, B::BlochMcConnellMatrix{T,N}) where {T,N}
 
     C = ntuple(N) do i
         ntuple(N) do j

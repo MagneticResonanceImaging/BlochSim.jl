@@ -134,7 +134,7 @@ Magnetization vector with eltype Float64:
 """
 function freeprecess(spin::Spin, t)
 
-    freeprecess(t, spin.M0, spi.T1, spin.T2, spin.Δf)
+    freeprecess(t, spin.M0, spin.T1, spin.T2, spin.Δf)
 
 end
 
