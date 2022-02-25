@@ -667,6 +667,29 @@ function Base.:-(::UniformScaling, B::BlochMatrix{T}) where {T}
 
 end
 
+function Base.:-(A::BlochMcConnellMatrix{T,N}) where {T,N}
+
+    B = ntuple(N) do i
+        ntuple(N) do j
+            b = getblock(A, i, j)
+            BlochMatrix(
+                -b.a11,
+                -b.a21,
+                -b.a31,
+                -b.a12,
+                -b.a22,
+                -b.a32,
+                -b.a13,
+                -b.a23,
+                -b.a33
+            )
+        end
+    end
+
+    return BlochMcConnellMatrix(B)
+
+end
+
 function Base.:-(::UniformScaling, B::BlochMcConnellMatrix{T,N}) where {T,N}
 
     A = ntuple(N) do i
@@ -862,6 +885,18 @@ Base.:\(A::BlochMatrix, M::Magnetization) = Magnetization((Matrix(A) \ Vector(M)
 function Base.:\(A::BlochMcConnellMatrix{T1,N}, M::MagnetizationMC{T2,N}) where {T1,T2,N}
 
     result = Matrix(A) \ Vector(M)
+    return MagnetizationMC(ntuple(N) do i
+        @inbounds r1 = result[3i-2]
+        @inbounds r2 = result[3i-1]
+        @inbounds r3 = result[3i]
+        Magnetization(r1, r2, r3)
+    end...)
+
+end
+
+function Base.:\(F::LinearAlgebra.Factorization, M::MagnetizationMC{T,N}) where {T,N}
+
+    result = F \ Vector(M)
     return MagnetizationMC(ntuple(N) do i
         @inbounds r1 = result[3i-2]
         @inbounds r2 = result[3i-1]
