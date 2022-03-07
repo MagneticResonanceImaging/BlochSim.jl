@@ -1,4 +1,4 @@
-This is from the file "Beispiel1.mat" from Christina Graf
+example1.mat is from the file "Beispiel1.mat" from Christina Graf
 
 d            1x1              5240  struct              
 u         1668x1             13344  double              
