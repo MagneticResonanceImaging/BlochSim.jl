@@ -1030,6 +1030,29 @@ function subtractmul2()
 
 end
 
+function subtractmul3()
+
+    M2 = MagnetizationMC(2)
+    A = BlochMcConnellMatrix(2)
+    for i = 1:2, j = 1:2
+        A.A[i][j].a11 = 1 + i + 10j
+        A.A[i][j].a21 = 2 + i + 10j
+        A.A[i][j].a31 = 3 + i + 10j
+        A.A[i][j].a12 = 4 + i + 10j
+        A.A[i][j].a22 = 5 + i + 10j
+        A.A[i][j].a32 = 6 + i + 10j
+        A.A[i][j].a13 = 7 + i + 10j
+        A.A[i][j].a23 = 8 + i + 10j
+        A.A[i][j].a33 = 9 + i + 10j
+    end
+    M1 = MagnetizationMC((10.0, 20.0, 30.0), (1.0, 2.0, 3.0))
+    subtractmul!(M2, nothing, A, M1)
+    correct = -Matrix(A) * Vector(M1)
+
+    return Vector(M2) == correct
+
+end
+
 function subtractmuladd1()
 
     M2 = Magnetization(1.0, 1.0, 1.0)
@@ -1248,6 +1271,7 @@ end
 
         @test subtractmul1()
         @test subtractmul2()
+        @test subtractmul3()
 
     end
 
