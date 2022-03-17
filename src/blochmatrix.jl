@@ -1449,6 +1449,23 @@ end
 
 function subtractmul!(
     M2::MagnetizationMC{T1,N},
+    ::Nothing,
+    A::BlochMcConnellMatrix{T2,N},
+    M1::MagnetizationMC{T3,N}
+) where {T1,T2,T3,N}
+
+    for i = 1:N
+        M = M2[i]
+        subtractmul!(M, nothing, getblock(A, i, 1), M1[1])
+        for j = 2:N
+            subtractmuladd!(M, nothing, getblock(A, i, j), M1[j])
+        end
+    end
+
+end
+
+function subtractmul!(
+    M2::MagnetizationMC{T1,N},
     I::UniformScaling,
     A::BlochMcConnellMatrix{T2,N},
     M1::MagnetizationMC{T3,N}
