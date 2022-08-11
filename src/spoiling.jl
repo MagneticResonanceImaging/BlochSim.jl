@@ -52,21 +52,31 @@ struct IdealSpoiling <: AbstractSpoiling end
     GradientSpoiling(grad, Tg) <: AbstractSpoiling
     GradientSpoiling(gx, gy, gz, Tg)
 
-Represents gradient spoiling, i.e., applying a gradient
+Represents gradient spoiling, e.g., applying a gradient
 `grad = Gradient(gx, gy, gz)` for time `Tg` (ms).
+`grad` can be a `Gradient`
+(or `gx`, `gy`, and `gz` can be scalars),
+representing a constant gradient,
+or `grad` can be a collection of `Gradient`s
+(or `gx`, `gy`, and `gz` can be collections of values),
+representing a gradient waveform
+with a constant time step.
 """
-struct GradientSpoiling{T<:Real} <: AbstractSpoiling
-    gradient::Gradient{T}
+struct GradientSpoiling{T} <: AbstractSpoiling
+    gradient::T
     Tg::Float64
 
-    function GradientSpoiling(gradient::Gradient{T}, Tg::Real) where {T}
+    function GradientSpoiling(gradient::T, Tg::Real) where {T}
 
+        T <: Gradient || eltype(T) <: Gradient ||
+            error("gradient must be a Gradient or a collection of Gradients")
         new{T}(gradient, Tg)
 
     end
 end
 
-GradientSpoiling(gx, gy, gz, Tg) = GradientSpoiling(Gradient(gx, gy, gz), Tg)
+GradientSpoiling(gx::Real, gy::Real, gz::Real, Tg) = GradientSpoiling(Gradient(gx, gy, gz), Tg)
+GradientSpoiling(gx, gy, gz, Tg) = GradientSpoiling(map(Gradient, gx, gy, gz), Tg)
 
 Base.show(io::IO, s::GradientSpoiling) = print(io, "GradientSpoiling(", s.gradient, ", ", s.Tg, ")")
 
