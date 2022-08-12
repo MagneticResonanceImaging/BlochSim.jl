@@ -13,19 +13,19 @@ echo.
 - `nechoes::Integer`: Number of echoes to readout
 - `rfex::AbstractRF = InstantaneousRF(π/2)`: Excitation RF pulse
 - `rfref::AbstractRF = InstantaneousRF(π, -π/2)`: Refocussing RF pulse
-- `rephaser::Union{GradientSpoiling,Nothing} = nothing`: Slice-select
+- `rephaser::Union{<:GradientSpoiling,Nothing} = nothing`: Slice-select
   excitation rephasing gradient
-- `crusher::Union{GradientSpoiling,Nothing} = nothing`: Crusher gradient
+- `crusher::Union{<:GradientSpoiling,Nothing} = nothing`: Crusher gradient
   (placed on either side of each refocussing pulse)
-- `spoiling::Union{IdealSpoiling,GradientSpoiling,Nothing} = IdealSpoiling()`:
+- `spoiling::Union{IdealSpoiling,<:GradientSpoiling,Nothing} = IdealSpoiling()`:
   Type of spoiling to apply
 
 `workspace isa MESEBlochSimWorkspace`.
 """
 struct MESEBlochSim{T1<:AbstractRF,T2<:AbstractRF,
-        T3<:Union{GradientSpoiling,Nothing},
-        T4<:Union{GradientSpoiling,Nothing},
-        T5<:Union{IdealSpoiling,GradientSpoiling,Nothing}}
+        T3<:Union{<:GradientSpoiling,Nothing},
+        T4<:Union{<:GradientSpoiling,Nothing},
+        T5<:Union{IdealSpoiling,<:GradientSpoiling,Nothing}}
     TR::Float64
     TE::Float64
     nechoes::Int
@@ -84,7 +84,7 @@ function Base.show(io::IO, ::MIME"text/plain", mese::MESEBlochSim)
 
 end
 
-struct MESEBlochSimWorkspace{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12,T13,T14,T15,T16,T17,T18}
+struct MESEBlochSimWorkspace{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12,T13,T14,T15,T16,T17,T18,T19,T20,T21}
     Aex::T1
     Bex::T2
     Aref::T3
@@ -114,6 +114,9 @@ struct MESEBlochSimWorkspace{T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12,T13,T14,T15,
     bm_workspace::T16
     ex_workspace::T17
     ref_workspace::T18
+    re_workspace::T19
+    crush_workspace::T20
+    s_workspace::T21
 end
 
 function MESEBlochSimWorkspace(
@@ -168,9 +171,15 @@ function MESEBlochSimWorkspace(
             Are = BlochMcConnellMatrix{T}(N)
             Bre = MagnetizationMC{T}(N)
         end
+        if T3 <: GradientSpoiling{<:Gradient}
+            re_workspace = bm_workspace
+        else
+            re_workspace = FreePrecessionWorkspace(spin, bm_workspace)
+        end
     else
         Are = nothing
         Bre = nothing
+        re_workspace = nothing
     end
     if T4 <: GradientSpoiling
         if spin <: Spin
@@ -180,13 +189,20 @@ function MESEBlochSimWorkspace(
             Acrush = BlochMcConnellMatrix{T}(N)
             Bcrush = MagnetizationMC{T}(N)
         end
+        if T4 <: GradientSpoiling{<:Gradient}
+            crush_workspace = bm_workspace
+        else
+            crush_workspace = FreePrecessionWorkspace(spin, bm_workspace)
+        end
     else
         Acrush = nothing
         Bcrush = nothing
+        crush_workspace = nothing
     end
     if T5 <: IdealSpoiling
         As = idealspoiling
         Bs = nothing
+        s_workspace = nothing
     elseif T5 <: GradientSpoiling
         if spin <: Spin
             As = FreePrecessionMatrix{T}()
@@ -195,9 +211,15 @@ function MESEBlochSimWorkspace(
             As = BlochMcConnellMatrix{T}(N)
             Bs = MagnetizationMC{T}(N)
         end
+        if T5 <: GradientSpoiling{<:Gradient}
+            s_workspace = bm_workspace
+        else
+            s_workspace = FreePrecessionWorkspace(spin, bm_workspace)
+        end
     else
         As = nothing
         Bs = nothing
+        s_workspace = nothing
     end
     if spin <: Spin
         Ate1 = FreePrecessionMatrix{T}()
@@ -237,7 +259,7 @@ function MESEBlochSimWorkspace(
     MESEBlochSimWorkspace(Aex, Bex, Aref, Bref, Are, Bre, Acrush, Bcrush, As,
         Bs, Ate1, Bte1, Ate, Bte, Atr, Btr, Aecho1, Becho1, Aecho, Becho, tmpA1,
         tmpB1, tmpA2, tmpB2, mat, vec, bm_workspace, ex_workspace,
-        ref_workspace)
+        ref_workspace, re_workspace, crush_workspace, s_workspace)
 
 end
 
@@ -249,7 +271,7 @@ function (scan::MESEBlochSim)(spin::AbstractSpin, workspace::MESEBlochSimWorkspa
     excite!(workspace.Aex, workspace.Bex, spin, scan.rfex, workspace.ex_workspace)
 
     # Rephasing gradient
-    isnothing(scan.rephaser) || spoil!(workspace.Are, workspace.Bre, spin, scan.rephaser, workspace.bm_workspace)
+    isnothing(scan.rephaser) || spoil!(workspace.Are, workspace.Bre, spin, scan.rephaser, workspace.re_workspace)
 
     # Time between rephasing gradient and crusher gradient
     # Compute the time such that the middle of the first refocussing pulse
@@ -258,7 +280,7 @@ function (scan::MESEBlochSim)(spin::AbstractSpin, workspace::MESEBlochSimWorkspa
     freeprecess!(workspace.Ate1, workspace.Bte1, spin, t, workspace.bm_workspace)
 
     # Crusher gradient
-    isnothing(scan.crusher) || spoil!(workspace.Acrush, workspace.Bcrush, spin, scan.crusher, workspace.bm_workspace)
+    isnothing(scan.crusher) || spoil!(workspace.Acrush, workspace.Bcrush, spin, scan.crusher, workspace.crush_workspace)
 
     # Refocussing pulse
     excite!(workspace.Aref, workspace.Bref, spin, scan.rfref, workspace.ref_workspace)
@@ -274,7 +296,7 @@ function (scan::MESEBlochSim)(spin::AbstractSpin, workspace::MESEBlochSimWorkspa
     freeprecess!(workspace.Atr, workspace.Btr, spin, t, workspace.bm_workspace)
 
     # Spoiling
-    isnothing(scan.spoiling) || spoil!(workspace.As, workspace.Bs, spin, scan.spoiling, workspace.bm_workspace)
+    isnothing(scan.spoiling) || spoil!(workspace.As, workspace.Bs, spin, scan.spoiling, workspace.s_workspace)
 
     # Combine dynamics that occur between echoes:
     # TE -> crusher -> refocus -> crusher -> TE

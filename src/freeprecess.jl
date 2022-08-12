@@ -125,7 +125,7 @@ function freeprecess(spin::Spin, t, ::Nothing = nothing)
 
 end
 
-function freeprecess(spin::SpinMC{T,N}, t, workspace::Union{Nothing,BlochMcConnellWorkspace} = BlochMcConnellWorkspace(spin)) where {T,N}
+function freeprecess(spin::SpinMC{T,N}, t, workspace::Union{Nothing,<:BlochMcConnellWorkspace} = BlochMcConnellWorkspace(spin)) where {T,N}
 
     A = BlochMcConnellMatrix{T}(N)
     B = MagnetizationMC{T}(N)
