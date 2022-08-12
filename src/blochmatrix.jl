@@ -35,17 +35,17 @@ function Base.show(io::IO, ::MIME"text/plain", A::BlochMatrix{T}) where {T}
 
 end
 
-function make_identity!(A::BlochMatrix)
+function make_identity!(A::BlochMatrix{T}) where {T}
 
-    A.a11 = 1
-    A.a21 = 0
-    A.a31 = 0
-    A.a12 = 0
-    A.a22 = 1
-    A.a32 = 0
-    A.a13 = 0
-    A.a23 = 0
-    A.a33 = 1
+    A.a11 = one(T)
+    A.a21 = zero(T)
+    A.a31 = zero(T)
+    A.a12 = zero(T)
+    A.a22 = one(T)
+    A.a32 = zero(T)
+    A.a13 = zero(T)
+    A.a23 = zero(T)
+    A.a33 = one(T)
     return nothing
 
 end
@@ -140,7 +140,7 @@ function Base.Matrix(A::BlochDynamicsMatrix{T}) where {T}
 end
 
 """
-    FreePrecessionMatrix(E1, E2cosθ, E2sinθ)
+    FreePrecessionMatrix(E1, E2, θ)
     FreePrecessionMatrix{T}()
     FreePrecessionMatrix()
 
@@ -149,8 +149,8 @@ relaxation and off-resonance precession.
 
 # Properties
 - `E1::Real`: T1 relaxation
-- `E2cosθ::Real`: T2 relaxation and off-resonance precession
-- `E2sinθ::Real`: T2 relaxation and off-resonance precession
+- `E2::Real`: T2 relaxation
+- `θ::Real`: Angle of off-resonance precession (rad)
 
 # Examples
 ```jldoctest
@@ -159,8 +159,8 @@ julia> T1 = 1000; T2 = 100; Δω = π/600; t = 100;
 julia> F = FreePrecessionMatrix(exp(-t / T1), exp(-t / T2) * cos(Δω * t), exp(-t / T2) * sin(Δω * t))
 FreePrecessionMatrix{Float64}:
  E1 = 0.9048374180359595
- E2cosθ = 0.31859294158449203
- E2sinθ = 0.18393972058572114
+ E2 = 0.36787944117144233
+ θ = 0.5235987755982988
 
 julia> Matrix(F)
 3×3 Matrix{Float64}:
@@ -171,31 +171,44 @@ julia> Matrix(F)
 """
 mutable struct FreePrecessionMatrix{T<:Real} <: AbstractBlochMatrix{T}
     E1::T
-    E2cosθ::T
-    E2sinθ::T
+    E2::T
+    θ::T
 end
 
-FreePrecessionMatrix{T}() where {T} = FreePrecessionMatrix(zero(T), zero(T), zero(T))
+FreePrecessionMatrix{T}() where {T} = FreePrecessionMatrix(one(T), one(T), zero(T))
 FreePrecessionMatrix() = FreePrecessionMatrix{Float64}()
-FreePrecessionMatrix(E1, E2cosθ, E2sinθ) = FreePrecessionMatrix(promote(E1, E2cosθ, E2sinθ)...)
+FreePrecessionMatrix(E1, E2, θ) = FreePrecessionMatrix(promote(E1, E2, θ)...)
 
 function Base.show(io::IO, ::MIME"text/plain", A::FreePrecessionMatrix{T}) where {T}
 
     print(io, "FreePrecessionMatrix{$T}:")
     print(io, "\n E1 = ", A.E1)
-    print(io, "\n E2cosθ = ", A.E2cosθ)
-    print(io, "\n E2sinθ = ", A.E2sinθ)
+    print(io, "\n E2 = ", A.E2)
+    print(io, "\n θ = ", A.θ, " rad")
 
 end
 
-function Base.Matrix(A::FreePrecessionMatrix{T}) where {T}
+function make_identity!(A::FreePrecessionMatrix{T}) where {T}
 
+    A.E1 = one(T)
+    A.E2 = one(T)
+    A.θ = zero(T)
+    return nothing
+
+end
+
+function Base.Matrix(A::FreePrecessionMatrix)
+
+    (sinθ, cosθ) = sincos(A.θ)
+    E2cosθ = A.E2 * cosθ
+    E2sinθ = A.E2 * sinθ
+    T = promote_type(typeof(E2cosθ), typeof(E2sinθ))
     mat = Matrix{T}(undef, 3, 3)
-    mat[1,1] = A.E2cosθ
-    mat[2,1] = -A.E2sinθ
+    mat[1,1] = E2cosθ
+    mat[2,1] = -E2sinθ
     mat[3,1] = zero(T)
-    mat[1,2] = A.E2sinθ
-    mat[2,2] = A.E2cosθ
+    mat[1,2] = E2sinθ
+    mat[2,2] = E2cosθ
     mat[3,2] = zero(T)
     mat[1,3] = zero(T)
     mat[2,3] = zero(T)
@@ -207,15 +220,25 @@ end
 
 function Base.copyto!(dst::BlochMatrix{T}, src::FreePrecessionMatrix) where {T}
 
-    dst.a11 = src.E2cosθ
-    dst.a21 = -src.E2sinθ
+    (sinθ, cosθ) = sincos(src.θ)
+    dst.a11 = src.E2 * cosθ
+    dst.a21 = -src.E2 * sinθ
     dst.a31 = zero(T)
-    dst.a12 = src.E2sinθ
-    dst.a22 = src.E2cosθ
+    dst.a12 = src.E2 * sinθ
+    dst.a22 = src.E2 * cosθ
     dst.a32 = zero(T)
     dst.a13 = zero(T)
     dst.a23 = zero(T)
     dst.a33 = src.E1
+    return nothing
+
+end
+
+function Base.copyto!(dst::FreePrecessionMatrix, src::FreePrecessionMatrix)
+
+    dst.E1 = src.E1
+    dst.E2 = src.E2
+    dst.θ = src.θ
     return nothing
 
 end
@@ -650,9 +673,10 @@ end
 
 function Base.:*(A::FreePrecessionMatrix, M::Magnetization)
 
+    (sinθ, cosθ) = sincos(A.θ)
     return Magnetization(
-        A.E2cosθ * M.x + A.E2sinθ * M.y,
-        A.E2cosθ * M.y - A.E2sinθ * M.x,
+        A.E2 * cosθ * M.x + A.E2 * sinθ * M.y,
+        A.E2 * cosθ * M.y - A.E2 * sinθ * M.x,
         A.E1 * M.z
     )
 
@@ -694,13 +718,14 @@ end
 
 function Base.:*(A::BlochMatrix, B::FreePrecessionMatrix)
 
+    (sinθ, cosθ) = sincos(B.θ)
     return BlochMatrix(
-        A.a11 * B.E2cosθ - A.a12 * B.E2sinθ,
-        A.a21 * B.E2cosθ - A.a22 * B.E2sinθ,
-        A.a31 * B.E2cosθ - A.a32 * B.E2sinθ,
-        A.a11 * B.E2sinθ + A.a12 * B.E2cosθ,
-        A.a21 * B.E2sinθ + A.a22 * B.E2cosθ,
-        A.a31 * B.E2sinθ + A.a32 * B.E2cosθ,
+        A.a11 * B.E2 * cosθ - A.a12 * B.E2 * sinθ,
+        A.a21 * B.E2 * cosθ - A.a22 * B.E2 * sinθ,
+        A.a31 * B.E2 * cosθ - A.a32 * B.E2 * sinθ,
+        A.a11 * B.E2 * sinθ + A.a12 * B.E2 * cosθ,
+        A.a21 * B.E2 * sinθ + A.a22 * B.E2 * cosθ,
+        A.a31 * B.E2 * sinθ + A.a32 * B.E2 * cosθ,
         A.a13 * B.E1,
         A.a23 * B.E1,
         A.a33 * B.E1
@@ -962,8 +987,9 @@ end
 
 function LinearAlgebra.mul!(M2::Magnetization, A::FreePrecessionMatrix, M1::Magnetization)
 
-    M2.x = A.E2cosθ * M1.x + A.E2sinθ * M1.y
-    M2.y = A.E2cosθ * M1.y - A.E2sinθ * M1.x
+    (sinθ, cosθ) = sincos(A.θ)
+    M2.x = A.E2 * cosθ * M1.x + A.E2 * sinθ * M1.y
+    M2.y = A.E2 * cosθ * M1.y - A.E2 * sinθ * M1.x
     M2.z = A.E1 * M1.z
     return nothing
 
@@ -1059,12 +1085,13 @@ end
 
 function LinearAlgebra.mul!(C::BlochMatrix, A::BlochMatrix, B::FreePrecessionMatrix)
 
-    C.a11 = A.a11 * B.E2cosθ - A.a12 * B.E2sinθ
-    C.a21 = A.a21 * B.E2cosθ - A.a22 * B.E2sinθ
-    C.a31 = A.a31 * B.E2cosθ - A.a32 * B.E2sinθ
-    C.a12 = A.a11 * B.E2sinθ + A.a12 * B.E2cosθ
-    C.a22 = A.a21 * B.E2sinθ + A.a22 * B.E2cosθ
-    C.a32 = A.a31 * B.E2sinθ + A.a32 * B.E2cosθ
+    (sinθ, cosθ) = sincos(B.θ)
+    C.a11 = A.a11 * B.E2 * cosθ - A.a12 * B.E2 * sinθ
+    C.a21 = A.a21 * B.E2 * cosθ - A.a22 * B.E2 * sinθ
+    C.a31 = A.a31 * B.E2 * cosθ - A.a32 * B.E2 * sinθ
+    C.a12 = A.a11 * B.E2 * sinθ + A.a12 * B.E2 * cosθ
+    C.a22 = A.a21 * B.E2 * sinθ + A.a22 * B.E2 * cosθ
+    C.a32 = A.a31 * B.E2 * sinθ + A.a32 * B.E2 * cosθ
     C.a13 = A.a13 * B.E1
     C.a23 = A.a23 * B.E1
     C.a33 = A.a33 * B.E1
@@ -1074,14 +1101,15 @@ end
 
 function LinearAlgebra.mul!(C::BlochMatrix, A::FreePrecessionMatrix, B::BlochMatrix)
 
-    C.a11 = A.E2cosθ * B.a11 + A.E2sinθ * B.a21
-    C.a21 = A.E2cosθ * B.a21 - A.E2sinθ * B.a11
+    (sinθ, cosθ) = sincos(A.θ)
+    C.a11 = A.E2 * cosθ * B.a11 + A.E2 * sinθ * B.a21
+    C.a21 = A.E2 * cosθ * B.a21 - A.E2 * sinθ * B.a11
     C.a31 = A.E1 * B.a31
-    C.a12 = A.E2cosθ * B.a12 + A.E2sinθ * B.a22
-    C.a22 = A.E2cosθ * B.a22 - A.E2sinθ * B.a12
+    C.a12 = A.E2 * cosθ * B.a12 + A.E2 * sinθ * B.a22
+    C.a22 = A.E2 * cosθ * B.a22 - A.E2 * sinθ * B.a12
     C.a32 = A.E1 * B.a32
-    C.a13 = A.E2cosθ * B.a13 + A.E2sinθ * B.a23
-    C.a23 = A.E2cosθ * B.a23 - A.E2sinθ * B.a13
+    C.a13 = A.E2 * cosθ * B.a13 + A.E2 * sinθ * B.a23
+    C.a23 = A.E2 * cosθ * B.a23 - A.E2 * sinθ * B.a13
     C.a33 = A.E1 * B.a33
     return nothing
 
@@ -1140,8 +1168,10 @@ end
 
 function LinearAlgebra.mul!(C::BlochMatrix{T}, A::FreePrecessionMatrix, B::FreePrecessionMatrix) where {T}
 
-    C.a11 = A.E2cosθ * B.E2cosθ - A.E2sinθ * B.E2sinθ
-    C.a12 = A.E2cosθ * B.E2sinθ + A.E2sinθ * B.E2cosθ
+    (Asinθ, Acosθ) = sincos(A.θ)
+    (Bsinθ, Bcosθ) = sincos(B.θ)
+    C.a11 = A.E2 * Acosθ * B.E2 * Bcosθ - A.E2 * Asinθ * B.E2 * Bsinθ
+    C.a12 = A.E2 * Acosθ * B.E2 * Bsinθ + A.E2 * Asinθ * B.E2 * Bcosθ
     C.a13 = zero(T)
     C.a21 = -C.a12
     C.a22 = C.a11
@@ -1149,6 +1179,15 @@ function LinearAlgebra.mul!(C::BlochMatrix{T}, A::FreePrecessionMatrix, B::FreeP
     C.a31 = zero(T)
     C.a32 = zero(T)
     C.a33 = A.E1 * B.E1
+    return nothing
+
+end
+
+function LinearAlgebra.mul!(C::FreePrecessionMatrix, A::FreePrecessionMatrix, B::FreePrecessionMatrix)
+
+    C.E1 = A.E1 * B.E1
+    C.E2 = A.E2 * B.E2
+    C.θ = A.θ + B.θ
     return nothing
 
 end
@@ -1302,8 +1341,9 @@ end
 
 function muladd!(M2::Magnetization, A::FreePrecessionMatrix, M1::Magnetization)
 
-    M2.x += A.E2cosθ * M1.x + A.E2sinθ * M1.y
-    M2.y += A.E2cosθ * M1.y - A.E2sinθ * M1.x
+    (sinθ, cosθ) = sincos(A.θ)
+    M2.x += A.E2 * cosθ * M1.x + A.E2 * sinθ * M1.y
+    M2.y += A.E2 * cosθ * M1.y - A.E2 * sinθ * M1.x
     M2.z += A.E1 * M1.z
     return nothing
 

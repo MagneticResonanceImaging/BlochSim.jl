@@ -70,6 +70,18 @@ function freeprecess6()
 
 end
 
+function freeprecess7()
+
+    t = 100
+    grads = (Gradient(0, 0, 1), Gradient(0, 0, 1))
+    spin = Spin(1, 1000, 100, 1.25, Position(0, 0, 1))
+    (A1, B1) = freeprecess(spin, t, grads)
+    (A2, B2) = freeprecess(spin, t, grads[1])
+    @test A1 ≈ A2
+    return B1 ≈ B2
+
+end
+
 function freeprecessmc1()
 
     t = 20
@@ -128,6 +140,18 @@ function freeprecessmc4()
     (A1, B1) = freeprecess(s, t)
     (A2, B2) = freeprecess(s, t, nothing)
 
+    @test A1 ≈ A2
+    return B1 ≈ B2
+
+end
+
+function freeprecessmc5()
+
+    t = 100
+    grads = (Gradient(0, 0, 1), Gradient(0, 0, 1))
+    spin = SpinMC(1, (0.8, 0.2), (1000, 400), (100, 20), (0, 15), (10, 100))
+    (A1, B1) = freeprecess(spin, t, grads)
+    (A2, B2) = freeprecess(spin, t, grads[1])
     @test A1 ≈ A2
     return B1 ≈ B2
 
@@ -204,10 +228,12 @@ end
     @test freeprecess4()
     @test freeprecess5()
     @test freeprecess6()
+    @test freeprecess7()
     @test freeprecessmc1()
     @test freeprecessmc2()
     @test freeprecessmc3()
     @test freeprecessmc4()
+    @test freeprecessmc5()
 
 end
 

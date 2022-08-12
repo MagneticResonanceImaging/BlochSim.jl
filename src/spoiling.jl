@@ -111,21 +111,12 @@ Base.show(io::IO, ::MIME"text/plain", s::RFSpoiling{T}) where {T} =
 
 Represents both RF and gradient spoiling.
 """
-struct RFandGradientSpoiling{T1<:Real,T2<:Real} <: AbstractSpoiling
+struct RFandGradientSpoiling{T1,T2<:Real} <: AbstractSpoiling
     gradient::GradientSpoiling{T1}
     rf::RFSpoiling{T2}
 end
 
-RFandGradientSpoiling(grad::Gradient, Tg::Real, rf::RFSpoiling) = RFandGradientSpoiling(GradientSpoiling(grad, Tg), rf)
-RFandGradientSpoiling(grad::NTuple{3,Real}, Tg::Real, rf::RFSpoiling) = RFandGradientSpoiling(GradientSpoiling(grad..., Tg), rf)
-RFandGradientSpoiling(gx, gy, gz, Tg, rf::RFSpoiling) = RFandGradientSpoiling(GradientSpoiling(gx, gy, gz, Tg), rf)
-RFandGradientSpoiling(grad::GradientSpoiling, Δθ) = RFandGradientSpoiling(grad, RFSpoiling(Δθ))
-RFandGradientSpoiling(grad::Union{<:Gradient,<:NTuple{3,Real}}, Tg, Δθ) = RFandGradientSpoiling(grad, Tg, RFSpoiling(Δθ))
-RFandGradientSpoiling(grad::GradientSpoiling) = RFandGradientSpoiling(grad, RFSpoiling())
-RFandGradientSpoiling(grad::Union{<:Gradient,<:NTuple{3,Real}}, Tg) = RFandGradientSpoiling(grad, Tg, RFSpoiling())
-RFandGradientSpoiling(rf::Union{<:RFSpoiling,<:Real}, grad::GradientSpoiling) = RFandGradientSpoiling(grad, rf)
-RFandGradientSpoiling(rf::Union{<:RFSpoiling,<:Real}, grad::Union{<:Gradient,<:NTuple{3,Real}}, Tg) = RFandGradientSpoiling(grad, Tg, rf)
-RFandGradientSpoiling(rf::RFSpoiling, gx, gy, gz, Tg) = RFandGradientSpoiling(gx, gy, gz, Tg, rf)
+RFandGradientSpoiling(rf::RFSpoiling, gradient::GradientSpoiling) = RFandGradientSpoiling(gradient, rf)
 
 Base.show(io::IO, s::RFandGradientSpoiling) = print(io, "RFandGradientSpoiling(", s.gradient, ", ", s.rf, ")")
 
