@@ -35,6 +35,21 @@ function Base.show(io::IO, ::MIME"text/plain", A::BlochMatrix{T}) where {T}
 
 end
 
+function make_identity!(A::BlochMatrix)
+
+    A.a11 = 1
+    A.a21 = 0
+    A.a31 = 0
+    A.a12 = 0
+    A.a22 = 1
+    A.a32 = 0
+    A.a13 = 0
+    A.a23 = 0
+    A.a33 = 1
+    return nothing
+
+end
+
 function Base.fill!(A::BlochMatrix, v)
 
     A.a11 = v
@@ -403,6 +418,19 @@ function Base.show(io::IO, ::MIME"text/plain", A::BlochMcConnellMatrix{T,N}) whe
 end
 
 getblock(A::BlochMcConnellMatrix, i, j) = A.A[i][j]
+
+function make_identity!(A::BlochMcConnellMatrix{T,N}) where {T,N}
+
+    for j = 1:N, i = 1:N
+        if i == j
+            make_identity!(getblock(A, i, j))
+        else
+            fill!(getblock(A, i, j), 0)
+        end
+    end
+    return nothing
+
+end
 
 function Base.fill!(A::BlochMcConnellMatrix{T,N}, v) where {T,N}
 
