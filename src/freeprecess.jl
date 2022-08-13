@@ -55,13 +55,9 @@ Simulate free-precession, overwriting `A` and `B` (in-place version of
 """
 function freeprecess!(A, B, t, M0, T1, T2, Δf)
 
-    E2 = exp(-t / T2)
-    θ = 2π * Δf * t / 1000
-    (s, c) = sincos(θ)
-
     A.E1 = exp(-t / T1)
-    A.E2cosθ = E2 * c
-    A.E2sinθ = E2 * s
+    A.E2 = exp(-t / T2)
+    A.θ = 2π * Δf * t / 1000
 
     B.x = 0
     B.y = 0
@@ -129,7 +125,7 @@ function freeprecess(spin::Spin, t, ::Nothing = nothing)
 
 end
 
-function freeprecess(spin::SpinMC{T,N}, t, workspace = BlochMcConnellWorkspace(spin)) where {T,N}
+function freeprecess(spin::SpinMC{T,N}, t, workspace::Union{Nothing,<:BlochMcConnellWorkspace} = BlochMcConnellWorkspace(spin)) where {T,N}
 
     A = BlochMcConnellMatrix{T}(N)
     B = MagnetizationMC{T}(N)
@@ -208,6 +204,83 @@ function freeprecess!(
     gradfreq = gradient_frequency(grad, spin.pos) # Hz
     expm!(A, workspace, spin, t, gradfreq)
     subtractmul!(B, I, A, spin.Meq)
+    return nothing
+
+end
+
+struct FreePrecessionWorkspace{T1,T2,T3}
+    Af::T1
+    Bf::T2
+    tmpA::T1
+    tmpB::T2
+    bm_workspace::T3
+end
+
+function FreePrecessionWorkspace(
+    spin::AbstractSpin,
+    bm_workspace = spin isa Spin ? nothing : BlochMcConnellWorkspace(spin)
+)
+
+    FreePrecessionWorkspace(typeof(spin), bm_workspace)
+
+end
+
+function FreePrecessionWorkspace(
+    spin::Union{Type{Spin{T}},Type{SpinMC{T,N}}},
+    bm_workspace = spin <: Spin ? nothing : BlochMcConnellWorkspace(spin)
+) where{T,N}
+
+    if spin <: Spin
+        Af = FreePrecessionMatrix{T}()
+        Bf = Magnetization{T}()
+        tmpA = FreePrecessionMatrix{T}()
+        tmpB = Magnetization{T}()
+    else
+        Af = BlochMcConnellMatrix{T}(N)
+        Bf = MagnetizationMC{T}(N)
+        tmpA = BlochMcConnellMatrix{T}(N)
+        tmpB = MagnetizationMC{T}(N)
+    end
+    FreePrecessionWorkspace(Af, Bf, tmpA, tmpB, bm_workspace)
+
+end
+
+function freeprecess(spin::Spin, t, grads, workspace = FreePrecessionWorkspace(spin))
+
+    A = FreePrecessionMatrix{eltype(spin)}()
+    B = Magnetization{eltype(spin)}()
+    freeprecess!(A, B, spin, t, grads, workspace)
+    return (A, B)
+
+end
+
+function freeprecess(spin::SpinMC{T,N}, t, grads, workspace = FreePrecessionWorkspace(spin)) where {T,N}
+
+    A = BlochMcConnellMatrix{T}(N)
+    B = MagnetizationMC{T}(N)
+    freeprecess!(A, B, spin, t, grads, workspace)
+    return (A, B)
+
+end
+
+function freeprecess!(
+    A,
+    B,
+    spin,
+    t,
+    grads, # Collection of Gradients
+    workspace::FreePrecessionWorkspace = FreePrecessionWorkspace(spin)
+)
+
+    Δt = t / length(grads)
+    make_identity!(workspace.tmpA)
+    fill!(workspace.tmpB, 0)
+    for grad in grads
+        freeprecess!(workspace.Af, workspace.Bf, spin, Δt, grad, workspace.bm_workspace)
+        combine!(A, B, workspace.tmpA, workspace.tmpB, workspace.Af, workspace.Bf)
+        copyto!(workspace.tmpA, A)
+        copyto!(workspace.tmpB, B)
+    end
     return nothing
 
 end

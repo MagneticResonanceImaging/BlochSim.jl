@@ -22,13 +22,36 @@ end
 function blochmatrix3()
 
     A = FreePrecessionMatrix()
-    B = FreePrecessionMatrix(false, 0, 0)
+    B = FreePrecessionMatrix(true, 1, 0)
     C = BlochMatrix(1, 2, 3, 4, 5, 6, 7, 8, 9)
     copyto!(C, A)
 
     show(devnull, "text/plain", A)
     @test eltype(A) != eltype(B) == eltype(C)
     return A == B == C
+
+end
+
+function make_identity1()
+
+    A = BlochMatrix(1, 2, 3, 4, 5, 6, 7, 8, 9)
+    BlochSim.make_identity!(A)
+    @test Matrix(A) == I(3)
+
+    B = BlochMcConnellMatrix{Int}(2)
+    for i = 1:2, j = 1:2
+        B.A[i][j].a11 = 1
+        B.A[i][j].a21 = 2
+        B.A[i][j].a31 = 3
+        B.A[i][j].a12 = 4
+        B.A[i][j].a22 = 5
+        B.A[i][j].a32 = 6
+        B.A[i][j].a13 = 7
+        B.A[i][j].a23 = 8
+        B.A[i][j].a33 = 9
+    end
+    BlochSim.make_identity!(B)
+    return Matrix(B) == I(6)
 
 end
 
@@ -86,10 +109,10 @@ end
 
 function times2()
 
-    A = FreePrecessionMatrix(1, 1, 1)
+    A = FreePrecessionMatrix(2, 1, 0)
     M = Magnetization(1, 1, 1)
     B = A * M
-    correct = Magnetization(2, 0, 1)
+    correct = Magnetization(1, 1, 2)
 
     return B == correct
 
@@ -146,7 +169,7 @@ function times6()
     C = A * B
     correct = Matrix(A) * Matrix(B)
 
-    return Matrix(C) == correct
+    return Matrix(C) ≈ correct
 
 end
 
@@ -637,12 +660,12 @@ end
 function mul19()
 
     C = BlochMatrix()
-    A = FreePrecessionMatrix(1, 1, 1)
+    A = FreePrecessionMatrix(1, 1, π/2)
     B = ExcitationMatrix(BlochMatrix(1, 2, 3, 4, 5, 6, 7, 8, 9))
     mul!(C, A, B)
-    correct = BlochMatrix(3, 1, 3, 9, 1, 6, 15, 1, 9)
+    correct = BlochMatrix(2, -1, 3, 5, -4, 6, 8, -7, 9)
 
-    return C == correct
+    return C ≈ correct
 
 end
 
@@ -1162,6 +1185,7 @@ end
     @test blochmatrix1()
     @test blochmatrix2()
     @test blochmatrix3()
+    @test make_identity1()
 
 end
 

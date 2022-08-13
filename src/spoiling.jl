@@ -52,21 +52,31 @@ struct IdealSpoiling <: AbstractSpoiling end
     GradientSpoiling(grad, Tg) <: AbstractSpoiling
     GradientSpoiling(gx, gy, gz, Tg)
 
-Represents gradient spoiling, i.e., applying a gradient
+Represents gradient spoiling, e.g., applying a gradient
 `grad = Gradient(gx, gy, gz)` for time `Tg` (ms).
+`grad` can be a `Gradient`
+(or `gx`, `gy`, and `gz` can be scalars),
+representing a constant gradient,
+or `grad` can be a collection of `Gradient`s
+(or `gx`, `gy`, and `gz` can be collections of values),
+representing a gradient waveform
+with a constant time step.
 """
-struct GradientSpoiling{T<:Real} <: AbstractSpoiling
-    gradient::Gradient{T}
+struct GradientSpoiling{T} <: AbstractSpoiling
+    gradient::T
     Tg::Float64
 
-    function GradientSpoiling(gradient::Gradient{T}, Tg::Real) where {T}
+    function GradientSpoiling(gradient::T, Tg::Real) where {T}
 
+        T <: Gradient || eltype(T) <: Gradient ||
+            error("gradient must be a Gradient or a collection of Gradients")
         new{T}(gradient, Tg)
 
     end
 end
 
-GradientSpoiling(gx, gy, gz, Tg) = GradientSpoiling(Gradient(gx, gy, gz), Tg)
+GradientSpoiling(gx::Real, gy::Real, gz::Real, Tg) = GradientSpoiling(Gradient(gx, gy, gz), Tg)
+GradientSpoiling(gx, gy, gz, Tg) = GradientSpoiling(map(Gradient, gx, gy, gz), Tg)
 
 Base.show(io::IO, s::GradientSpoiling) = print(io, "GradientSpoiling(", s.gradient, ", ", s.Tg, ")")
 
@@ -101,21 +111,12 @@ Base.show(io::IO, ::MIME"text/plain", s::RFSpoiling{T}) where {T} =
 
 Represents both RF and gradient spoiling.
 """
-struct RFandGradientSpoiling{T1<:Real,T2<:Real} <: AbstractSpoiling
+struct RFandGradientSpoiling{T1,T2<:Real} <: AbstractSpoiling
     gradient::GradientSpoiling{T1}
     rf::RFSpoiling{T2}
 end
 
-RFandGradientSpoiling(grad::Gradient, Tg::Real, rf::RFSpoiling) = RFandGradientSpoiling(GradientSpoiling(grad, Tg), rf)
-RFandGradientSpoiling(grad::NTuple{3,Real}, Tg::Real, rf::RFSpoiling) = RFandGradientSpoiling(GradientSpoiling(grad..., Tg), rf)
-RFandGradientSpoiling(gx, gy, gz, Tg, rf::RFSpoiling) = RFandGradientSpoiling(GradientSpoiling(gx, gy, gz, Tg), rf)
-RFandGradientSpoiling(grad::GradientSpoiling, Δθ) = RFandGradientSpoiling(grad, RFSpoiling(Δθ))
-RFandGradientSpoiling(grad::Union{<:Gradient,<:NTuple{3,Real}}, Tg, Δθ) = RFandGradientSpoiling(grad, Tg, RFSpoiling(Δθ))
-RFandGradientSpoiling(grad::GradientSpoiling) = RFandGradientSpoiling(grad, RFSpoiling())
-RFandGradientSpoiling(grad::Union{<:Gradient,<:NTuple{3,Real}}, Tg) = RFandGradientSpoiling(grad, Tg, RFSpoiling())
-RFandGradientSpoiling(rf::Union{<:RFSpoiling,<:Real}, grad::GradientSpoiling) = RFandGradientSpoiling(grad, rf)
-RFandGradientSpoiling(rf::Union{<:RFSpoiling,<:Real}, grad::Union{<:Gradient,<:NTuple{3,Real}}, Tg) = RFandGradientSpoiling(grad, Tg, rf)
-RFandGradientSpoiling(rf::RFSpoiling, gx, gy, gz, Tg) = RFandGradientSpoiling(gx, gy, gz, Tg, rf)
+RFandGradientSpoiling(rf::RFSpoiling, gradient::GradientSpoiling) = RFandGradientSpoiling(gradient, rf)
 
 Base.show(io::IO, s::RFandGradientSpoiling) = print(io, "RFandGradientSpoiling(", s.gradient, ", ", s.rf, ")")
 
