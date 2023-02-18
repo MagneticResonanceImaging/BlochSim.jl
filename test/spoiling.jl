@@ -40,20 +40,7 @@ end
 function RFandGradientSpoiling1()
 
     RFandGradientSpoiling(GradientSpoiling(0, 0, 0, 3), RFSpoiling(deg2rad(117)))
-    RFandGradientSpoiling(Gradient(0, 0, 0), 3, RFSpoiling(deg2rad(117)))
-    RFandGradientSpoiling((0, 0, 0), 3, RFSpoiling(deg2rad(117)))
-    RFandGradientSpoiling(0, 0, 0, 3, RFSpoiling(deg2rad(117)))
-    RFandGradientSpoiling(GradientSpoiling(0, 0, 0, 3), deg2rad(117))
-    RFandGradientSpoiling(Gradient(0, 0, 0), 3, deg2rad(117))
-    RFandGradientSpoiling((0, 0, 0), 3, deg2rad(117))
-    RFandGradientSpoiling(GradientSpoiling(0, 0, 0, 3))
-    RFandGradientSpoiling(RFSpoiling(deg2rad(117)), GradientSpoiling(0, 0, 0, 3))
-    RFandGradientSpoiling(RFSpoiling(deg2rad(117)), Gradient(0, 0, 0), 3)
-    RFandGradientSpoiling(RFSpoiling(deg2rad(117)), (0, 0, 0), 3)
-    RFandGradientSpoiling(RFSpoiling(deg2rad(117)), 0, 0, 0, 3)
-    RFandGradientSpoiling(deg2rad(117), GradientSpoiling(0, 0, 0, 3))
-    RFandGradientSpoiling(deg2rad(117), Gradient(0, 0, 0), 3)
-    s = RFandGradientSpoiling(deg2rad(117), (0, 0, 0), 3)
+    s = RFandGradientSpoiling(RFSpoiling(), GradientSpoiling(0, 0, 0, 3))
 
     show(devnull, s)
     show(devnull, "text/plain", s)
@@ -65,7 +52,7 @@ function RFandGradientSpoiling2()
 
     grad = Gradient(1.0, 2.0, 1//2)
     Δθ = 2f0
-    spoil = RFandGradientSpoiling(grad, 1.0, Δθ)
+    spoil = RFandGradientSpoiling(GradientSpoiling(grad, 1.0), RFSpoiling(Δθ))
     @test spoiler_gradient(spoil) === grad
     return rfspoiling_increment(spoil) == Δθ
 

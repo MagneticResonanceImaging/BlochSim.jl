@@ -570,7 +570,7 @@ function testB5a()
     zmax = 2π / (GAMMA * gradz * Tg/1000) # cm
     z = (1:100)/100 * zmax
     spins = map(z -> Spin(1, 600, 100, 0, Position(0,0,z)), z)
-    spgr! = SPGRBlochSim(10, 2, π/6, RFandGradientSpoiling((0, 0, gradz), Tg), Val(100))
+    spgr! = SPGRBlochSim(10, 2, π/6, RFandGradientSpoiling(GradientSpoiling(0, 0, gradz, Tg), RFSpoiling()), Val(100))
     foreach(spgr!, spins)
     sig = mean(signal(spin.M) for spin in spins)
 
@@ -590,7 +590,7 @@ function testB5b()
     srf = Vector{ComplexF64}(undef, 51)
     for i = 1:51
         spins = map(z -> Spin(1, 600, 100, 0, Position(0,0,z)), z)
-        spgr! = SPGRBlochSim(10, 2, α[i], RFandGradientSpoiling((0, 0, gradz), Tg), Val(100))
+        spgr! = SPGRBlochSim(10, 2, α[i], RFandGradientSpoiling(GradientSpoiling(0, 0, gradz, Tg), RFSpoiling()), Val(100))
         foreach(spgr!, spins)
         srf[i] = mean(signal(spin.M) for spin in spins)
     end

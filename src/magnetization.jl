@@ -73,6 +73,15 @@ function Base.copyto!(dst::AbstractVector, src::Magnetization)
 
 end
 
+function Base.fill!(M::Magnetization, v)
+
+    M.x = v
+    M.y = v
+    M.z = v
+    return nothing
+
+end
+
 Base.:(==)(M1::Magnetization, M2::Magnetization) = M1.x == M2.x && M1.y == M2.y && M1.z == M2.z
 Base.isapprox(M1::Magnetization, M2::Magnetization; kwargs...) =
     isapprox(Vector(M1), Vector(M2); kwargs...)
@@ -208,6 +217,8 @@ function Base.Vector(M::MagnetizationMC{T,N}) where {T,N}
     return v
 
 end
+
+Base.fill!(M::MagnetizationMC, v) = foreach(M -> fill!(M, v), M)
 
 Base.:(==)(M1::MagnetizationMC{T1,N}, M2::MagnetizationMC{T2,N}) where {T1,T2,N} = all(M1[i] == M2[i] for i = 1:N)
 Base.isapprox(M1::MagnetizationMC{T1,N}, M2::MagnetizationMC{T2,N}; kwargs...) where {T1,T2,N} = all(isapprox(M1[i], M2[i]; kwargs...) for i = 1:N)
