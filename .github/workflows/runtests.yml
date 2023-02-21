@@ -4,6 +4,8 @@ on:
   create:
     tags:
   pull_request:
+    branches:
+      - main
     paths-ignore:
       - '**.md'
       - 'docs/**'
