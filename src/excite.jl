@@ -145,15 +145,15 @@ function ExcitationWorkspace(
 end
 
 """
-    rotatetheta!(A, θ, α)
+    rotatetheta!(A, α, θ)
 
 Simulate left-handed rotation by angle `α` about an axis in the x-y plane that
 makes angle `θ` with the negative y-axis, overwriting `A`.
 """
-function rotatetheta!(A, θ, α)
+function rotatetheta!(A, α, θ)
 
-    (sinθ, cosθ) = sincos(θ)
     (sinα, cosα) = sincos(α)
+    (sinθ, cosθ) = sincos(θ)
 
     A.a11 = sinθ^2 + cosα * cosθ^2
     A.a21 = sinθ * cosθ - cosα * sinθ * cosθ
@@ -167,6 +167,19 @@ function rotatetheta!(A, θ, α)
 
     return nothing
 
+end
+
+"""
+    rotatetheta(α::Real = π/2, θ::Real = 0)
+Return `3 × 3` `BlochMatrix`
+for (left handed) flip angle `α`
+about an axis in the x-y plane that
+makes angle `θ` with the negative y-axis.
+"""
+function rotatetheta(α::Real = π/2, θ::Real = 0)
+    A = BlochMatrix()
+    rotatetheta!(A, α, θ)
+    return A
 end
 
 """
@@ -215,7 +228,7 @@ Simulate excitation, overwriting `A` and `B` (in-place version of
 """
 function excite!(A::ExcitationMatrix, spin::AbstractSpin, rf::InstantaneousRF)
 
-    rotatetheta!(A.A, rf.θ, rf.α)
+    rotatetheta!(A.A, rf.α, rf.θ)
 
 end
 

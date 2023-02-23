@@ -1,3 +1,5 @@
+using BlochSim: rotatetheta
+
 function excite1()
 
     θ = π/4
@@ -135,5 +137,7 @@ end
     @test excitemc1()
     @test excitemc2()
     @test excitemc3()
+
+    @test Matrix(rotatetheta()) ≈ [0 0 1; 0 1 0; -1 0 0]
 
 end
