@@ -169,7 +169,7 @@ function rotatetheta!(A, α, θ)
     # whereas Rz(θ) is a left-handed rotation matrix.
     # (One could instead use a right-handed Rz, but just negate θ
     # relative to what is currently done.)
-    # See Dwight Nishimura's "Principles of Magnetic Resonance Imaging"
+    # See p.27 of Dwight Nishimura's "Principles of Magnetic Resonance Imaging" (1996)
     # for more discussion of excitation about an arbitrary axis.
     A.a11 = sinθ^2 + cosα * cosθ^2
     A.a21 = sinθ * cosθ - cosα * sinθ * cosθ
