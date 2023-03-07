@@ -148,13 +148,29 @@ end
     rotatetheta!(A, α, θ)
 
 Simulate left-handed rotation by angle `α` about an axis in the x-y plane that
-makes angle `θ` with the negative y-axis, overwriting `A`.
+makes left-handed angle `θ` with the negative y-axis, overwriting `A`.
+
+This function is an in-place version of [`rotatetheta`](@ref).
 """
 function rotatetheta!(A, α, θ)
 
     (sinα, cosα) = sincos(α)
     (sinθ, cosθ) = sincos(θ)
 
+    # The following formulas were derived by multiplying three distinct rotation
+    # matrices: Rz(θ) * Ry(α) * Rz(-θ), where
+    # Rz(θ) = [ cos(θ) sin(θ) 0;
+    #          -sin(θ) cos(θ) 0;
+    #                0      0 1], and
+    # Ry(α) = [ cos(α) 0 sin(α);
+    #               0 1       0;
+    #          -sin(α) 0 cos(α)].
+    # Note that Ry(α) is a right-handed rotation matrix,
+    # whereas Rz(θ) is a left-handed rotation matrix.
+    # (One could instead use a right-handed Rz, but just negate θ
+    # relative to what is currently done.)
+    # See p.27 of Dwight Nishimura's "Principles of Magnetic Resonance Imaging" (1996)
+    # for more discussion of excitation about an arbitrary axis.
     A.a11 = sinθ^2 + cosα * cosθ^2
     A.a21 = sinθ * cosθ - cosα * sinθ * cosθ
     A.a31 = -sinα * cosθ
@@ -171,15 +187,35 @@ end
 
 """
     rotatetheta(α::Real = π/2, θ::Real = 0)
-Return `3 × 3` `BlochMatrix`
-for (left handed) flip angle `α`
+
+Return a `3 × 3` `BlochMatrix`
+for (left-handed) flip angle `α`
 about an axis in the x-y plane that
-makes angle `θ` with the negative y-axis.
+makes (left-handed) angle `θ` with the negative y-axis.
+
+For an in-place version, see [`rotatetheta!`](@ref).
+
+# Examples
+```jldoctest
+julia> BlochSim.rotatetheta() * Magnetization(0, 0, 1) # Rotate towards positive x-axis
+Magnetization vector with eltype Float64:
+ Mx = 1.0
+ My = 0.0
+ Mz = 6.123233995736766e-17
+
+julia> BlochSim.rotatetheta(π/2, π/2) * Magnetization(0, 0, 1) # Rotate towards negative y-axis
+Magnetization vector with eltype Float64:
+ Mx = 6.123233995736766e-17
+ My = -1.0
+ Mz = 6.123233995736766e-17
+```
 """
 function rotatetheta(α::Real = π/2, θ::Real = 0)
+
     A = BlochMatrix()
     rotatetheta!(A, α, θ)
     return A
+
 end
 
 """
