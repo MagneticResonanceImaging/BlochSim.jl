@@ -38,11 +38,12 @@ end
 # Tell this Julia session to use the following packages for this example.
 # Run Pkg.add() in the preceding code block first, if needed.
 
-using BlochSim:
+using BlochSim: Spin, InstantaneousRF, excite, freeprecess
 using InteractiveUtils: versioninfo
-using LinearAlgebra:
+using LinearAlgebra: I
 using MIRTjim: prompt
-using Plots: plot
+using Plots: plot, plot!, default
+default(titlefontsize = 10, markerstrokecolor = :auto, label="")
 
 
 # The following line is helpful when running this file as a script;
@@ -231,33 +232,29 @@ TR_ms = 10
 TE_ms = 5
 
 # array of off-resonance values
-num_off_res_values = 100
+num_off_res_values = 401
 Δf_arr_kHz = range(-1/TR_ms, 1/TR_ms, num_off_res_values)
 
 # array of flip angles
-flip_ang_arr_deg = [15 30 60 90]
+flip_ang_arr_deg = [15, 30, 60, 90]
 num_flip_angles = length(flip_ang_arr_deg)
 
 # array to store calculated results for both plots (methods 1 and 2)
 num_plots = 2
-sig_arr = zeros(num_flip_angles,num_off_res_values,num_plots)
+sig_arr = zeros(num_flip_angles, num_off_res_values, num_plots)
 
 # initialize the plot
-lay = @layout [a ; b]
-p_m = plot(title="Steady-State Signal Magnitude vs. Resonant Frequency: Matrix Version", titlefontsize=10)
-p_b = plot(title="Steady-State Signal Magnitude vs. Resonant Frequency: BlochSim Version", titlefontsize=10)
+p_m = plot(title="Matrix Version")
+p_b = plot(title="BlochSim Version")
 
 #=
-call bssfp_matrix and bssfp_blochsim
+Call `bssfp_matrix` and `bssfp_blochsim`
 for various flip angles and off-resonance values
-iterate over flip angles
 =#
-for i = 1:num_flip_angles
+for i in 1:num_flip_angles # iterate over flip angles
     α_deg = flip_ang_arr_deg[i]
-    α_str = string(α_deg)
 
-    # iterate over off-resonance values
-    for j = 1:num_off_res_values
+    for j in 1:num_off_res_values # iterate over off-resonance values
         Δf_kHz = Δf_arr_kHz[j]
 
         # convert from kHz to Hz before input into function
@@ -266,22 +263,26 @@ for i = 1:num_flip_angles
         # call both implementations (methods 1 and 2) of bssfp signal model
         signal_matrix = bssfp_matrix(α_deg, Δf_Hz, mo, T1_ms, T2_ms, TR_ms, TE_ms)
         signal_blochsim = bssfp_blochsim(α_deg, Δf_Hz, mo, T1_ms, T2_ms, TR_ms, TE_ms)
+        @assert signal_blochsim ≈ signal_matrix # check!
 
-        # add results for methods 1 and 2 to results array
+        # save results for methods 1 and 2
         sig_arr[i,j,1] = abs(signal_matrix)
         sig_arr[i,j,2] = abs(signal_blochsim)
     end
 
     # plot results for current flip angle
-    plot!(p_m, Δf_arr_kHz, sig_arr[i,:,1],label="α="*α_str)
-    plot!(p_b, Δf_arr_kHz, sig_arr[i,:,2],label="α="*α_str)
-
+    plot!(p_m, 1000Δf_arr_kHz, sig_arr[i,:,1], label="α = $(α_deg)°")
+    plot!(p_b, 1000Δf_arr_kHz, sig_arr[i,:,2], label="α = $(α_deg)°")
 end
 
 # plot results and label axes
-p = plot(p_m,p_b, layout = lay)
-xlabel!(p, "Resonant Frequency (kHz)")
-ylabel!(p, "Signal Magnitude")
+p = plot(p_m, p_b, layout = (2,1),
+    xlabel = "Resonant Frequency (Hz)",
+    ylabel = "Signal Magnitude",
+    plot_title = "Steady-State Signal Magnitude vs. Resonant Frequency",
+    plot_titlefontsize = 12,
+)
+
 
 
 # ## Multi-Compartment Spins and Myelin Water Exchange
@@ -477,18 +478,15 @@ sig_arr = zeros(num_flip_angles,num_phases,num_samples)
 
 p = plot(title="Steady-State Signal Magnitude vs. Resonant Frequency", titlefontsize=12)
 
-# iterate over flip angles
-for i = 1:num_flip_angles
+for i in 1:num_flip_angles # iterate over flip angles
     α_deg = flip_ang_arr_deg[i]
     α_str = string(α_deg)
 
-    # iterate over RF phases
-    for j = 1:num_phases
+    for j in 1:num_phases # iterate over RF phases
         ΔΦ_deg = ΔΦ_arr_deg[j]
         ΔΦ_str = string(ΔΦ_deg)
 
-        # iterate over resonant frequencies
-        for k = 1:num_samples
+        for k in 1:num_samples # iterate over resonant frequencies
             Δf_kHz = Δf_arr_kHz[k]
 
             # convert off-resonance from kHz to Hz before input into function
@@ -523,9 +521,9 @@ p
 # Recreate Figure 2 from [2] (magnitude plot) and also add the phase plot.
 
 # initialize the plot
-lay = @layout [a ; b]
-p_m = plot(title="Signal Magnitude vs. Scan Index", titlefontsize=10)
-p_p = plot(title="Signal Phase vs. Scan Index", titlefontsize=10)
+#lay = @layout [a ; b]
+p_m = plot(title="Signal Magnitude vs. Scan Index")
+p_p = plot(title="Signal Phase vs. Scan Index")
 
 # number of different scans
 num_scans = 40
@@ -550,14 +548,14 @@ sig_arr_phase = zeros(num_scans,num_taus)
 global curr_scan = 1
 
 # iterate over exchange values
-for j = 1:num_taus
+for j in 1:num_taus
     τ_fs = tau_arr_ms[j]
     τ_tuple_ms = get_τ_tuple(tau_arr_ms[j], f_f)
     tau_str = string(τ_fs)
     tau_marker = tau_arr_marker[j]
 
     # iterate over flip angles
-    for k = 1:num_flip_angles
+    for k in 1:num_flip_angles
         α_deg = flip_ang_arr_deg[k]
 
         # different RF phases for different flip angles - from Figure 1 in [2]
@@ -572,7 +570,7 @@ for j = 1:num_taus
         end
 
         # iterate over RF phases
-        for i = 1:itr_max
+        for i in 1:itr_max
             ΔΦ_deg = ΔΦ_arr_deg[i]
 
             # convert RF phase cycling angle from degrees to radians
@@ -602,7 +600,7 @@ for j = 1:num_taus
 end
 
 # plot results and label axes
-p = plot(p_m,p_p, layout = lay)
+p = plot(p_m, p_p, layout = (2,1))
 plot!(size=(600,800))
 xlabel!(p, "Scan Index")
 ylabel!(p_m, "Signal Magnitude")
