@@ -38,7 +38,7 @@ end
 # Tell this Julia session to use the following packages for this example.
 # Run Pkg.add() in the preceding code block first, if needed.
 
-using BlochSim: Spin, InstantaneousRF, excite, freeprecess
+using BlochSim: Spin, SpinMC, InstantaneousRF, excite, freeprecess
 using InteractiveUtils: versioninfo
 using LinearAlgebra: I
 using MIRTjim: prompt
@@ -458,8 +458,7 @@ TE_ms = 4.0
 # tuple with fast-to-slow and slow-to-fast residence times
 τ_tuple_ms = get_τ_tuple(τ_fs, f_f)
 
-# number of samples (resonant frequencies)
-num_samples = 100
+num_samples = 401 # number of samples (resonant frequencies)
 
 # flips angles for example
 flip_ang_arr_deg = [10 40]
@@ -476,15 +475,17 @@ sig_arr = zeros(num_flip_angles,num_phases,num_samples)
 # array with off-resonance values
 Δf_arr_kHz = range(-1/TR_ms, 1/TR_ms, num_samples)
 
-p = plot(title="Steady-State Signal Magnitude vs. Resonant Frequency", titlefontsize=12)
+p = plot(title="Steady-State Signal Magnitude vs. Resonant Frequency",
+    xlabel = "Resonant Frequency (kHz)",
+    ylabel = "Signal Magnitude",
+    titlefontsize=12,
+)
 
 for i in 1:num_flip_angles # iterate over flip angles
     α_deg = flip_ang_arr_deg[i]
-    α_str = string(α_deg)
 
     for j in 1:num_phases # iterate over RF phases
         ΔΦ_deg = ΔΦ_arr_deg[j]
-        ΔΦ_str = string(ΔΦ_deg)
 
         for k in 1:num_samples # iterate over resonant frequencies
             Δf_kHz = Δf_arr_kHz[k]
@@ -508,15 +509,14 @@ for i in 1:num_flip_angles # iterate over flip angles
             sig_arr[i,j,k] = abs(signal)
         end
 
-        plot!(p, Δf_arr_kHz, sig_arr[i,j,:],label="α="*α_str*"°, ΔΦ="*ΔΦ_str*"°")
-
+        plot!(p, Δf_arr_kHz, sig_arr[i,j,:];
+           label = "α = $(α_deg)°, ΔΦ = $(ΔΦ_deg)°")
     end
-
 end
 
-xlabel!("Resonant Frequency (kHz)")
-ylabel!("Signal Magnitude")
 p
+prompt(); throw()
+
 
 # Recreate Figure 2 from [2] (magnitude plot) and also add the phase plot.
 
@@ -551,7 +551,6 @@ global curr_scan = 1
 for j in 1:num_taus
     τ_fs = tau_arr_ms[j]
     τ_tuple_ms = get_τ_tuple(tau_arr_ms[j], f_f)
-    tau_str = string(τ_fs)
     tau_marker = tau_arr_marker[j]
 
     # iterate over flip angles
@@ -595,8 +594,8 @@ for j in 1:num_taus
 
     global curr_scan = 1
 
-    plot!(p_m, scan_idx,sig_arr[:,j], linewidth=0, markershape=tau_marker, label="τ_fs="*tau_str)
-    plot!(p_p, scan_idx,sig_arr_phase[:,j], linewidth=0, markershape=tau_marker, label="τ_fs="*tau_str)
+    plot!(p_m, scan_idx,sig_arr[:,j], linewidth=0, markershape=tau_marker, label="τ_fs = $τ_fs")
+    plot!(p_p, scan_idx,sig_arr_phase[:,j], linewidth=0, markershape=tau_marker, label="τ_fs = $τ_fs")
 end
 
 # plot results and label axes
