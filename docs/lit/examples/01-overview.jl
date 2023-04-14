@@ -232,7 +232,7 @@ TE_ms = 5
 
 # array of off-resonance values
 num_off_res_values = 100
-Δf_arr_kHz = LinRange(-1/TR_ms, 1/TR_ms, num_off_res_values)
+Δf_arr_kHz = range(-1/TR_ms, 1/TR_ms, num_off_res_values)
 
 # array of flip angles
 flip_ang_arr_deg = [15 30 60 90]
@@ -473,7 +473,7 @@ num_phases = length(ΔΦ_arr_deg)
 sig_arr = zeros(num_flip_angles,num_phases,num_samples)
 
 # array with off-resonance values
-Δf_arr_kHz = LinRange(-1/TR_ms, 1/TR_ms, num_samples)
+Δf_arr_kHz = range(-1/TR_ms, 1/TR_ms, num_samples)
 
 p = plot(title="Steady-State Signal Magnitude vs. Resonant Frequency", titlefontsize=12)
 
@@ -529,7 +529,7 @@ p_p = plot(title="Signal Phase vs. Scan Index", titlefontsize=10)
 
 # number of different scans
 num_scans = 40
-scan_idx = LinRange(1,num_scans,num_scans)
+scan_idx = range(1,num_scans,num_scans)
 
 # flip angles for plot
 flip_ang_arr_deg = [10.0 40.0]
