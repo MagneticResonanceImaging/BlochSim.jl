@@ -38,17 +38,17 @@ end
 # Tell this Julia session to use the following packages for this example.
 # Run Pkg.add() in the preceding code block first, if needed.
 
-using BlochSim
+using BlochSim:
 using InteractiveUtils: versioninfo
-using LinearAlgebra
+using LinearAlgebra:
 using MIRTjim: prompt
-using Plots
+using Plots: plot
 
 
 # The following line is helpful when running this file as a script;
 # this way it will prompt user to hit a key after each figure is displayed.
 
-isinteractive() ? jim(:prompt, true) : prompt(:draw);
+isinteractive() || prompt(:draw);
 
 
 # Define some useful helper functions.
@@ -76,9 +76,9 @@ end;
 This is the bSSFP pulse sequence from Figure 2 in [1]
 that we will use to generate Figure 3 in [1] in two different ways.
 The RF excitation is repeated periodically and, in steady-state,
-the magnetization at point *a* is the same as at point *d*. 
+the magnetization at point *a* is the same as at point *d*.
 
-# <img src="hargreaves_fig2.png" width="500"/>
+todo <img src="hargreaves_fig2.png" width="500"/>
 =#
 
 
@@ -92,14 +92,14 @@ using the method from [1] using Equations 1 and 2 and Appendix A.
 =#
 
 """
-bssfp_matrix(α_deg, Δf_kHz, mo, T1_ms, T2_ms, TR_ms, TE_ms)
+    bssfp_matrix(α_deg, Δf_kHz, mo, T1_ms, T2_ms, TR_ms, TE_ms)
 
 Return steady-state magentization signal value for a bssfp sequence
 
-Ref: Hargreaves, B. A., Vasanawala, S. S., Pauly, J. M., & Nishimura, 
-D. G. (2001). Characterization and reduction of the transient response 
-in steady‐state MR imaging. Magnetic Resonance in Medicine: An Official 
-Journal of the International Society for Magnetic Resonance in Medicine, 
+Ref: Hargreaves, B. A., Vasanawala, S. S., Pauly, J. M., & Nishimura,
+D. G. (2001). Characterization and reduction of the transient response
+in steady‐state MR imaging. Magnetic Resonance in Medicine: An Official
+Journal of the International Society for Magnetic Resonance in Medicine,
 46(1), 149-158. [1]
 
 # In
@@ -116,26 +116,26 @@ Journal of the International Society for Magnetic Resonance in Medicine,
 - `signal` steady-state magnetization (as a complex number)
 """
 function bssfp_matrix(α_deg, Δf_Hz, mo, T1_ms, T2_ms, TR_ms, TE_ms)
-    
+
     # convert off-resonance value to kHz
     Δf_kHz = Hz_to_kHz(Δf_Hz)
-    
+
     # initial magnetization vector
     M0 = [0; 0; mo]
-    
+
     # convert inputted flip angle α from degrees to radians
     α_rad = deg_to_rad(α_deg)
-    
+
     # create rotation matrix for RF excitation about the x-axis
     R = [1 0 0; 0 cos(α_rad) sin(α_rad); 0 -sin(α_rad) cos(α_rad)]
-    
+
     # create free precession matrix
     P(τ_ms) = [cos(2*pi*Δf_kHz*τ_ms) sin(2*pi*Δf_kHz*τ_ms) 0 ; -sin(2*pi*Δf_kHz*τ_ms) cos(2*pi*Δf_kHz*τ_ms) 0 ; 0 0 1]
-    
+
     # create matrices for T1 and T2 relaxation over a time τ
     C(τ_ms) = [exp(-τ_ms/T2_ms) 0 0 ; 0 exp(-τ_ms/T2_ms) 0 ; 0 0 exp(-τ_ms/T1_ms)]
     D(τ_ms) = (I - C(τ_ms))*[0 ; 0 ; mo]
-    
+
     # create matrices for various values of τ
     P1 = P(TE_ms)
     P2 = P(TR_ms - TE_ms)
@@ -143,32 +143,33 @@ function bssfp_matrix(α_deg, Δf_Hz, mo, T1_ms, T2_ms, TR_ms, TE_ms)
     C2 = C(TR_ms - TE_ms)
     D1 = D(TE_ms)
     D2 = D(TR_ms - TE_ms)
-    
+
     # formulate matrices A and B for steady-state calculation
     A = P1*C1*R*P2*C2
     B = P1*C1*R*D2 + D1
-    
+
     # calculate the steady-state magnetization
-    Mss = (I - A)\B 
-    
+    Mss = (I - A)\B
+
     # return the complex signal
     signal = complex(Mss[1], Mss[2])
     return signal
-    
+
 end
 
 
 # ## Method 2: Use Julia Package BlochSim [3]
 
 """
-bssfp_blochsim(α_deg, Δf_kHz, mo, T1_ms, T2_ms, TR_ms, TE_ms)
+    bssfp_blochsim(α_deg, Δf_kHz, mo, T1_ms, T2_ms, TR_ms, TE_ms)
+    bssfp_blochsim(α_deg, TR_ms, TE_ms, spin)
 
-Return steady-state magentization signal value for a bssfp sequence using [3]
+Return steady-state magentization signal value for a bSSFP sequence using [3]
 
-Ref: Hargreaves, B. A., Vasanawala, S. S., Pauly, J. M., & Nishimura, 
-D. G. (2001). Characterization and reduction of the transient response 
-in steady‐state MR imaging. Magnetic Resonance in Medicine: An Official 
-Journal of the International Society for Magnetic Resonance in Medicine, 
+Ref: Hargreaves, B. A., Vasanawala, S. S., Pauly, J. M., & Nishimura,
+D. G. (2001). Characterization and reduction of the transient response
+in steady‐state MR imaging. Magnetic Resonance in Medicine: An Official
+Journal of the International Society for Magnetic Resonance in Medicine,
 46(1), 149-158. [1]
 
 # In
@@ -189,34 +190,34 @@ function bssfp_blochsim(α_deg, Δf_Hz, mo, T1_ms, T2_ms, TR_ms, TE_ms)
     return bssfp_blochsim(α_deg, TR_ms, TE_ms, spin)
 end
 
- 
+
 function bssfp_blochsim(α_deg, TR_ms, TE_ms, spin::Spin)
-    
+
     # convert inputted flip angle α from degrees to radians
     α_rad = deg_to_rad(α_deg)
-    
+
     # excite the spin
     # included RF phase for instantaneous RF because above code flips over x axis
     # and blochsim flips over -y axis and want to make them consistent
     (R,) = excite(spin, InstantaneousRF(α_rad, -pi/2))
     R = Matrix(R.A)
-    
+
     # put spin through precession/relaxation for various time period values
     (PC1_A,PC1_B) = freeprecess(spin, TE_ms)
     (PC2_A,PC2_B) = freeprecess(spin, TR_ms-TE_ms)
     (PC_TR_A,PC_TR_B) = freeprecess(spin, TR_ms)
-    
-    # calculate the A and B matrices    
+
+    # calculate the A and B matrices
     A = Matrix(PC1_A)*R*Matrix(PC2_A)
     B = Matrix(PC1_A)*R*Vector(PC2_B)+Vector(PC1_B)
-    
+
     # calculate the steady-state magnetization at the echo time
-    Mss = (I - A)\B 
-    
+    Mss = (I - A) \ B
+
     # return the complex signal
     signal = complex(Mss[1], Mss[2])
     return signal
-    
+
 end
 
 
@@ -254,14 +255,14 @@ iterate over flip angles
 for i = 1:num_flip_angles
     α_deg = flip_ang_arr_deg[i]
     α_str = string(α_deg)
-    
+
     # iterate over off-resonance values
     for j = 1:num_off_res_values
         Δf_kHz = Δf_arr_kHz[j]
-        
+
         # convert from kHz to Hz before input into function
         Δf_Hz = kHz_to_Hz(Δf_kHz)
-                
+
         # call both implementations (methods 1 and 2) of bssfp signal model
         signal_matrix = bssfp_matrix(α_deg, Δf_Hz, mo, T1_ms, T2_ms, TR_ms, TE_ms)
         signal_blochsim = bssfp_blochsim(α_deg, Δf_Hz, mo, T1_ms, T2_ms, TR_ms, TE_ms)
@@ -270,7 +271,7 @@ for i = 1:num_flip_angles
         sig_arr[i,j,1] = abs(signal_matrix)
         sig_arr[i,j,2] = abs(signal_blochsim)
     end
-    
+
     # plot results for current flip angle
     plot!(p_m, Δf_arr_kHz, sig_arr[i,:,1],label="α="*α_str)
     plot!(p_b, Δf_arr_kHz, sig_arr[i,:,2],label="α="*α_str)
@@ -300,7 +301,7 @@ function get_mwf_tuple(f_f)
 end
 
 
-# in: 
+# in:
 # - `τ_fs_ms` residence time for exchange from myelin to non-myelin water (ms)
 # - `f_f` fast fraction (myelin fraction)
 # out: `τ_tuple_ms` tuple with fast-to-slow and slow-to-fast residence times
@@ -331,7 +332,7 @@ function get_T2_tuple(T2_f_ms, T2_s_ms)
 end
 
 
-# in: 
+# in:
 # `ΔΦ_rad` RF phase cycling value (radians)
 # `Δf_Hz` off-resonance value (Hz)
 # `Δf_myelin_Hz` # additional off-resonance value only experienced by myelin water (Hz)
@@ -342,16 +343,16 @@ end
 # The sensitive-point method", J. of Appl. Phys., 1976. [4]
 
 function get_Δf_tuple(ΔΦ_rad, Δf_Hz, Δf_myelin_Hz, TR_ms)
-    
+
     # convert the RF phase cycling value to Hz from radians
     ΔΦ_Hz = kHz_to_Hz((ΔΦ_rad)/(2*pi*TR_ms))
-    
+
     # subtract the RF phase cycling value from the off-resonance value
     Δf_RF_Hz = Δf_Hz - ΔΦ_Hz
-    
+
     # add the myelin off-resonance for the myelin term
     Δf_myelin_RF_Hz = Δf_RF_Hz + Δf_myelin_Hz
-    
+
     # create and return tuple for the spin object constructor
     Δf_tuple_Hz = (Δf_myelin_RF_Hz, Δf_RF_Hz)
     return Δf_tuple_Hz
@@ -366,9 +367,9 @@ bssfp_blochsim_MC(α_deg, TR_ms, TE_ms, spin_mc, spin_mc_no_rf_phase_fact )
 
 Return steady-state magentization signal value for a bssfp sequence using [3]
 
-Ref: Murthy, N., Nielsen, J. F., Whitaker, S. T., Haskell, M. W., 
-Swanson, S. D., Seiberlich, N., & Fessler, J. A. (2022). 
-Quantifying myelin water exchange using optimized bSSFP 
+Ref: Murthy, N., Nielsen, J. F., Whitaker, S. T., Haskell, M. W.,
+Swanson, S. D., Seiberlich, N., & Fessler, J. A. (2022).
+Quantifying myelin water exchange using optimized bSSFP
 sequences. In Proc. Intl. Soc. Mag. Res. Med (p. 2068). [2]
 
 # In
@@ -382,39 +383,39 @@ sequences. In Proc. Intl. Soc. Mag. Res. Med (p. 2068). [2]
 - `signal` steady-state magnetization (as a complex number)
 """
 function bssfp_blochsim_MC(α_deg, TR_ms, TE_ms, spin_mc, spin_mc_no_rf_phase_fact)
-                
+
     # convert inputted flip angle α from degrees to radians
     α_rad = deg_to_rad(α_deg)
-    
+
     # excite the spin and reshape R to be the correct dimensions for a SpinMC object
     (R,) = excite(spin_mc, InstantaneousRF(α_rad))
     R = Matrix(R.A)
     R = kron(I(2),R)
-    
+
     # precession/relaxation of the spin for TR
     (PC_TR_A,PC_TR_B) = freeprecess(spin_mc, TR_ms)
-    
+
     # precession/relaxation of the spin for TE
     # assume receiver modulates signal and uses the receiver phase as the RF phase
     (PC_TE_A,PE_TE_B) = freeprecess(spin_mc_no_rf_phase_fact, TE_ms)
-    
+
     # calculate the A and B matrices
     A = Matrix(PC_TR_A) * R
     B = Vector(PC_TR_B)
-    
+
     # steady-state just before tip down
     Mss = (I - A)\B
-    
+
     # magnetization after tip-down
     M = R * Mss
-    
+
     # # calculate the steady-state magnetization at the echo time
     M = Matrix(PC_TE_A) * M + Vector(PE_TE_B)
-    
+
     # return the complex signal
     signal = (complex(M[1]+M[4], M[2]+M[5]))
     return signal
-    
+
 end
 
 
@@ -425,7 +426,7 @@ end
 mo = 0.77
 
 # T1 and T2 values
-T1_f_ms = 400 # T1 for fast-relaxing, myelin water compartment 
+T1_f_ms = 400 # T1 for fast-relaxing, myelin water compartment
 T1_s_ms = 832 #T1 for slow-relaxing, non-myelin water compartment
 T1_ms_tuple = get_T1_tuple(T1_f_ms,T1_s_ms)
 
@@ -434,7 +435,7 @@ T2_s_ms = 80 #T2 for slow-relaxing, non-myelin water compartment
 T2_ms_tuple = get_T2_tuple(T2_f_ms,T2_s_ms)
 
 # additional off-resonance that is only experienced by myelin water
-Δf_myelin_Hz = 5.0 
+Δf_myelin_Hz = 5.0
 
 # myelin water fraction (MWF), fast fraction
 f_f = 0.15
@@ -480,22 +481,22 @@ p = plot(title="Steady-State Signal Magnitude vs. Resonant Frequency", titlefont
 for i = 1:num_flip_angles
     α_deg = flip_ang_arr_deg[i]
     α_str = string(α_deg)
-    
+
     # iterate over RF phases
     for j = 1:num_phases
         ΔΦ_deg = ΔΦ_arr_deg[j]
         ΔΦ_str = string(ΔΦ_deg)
-    
+
         # iterate over resonant frequencies
         for k = 1:num_samples
             Δf_kHz = Δf_arr_kHz[k]
-            
+
             # convert off-resonance from kHz to Hz before input into function
             Δf_Hz = kHz_to_Hz(Δf_kHz)
-            
+
             # convert inputted RF phase cycling angle from degrees to radians
             ΔΦ_rad = deg_to_rad(ΔΦ_deg)
-    
+
             # get tuple of values incorporating off-resonance and RF phase cycling for both compartments
             Δf_tuple_Hz = get_Δf_tuple(ΔΦ_rad, Δf_Hz, Δf_myelin_Hz, TR_ms)
             Δf_tuple_Hz_no_rf_phase_fact = get_Δf_tuple(0, Δf_Hz, Δf_myelin_Hz, TR_ms)
@@ -503,14 +504,14 @@ for i = 1:num_flip_angles
             # create a spin (with and without RF phase-cycling factor)
             spin_mc = SpinMC(mo, mwf_tuple, T1_ms_tuple, T2_ms_tuple, Δf_tuple_Hz, τ_tuple_ms)
             spin_mc_no_rf_phase_fact = SpinMC(mo, mwf_tuple, T1_ms_tuple, T2_ms_tuple, Δf_tuple_Hz_no_rf_phase_fact, τ_tuple_ms)
-            
+
             # run the bssfp blochsim and add to result array
             signal = bssfp_blochsim_MC(α_deg, TR_ms, TE_ms, spin_mc, spin_mc_no_rf_phase_fact)
             sig_arr[i,j,k] = abs(signal)
         end
-    
+
         plot!(p, Δf_arr_kHz, sig_arr[i,j,:],label="α="*α_str*"°, ΔΦ="*ΔΦ_str*"°")
-        
+
     end
 
 end
@@ -558,7 +559,7 @@ for j = 1:num_taus
     # iterate over flip angles
     for k = 1:num_flip_angles
         α_deg = flip_ang_arr_deg[k]
-        
+
         # different RF phases for different flip angles - from Figure 1 in [2]
         if k == 1
             ΔΦ_arr_deg = [-176.4, -159.5, -142.1, -124.4, -107.6, -90.54, -73.62, -56.13, -39.41, -22.52, -5.272, 11.63, 28.93, 45.76, 63.08, 79.91, 96.97, 113.9, 131.3, 148.5, 166.1]
@@ -570,13 +571,13 @@ for j = 1:num_taus
 
         end
 
-        # iterate over RF phases 
+        # iterate over RF phases
         for i = 1:itr_max
             ΔΦ_deg = ΔΦ_arr_deg[i]
-            
+
             # convert RF phase cycling angle from degrees to radians
             ΔΦ_rad = deg_to_rad(ΔΦ_deg)
-    
+
             # get tuple of values incorporating off-resonance and RF phase cycling for both compartments
             Δf_tuple_Hz = get_Δf_tuple(ΔΦ_rad, Δf_Hz, Δf_myelin_Hz, TR_ms)
             Δf_tuple_Hz_no_rf_phase_fact = get_Δf_tuple(0, Δf_Hz, Δf_myelin_Hz, TR_ms)
@@ -584,21 +585,18 @@ for j = 1:num_taus
             # create a spin (with and without RF phase-cycling factor)
             spin_mc = SpinMC(mo, mwf_tuple, T1_ms_tuple, T2_ms_tuple, Δf_tuple_Hz, τ_tuple_ms)
             spin_mc_no_rf_phase_fact = SpinMC(mo, mwf_tuple, T1_ms_tuple, T2_ms_tuple, Δf_tuple_Hz_no_rf_phase_fact, τ_tuple_ms)
-            
+
             # run the bssfp blochsim and add to result array
-            signal = bssfp_blochsim_MC(α_deg, TR_ms, TE_ms, spin_mc, spin_mc_no_rf_phase_fact) 
+            signal = bssfp_blochsim_MC(α_deg, TR_ms, TE_ms, spin_mc, spin_mc_no_rf_phase_fact)
             sig_arr[curr_scan,j] = abs(signal)
             sig_arr_phase[curr_scan,j] = angle(signal)
 
             global curr_scan += 1
-            
-            
         end
-
     end
-    
+
     global curr_scan = 1
-    
+
     plot!(p_m, scan_idx,sig_arr[:,j], linewidth=0, markershape=tau_marker, label="τ_fs="*tau_str)
     plot!(p_p, scan_idx,sig_arr_phase[:,j], linewidth=0, markershape=tau_marker, label="τ_fs="*tau_str)
 end
