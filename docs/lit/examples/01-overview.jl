@@ -77,12 +77,6 @@ isinteractive() || prompt(:draw);
 
 # Define some useful helper functions.
 
-# convert angles in degrees to radians
-function deg_to_rad(θ_deg)
-    θ_rad = θ_deg*pi/180
-    return θ_rad
-end;
-
 # convert frequencies in Hz to kHz
 function Hz_to_kHz(Δf_Hz)
     Δf_kHz = Δf_Hz*10^(-3)
@@ -143,13 +137,13 @@ function bssfp_matrix(α_deg, TR_ms, TE_ms, mo, T1_ms, T2_ms, Δf_Hz=0)
     M0 = [0; 0; mo]
 
     # convert input flip angle α from degrees to radians
-    α_rad = deg_to_rad(α_deg)
+    α_rad = deg2rad(α_deg)
 
     # rotation matrix for RF excitation about the x-axis
     R = [1 0 0; 0 cos(α_rad) sin(α_rad); 0 -sin(α_rad) cos(α_rad)]
 
     # free precession matrix
-    P(τ_ms) = [cos(2*pi*Δf_kHz*τ_ms) sin(2*pi*Δf_kHz*τ_ms) 0 ; -sin(2*pi*Δf_kHz*τ_ms) cos(2*pi*Δf_kHz*τ_ms) 0 ; 0 0 1]
+    P(τ_ms) = [cos(2π*Δf_kHz*τ_ms) sin(2π*Δf_kHz*τ_ms) 0 ; -sin(2π*Δf_kHz*τ_ms) cos(2π*Δf_kHz*τ_ms) 0 ; 0 0 1]
 
     # matrices for T1 and T2 relaxation over a time τ
     C(τ_ms) = [exp(-τ_ms/T2_ms) 0 0 ; 0 exp(-τ_ms/T2_ms) 0 ; 0 0 exp(-τ_ms/T1_ms)]
@@ -196,7 +190,7 @@ See [Hargreaves et al., MRM 2001](https://doi.org/10.1002/mrm.1170).
 - `signal` steady-state magnetization (as a complex number)
 """
 function bssfp_blochsim(α_deg, TR_ms, TE_ms, mo, T1_ms, T2_ms, Δf_Hz=0)
-    spin = Spin(mo,T1_ms,T2_ms,Δf_Hz) # create a spin
+    spin = Spin(mo, T1_ms, T2_ms, Δf_Hz) # create a spin
     return bssfp_blochsim(α_deg, TR_ms, TE_ms, spin)
 end
 
@@ -204,12 +198,12 @@ end
 function bssfp_blochsim(α_deg, TR_ms, TE_ms, spin::Spin)
 
     # convert input flip angle α from degrees to radians
-    α_rad = deg_to_rad(α_deg)
+    α_rad = deg2rad(α_deg)
 
     # excite the spin
     # included RF phase for instantaneous RF because above code flips over x axis
     # and blochsim flips over -y axis and want to make them consistent
-    (R,) = excite(spin, InstantaneousRF(α_rad, -pi/2))
+    (R,) = excite(spin, InstantaneousRF(α_rad, -π/2))
     R = Matrix(R.A)
 
     # put spin through precession/relaxation for various time period values
@@ -364,7 +358,7 @@ end
 function get_Δf_tuple(ΔΦ_rad, Δf_Hz, Δf_myelin_Hz, TR_ms)
 
     # convert the RF phase cycling value to Hz from radians
-    ΔΦ_Hz = kHz_to_Hz((ΔΦ_rad)/(2*pi*TR_ms))
+    ΔΦ_Hz = kHz_to_Hz((ΔΦ_rad)/(2π*TR_ms))
 
     # subtract the RF phase cycling value from the off-resonance value
     Δf_RF_Hz = Δf_Hz - ΔΦ_Hz
@@ -405,7 +399,7 @@ sequences. In Proc. Intl. Soc. Mag. Res. Med (p. 2068). [2]
 function bssfp_blochsim_MC(α_deg, TR_ms, TE_ms, spin_mc, spin_mc_no_rf_phase_fact)
 
     # convert inputted flip angle α from degrees to radians
-    α_rad = deg_to_rad(α_deg)
+    α_rad = deg2rad(α_deg)
 
     # excite the spin and reshape R to be the correct dimensions for a SpinMC object
     (R,) = excite(spin_mc, InstantaneousRF(α_rad))
@@ -510,7 +504,7 @@ for i in 1:num_flip_angles # iterate over flip angles
             local Δf_Hz = kHz_to_Hz(Δf_kHz)
 
             # convert inputted RF phase cycling angle from degrees to radians
-            ΔΦ_rad = deg_to_rad(ΔΦ_deg)
+            ΔΦ_rad = deg2rad(ΔΦ_deg)
 
             # get tuple of values incorporating off-resonance and RF phase cycling for both compartments
             Δf_tuple_Hz = get_Δf_tuple(ΔΦ_rad, Δf_Hz, Δf_myelin_Hz, TR_ms)
@@ -582,7 +576,7 @@ for j in 1:num_taus
             ΔΦ_deg = ΔΦ_arr_deg[i]
 
             # convert RF phase cycling angle from degrees to radians
-            ΔΦ_rad = deg_to_rad(ΔΦ_deg)
+            ΔΦ_rad = deg2rad(ΔΦ_deg)
 
             # get tuple of values incorporating off-resonance and RF phase cycling for both compartments
             Δf_tuple_Hz = get_Δf_tuple(ΔΦ_rad, Δf_Hz, Δf_myelin_Hz, TR_ms)
