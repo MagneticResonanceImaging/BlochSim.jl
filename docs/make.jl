@@ -23,7 +23,7 @@ binder_root_url =
 
 
 repo = eval(:($reps))
-DocMeta.setdocmeta!(repo, :DocTestSetup, :(using $reps); recursive=true)
+Documenter.DocMeta.setdocmeta!(repo, :DocTestSetup, :(using $reps); recursive=true)
 
 # preprocessing
 inc1 = "include(\"../../../inc/reproduce.jl\")"
