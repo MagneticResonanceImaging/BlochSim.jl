@@ -77,17 +77,8 @@ isinteractive() || prompt(:draw);
 
 # Define some useful helper functions.
 
-# convert frequencies in Hz to kHz
-function Hz_to_kHz(Δf_Hz)
-    Δf_kHz = Δf_Hz*10^(-3)
-    return Δf_kHz
-end;
-
-# convert frequencies in kHz to Hz
-function kHz_to_Hz(Δf_kHz)
-    Δf_Hz = Δf_kHz*10^(3)
-    return Δf_Hz
-end;
+Hz_to_kHz(Δf_Hz) = Δf_Hz * 10^(-3) # convert frequencies in Hz to kHz
+kHz_to_Hz(Δf_kHz) = Δf_kHz * 10^(3) # convert frequencies in kHz to Hz
 
 
 #=
@@ -112,7 +103,9 @@ using the method from [1] using Equations 1 and 2 and Appendix A.
 """
     bssfp_matrix(α_deg, TR_ms, TE_ms, mo, T1_ms, T2_ms, Δf_kHz=0)
 
-Return steady-state magnetization signal value for a bSSFP sequence
+Return steady-state magnetization signal value
+at the echo time
+for a bSSFP sequence
 using method of
 [Hargreaves et al., MRM 2001](https://doi.org/10.1002/mrm.1170).
 
@@ -174,7 +167,9 @@ end
     bssfp_blochsim(α_deg, TR_ms, TE_ms, spin)
 
 Return steady-state magnetization signal value
-for a bSSFP sequence using BlochSim.
+at the echo time
+for a bSSFP sequence
+using BlochSim.
 See [Hargreaves et al., MRM 2001](https://doi.org/10.1002/mrm.1170).
 
 # In
@@ -207,9 +202,9 @@ function bssfp_blochsim(α_deg, TR_ms, TE_ms, spin::Spin)
     R = Matrix(R.A)
 
     # put spin through precession/relaxation for various time period values
-    (PC1_A,PC1_B) = freeprecess(spin, TE_ms)
-    (PC2_A,PC2_B) = freeprecess(spin, TR_ms-TE_ms)
-    (PC_TR_A,PC_TR_B) = freeprecess(spin, TR_ms)
+    (PC1_A, PC1_B) = freeprecess(spin, TE_ms)
+    (PC2_A, PC2_B) = freeprecess(spin, TR_ms-TE_ms)
+    (PC_TR_A, PC_TR_B) = freeprecess(spin, TR_ms)
 
     # calculate the A and B matrices
     A = Matrix(PC1_A)*R*Matrix(PC2_A)
@@ -294,12 +289,11 @@ These functions put the parameters in the correct format
 for the multi-compartment spin object constructors.
 =#
 
-# - in: `f_f` fast fraction (myelin fraction)
-# - out: `mwf_tuple` tuple with fast and slow fractions
-function get_mwf_tuple(f_f)
-    mwf_tuple = (f_f, 1-f_f)
-    return mwf_tuple
-end
+"""
+- in: `f_f` fast fraction (myelin fraction)
+- out: `mwf_tuple` tuple with fast and slow fractions
+"""
+get_mwf_tuple(f_f) = (f_f, 1-f_f)
 
 
 """
@@ -309,9 +303,9 @@ end
 # Out:
 - `τ_tuple_ms` tuple with fast-to-slow and slow-to-fast residence times
 """
-function get_τ_tuple(τ_fs_ms,f_f)
-    τ_sf_ms = (1-f_f)*τ_fs_ms/f_f
-    τ_tuple_ms = (τ_fs_ms,τ_sf_ms)
+function get_τ_tuple(τ_fs_ms, f_f)
+    τ_sf_ms = (1-f_f) * τ_fs_ms / f_f
+    τ_tuple_ms = (τ_fs_ms, τ_sf_ms)
     return τ_tuple_ms
 end
 
@@ -323,10 +317,7 @@ end
 # Out:
 - `T1_tuple_ms` tuple with both T1 values
 """
-function get_T1_tuple(T1_f_ms, T1_s_ms)
-    T1_tuple_ms = (T1_f_ms, T1_s_ms)
-    return T1_tuple_ms
-end
+get_T1_tuple(T1_f_ms, T1_s_ms) = (T1_f_ms, T1_s_ms)
 
 
 """
@@ -336,10 +327,7 @@ end
 # out:
 - `T2_tuple_ms` tuple with both T2 values
 """
-function get_T2_tuple(T2_f_ms, T2_s_ms)
-    T2_tuple_ms = (T2_f_ms, T2_s_ms)
-    return T2_tuple_ms
-end
+get_T2_tuple(T2_f_ms, T2_s_ms) = (T2_f_ms, T2_s_ms)
 
 
 """
@@ -379,7 +367,9 @@ end
     bssfp_blochsim_MC(α_deg, TR_ms, TE_ms, spin_mc, spin_mc_no_rf_phase_fact)
 
 Return steady-state magnetization signal value
-for a bSSFP sequence using BlochSim.
+at the echo time
+for a bSSFP sequence
+using BlochSim.
 
 Ref: Murthy, N., Nielsen, J. F., Whitaker, S. T., Haskell, M. W.,
 Swanson, S. D., Seiberlich, N., & Fessler, J. A. (2022).
@@ -407,18 +397,18 @@ function bssfp_blochsim_MC(α_deg, TR_ms, TE_ms, spin_mc, spin_mc_no_rf_phase_fa
     R = kron(I(2),R)
 
     # precession/relaxation of the spin for TR
-    (PC_TR_A,PC_TR_B) = freeprecess(spin_mc, TR_ms)
+    (PC_TR_A, PC_TR_B) = freeprecess(spin_mc, TR_ms)
 
     # precession/relaxation of the spin for TE
     # assume receiver modulates signal and uses the receiver phase as the RF phase
-    (PC_TE_A,PE_TE_B) = freeprecess(spin_mc_no_rf_phase_fact, TE_ms)
+    (PC_TE_A, PE_TE_B) = freeprecess(spin_mc_no_rf_phase_fact, TE_ms)
 
     # calculate the A and B matrices
     A = Matrix(PC_TR_A) * R
     B = Vector(PC_TR_B)
 
     # steady-state just before tip down
-    Mss = (I - A)\B
+    Mss = (I - A) \ B
 
     # magnetization after tip-down
     M = R * Mss
