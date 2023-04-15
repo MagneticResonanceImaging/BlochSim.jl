@@ -12,6 +12,27 @@ multi-compartment spins,
 and myelin water exchange.
 
 This demo recreates Figure 3 from [1] and Figure 2 from [2].
+
+
+### References
+
+- [1] Hargreaves, B., Vasanawala, S., Pauly, J., & Nishimura, D. (2001).
+  Characterization and reduction of the transient response
+  in steady‐state MR imaging.
+  [MRM 46(1), 149-158](https://doi.org/10.1002/mrm.1170).
+
+- [2] Murthy, N., Nielsen, J., Whitaker, S., Haskell, M., Swanson, S.,
+  Seiberlich, N., & Fessler, J. (2022).
+  Quantifying myelin water exchange using optimized bSSFP sequences.
+  [Proc. Intl. Soc. Mag. Res. Med (p. 2068)](https://submissions.mirasmart.com/ISMRM2022/Itinerary/Files/PDFFiles/2068.html).
+
+- [3] Hinshaw, W. S. (1976).
+  Image formation by nuclear magnetic resonance: the sensitive‐point method.
+  [J. of Applied Physics, 47(8), 3709-21](https://doi.org/10.1063/1.323136).
+
+- [4] Whitaker, S. T., Nataraj, G., Nielsen, J. F., & Fessler, J. A. (2020).
+  Myelin water fraction estimation using small‐tip fast recovery MRI.
+  [MRM 84(4), 1977-90](https://doi.org/10.1002/mrm.28259).
 =#
 
 #srcURL
@@ -159,13 +180,14 @@ function bssfp_matrix(α_deg, Δf_Hz, mo, T1_ms, T2_ms, TR_ms, TE_ms)
 end
 
 
-# ## Method 2: Use Julia Package BlochSim [3]
+# ## Method 2: Use BlochSim
 
 """
     bssfp_blochsim(α_deg, Δf_kHz, mo, T1_ms, T2_ms, TR_ms, TE_ms)
     bssfp_blochsim(α_deg, TR_ms, TE_ms, spin)
 
-Return steady-state magentization signal value for a bSSFP sequence using [3]
+Return steady-state magentization signal value
+for a bSSFP sequence using BlochSim.
 
 Ref: Hargreaves, B. A., Vasanawala, S. S., Pauly, J. M., & Nishimura,
 D. G. (2001). Characterization and reduction of the transient response
@@ -288,7 +310,7 @@ p = plot(p_m, p_b, layout = (2,1),
 # ## Multi-Compartment Spins and Myelin Water Exchange
 
 #=
-We will generate Figure 2 from [2] using [3].
+We will generate Figure 2 from [2] using BlochSim.
 First define some useful helper functions.
 These functions put the parameters in the correct format
 for the multi-compartment spin object constructors.
@@ -341,7 +363,7 @@ end
 # out: `Δf_tuple_Hz` tuple with off-resonance values for fast and slow compartments
 
 # Ref: W. S. Hinshaw, "Image formation by nuclear magnetic resonance:
-# The sensitive-point method", J. of Appl. Phys., 1976. [4]
+# The sensitive-point method", J. of Appl. Phys., 1976. [3]
 
 function get_Δf_tuple(ΔΦ_rad, Δf_Hz, Δf_myelin_Hz, TR_ms)
 
@@ -366,7 +388,8 @@ end
 """
 bssfp_blochsim_MC(α_deg, TR_ms, TE_ms, spin_mc, spin_mc_no_rf_phase_fact )
 
-Return steady-state magentization signal value for a bssfp sequence using [3]
+Return steady-state magentization signal value
+for a bSSFP sequence using BlochSim.
 
 Ref: Murthy, N., Nielsen, J. F., Whitaker, S. T., Haskell, M. W.,
 Swanson, S. D., Seiberlich, N., & Fessler, J. A. (2022).
@@ -421,7 +444,7 @@ end
 
 
 # Define variables to be used in the following plots.
-# Values taken from [2] and [5].
+# Values taken from [2] and [4].
 
 # initial condition for magnetization in the z-direction (constant)
 mo = 0.77
@@ -605,21 +628,6 @@ xlabel!(p, "Scan Index")
 ylabel!(p_m, "Signal Magnitude")
 ylabel!(p_p, "Signal Phase")
 p
-
-
-#=
-### References
-
-- [1] Hargreaves, B. A., Vasanawala, S. S., Pauly, J. M., & Nishimura, D. G. (2001). Characterization and reduction of the transient response in steady‐state MR imaging. Magnetic Resonance in Medicine: An Official Journal of the International Society for Magnetic Resonance in Medicine, 46(1), 149-158.
-
-- [2] Murthy, N., Nielsen, J. F., Whitaker, S. T., Haskell, M. W., Swanson, S. D., Seiberlich, N., & Fessler, J. A. (2022). Quantifying myelin water exchange using optimized bSSFP sequences. In Proc. Intl. Soc. Mag. Res. Med (p. 2068).
-
-- [3] https://github.com/StevenWhitaker/BlochSim.jl
-
-- [4] Hinshaw, W. S. (1976). Image formation by nuclear magnetic resonance: the sensitive‐point method. Journal of Applied Physics, 47(8), 3709-3721.
-
-- [5] Whitaker, S. T., Nataraj, G., Nielsen, J. F., & Fessler, J. A. (2020). Myelin water fraction estimation using small‐tip fast recovery MRI. Magnetic resonance in medicine, 84(4), 1977-1990.
-=#
 
 
 
