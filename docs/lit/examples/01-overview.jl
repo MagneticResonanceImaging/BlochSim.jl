@@ -312,26 +312,6 @@ end
 
 """
 # In:
-- `T1_f_ms` T1 value for fast-relaxing (myelin) compartment (ms)
-- `T1_s_ms` T1 value for slow-relaxing (non-myelin) compartment (ms)
-# Out:
-- `T1_tuple_ms` tuple with both T1 values
-"""
-get_T1_tuple(T1_f_ms, T1_s_ms) = (T1_f_ms, T1_s_ms)
-
-
-"""
-# In:
-- `T2_f_ms` T2 value for fast-relaxing (myelin) compartment (ms)
-- `T2_s_ms` T2 value for slow-relaxing (non-myelin) compartment (ms)
-# out:
-- `T2_tuple_ms` tuple with both T2 values
-"""
-get_T2_tuple(T2_f_ms, T2_s_ms) = (T2_f_ms, T2_s_ms)
-
-
-"""
-# In:
 - `ΔΦ_rad` RF phase cycling value (radians)
 - `Δf_Hz` off-resonance value (Hz)
 - `Δf_myelin_Hz` # additional off-resonance value only experienced by myelin water (Hz)
@@ -429,11 +409,11 @@ mo = 0.77
 # T1 and T2 values
 T1_f_ms = 400 # T1 for fast-relaxing, myelin water compartment
 T1_s_ms = 832 #T1 for slow-relaxing, non-myelin water compartment
-T1_ms_tuple = get_T1_tuple(T1_f_ms,T1_s_ms)
+T1_ms_tuple = (T1_f_ms, T1_s_ms)
 
 T2_f_ms = 20 # T2 for fast-relaxing, myelin water compartment
 T2_s_ms = 80 #T2 for slow-relaxing, non-myelin water compartment
-T2_ms_tuple = get_T2_tuple(T2_f_ms,T2_s_ms)
+T2_ms_tuple = (T2_f_ms, T2_s_ms)
 
 # additional off-resonance that is only experienced by myelin water
 Δf_myelin_Hz = 5.0
