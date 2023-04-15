@@ -50,6 +50,7 @@ if false
     import Pkg
     Pkg.add([
         "BlochSim"
+        "LaTeXStrings"
         "LinearAlgebra"
         "Plots"
     ])
@@ -61,6 +62,7 @@ end
 
 using BlochSim: Spin, SpinMC, InstantaneousRF, excite, freeprecess
 using InteractiveUtils: versioninfo
+using LaTeXStrings: latexstring
 using LinearAlgebra: I
 using MIRTjim: prompt
 using Plots: plot, plot!, default
@@ -280,7 +282,7 @@ for i in 1:num_flip_angles # iterate over flip angles
         Δf_kHz = Δf_arr_kHz[j]
 
         # convert from kHz to Hz before input into function
-        Δf_Hz = kHz_to_Hz(Δf_kHz)
+        local Δf_Hz = kHz_to_Hz(Δf_kHz)
 
         # call both implementations (methods 1 and 2) of bssfp signal model
         signal_matrix = bssfp_matrix(α_deg, Δf_Hz, mo, T1_ms, T2_ms, TR_ms, TE_ms)
@@ -484,11 +486,11 @@ TE_ms = 4.0
 num_samples = 401 # number of samples (resonant frequencies)
 
 # flips angles for example
-flip_ang_arr_deg = [10 40]
+flip_ang_arr_deg = [10, 40]
 num_flip_angles = length(flip_ang_arr_deg)
 
 # RF phase cycling value (degrees)
-ΔΦ_arr_deg = [0 90 180]
+ΔΦ_arr_deg = [0, 90, 180]
 Δϕ_arr_marker = [:circle :star5 :utriangle]
 num_phases = length(ΔΦ_arr_deg)
 
@@ -514,7 +516,7 @@ for i in 1:num_flip_angles # iterate over flip angles
             Δf_kHz = Δf_arr_kHz[k]
 
             # convert off-resonance from kHz to Hz before input into function
-            Δf_Hz = kHz_to_Hz(Δf_kHz)
+            local Δf_Hz = kHz_to_Hz(Δf_kHz)
 
             # convert inputted RF phase cycling angle from degrees to radians
             ΔΦ_rad = deg_to_rad(ΔΦ_deg)
@@ -536,44 +538,45 @@ for i in 1:num_flip_angles # iterate over flip angles
            label = "α = $(α_deg)°, ΔΦ = $(ΔΦ_deg)°")
     end
 end
-
 p
-prompt(); throw()
+
+#
+prompt()
 
 
 # Recreate Figure 2 from [2] (magnitude plot) and also add the phase plot.
 
 # initialize the plot
-#lay = @layout [a ; b]
-p_m = plot(title="Signal Magnitude vs. Scan Index")
-p_p = plot(title="Signal Phase vs. Scan Index")
+p_m = plot(title="Signal Magnitude vs. Scan Index", ylabel = "Signal Magnitude")
+p_p = plot(title="Signal Phase vs. Scan Index", ylabel = "Signal Phase")
 
-# number of different scans
-num_scans = 40
+num_scans = 40 # number of different scans
 scan_idx = range(1,num_scans,num_scans)
 
-# flip angles for plot
-flip_ang_arr_deg = [10.0 40.0]
+flip_ang_arr_deg = [10.0, 40.0] # flip angles for plot
 num_flip_angles = length(flip_ang_arr_deg)
 
-# set off-resonance to zero
-Δf_Hz = 0.0
+Δf_Hz = 0.0 # set off-resonance to zero
 
-# array of exchange values
-tau_arr_ms = [250, 150, 50]
-tau_arr_marker = [:circle :star5 :utriangle]
+tau_arr_ms = [250, 150, 50] # array of exchange values
+tau_arr_marker = [:circle, :star5, :utriangle]
 num_taus = length(tau_arr_ms)
 
 # initialize arrays to store results
 sig_arr = zeros(num_scans,num_taus)
 sig_arr_phase = zeros(num_scans,num_taus)
 
-global curr_scan = 1
+ΔΦ_design_deg = ( # designed RF phase cycling increments
+ [-176.4, -159.5, -142.1, -124.4, -107.6, -90.54, -73.62, -56.13, -39.41, -22.52, -5.272, 11.63, 28.93, 45.76, 63.08, 79.91, 96.97, 113.9, 131.3, 148.5, 166.1],
+ [-168.8, -150.3, -130.1, -111.5, -93.19, -74.18, -54.68 , -37.15, -18.01, 1.342, 18.82, 38.64, 57.88, 76.48, 95.2, 113.3, 133.3, 153.1, 172.1],
+)
+
+curr_scan = 1
 
 # iterate over exchange values
 for j in 1:num_taus
-    τ_fs = tau_arr_ms[j]
-    τ_tuple_ms = get_τ_tuple(tau_arr_ms[j], f_f)
+    local τ_fs = tau_arr_ms[j]
+    local τ_tuple_ms = get_τ_tuple(tau_arr_ms[j], f_f)
     tau_marker = tau_arr_marker[j]
 
     # iterate over flip angles
@@ -581,18 +584,10 @@ for j in 1:num_taus
         α_deg = flip_ang_arr_deg[k]
 
         # different RF phases for different flip angles - from Figure 1 in [2]
-        if k == 1
-            ΔΦ_arr_deg = [-176.4, -159.5, -142.1, -124.4, -107.6, -90.54, -73.62, -56.13, -39.41, -22.52, -5.272, 11.63, 28.93, 45.76, 63.08, 79.91, 96.97, 113.9, 131.3, 148.5, 166.1]
-            itr_max = length(ΔΦ_arr_deg)
-
-        else
-            ΔΦ_arr_deg = [-168.8, -150.3, -130.1, -111.5, -93.19, -74.18, -54.68 , -37.15, -18.01, 1.342, 18.82, 38.64, 57.88, 76.48, 95.2, 113.3, 133.3, 153.1, 172.1]
-            itr_max = length(ΔΦ_arr_deg)
-
-        end
+        local ΔΦ_arr_deg = ΔΦ_design_deg[k]
 
         # iterate over RF phases
-        for i in 1:itr_max
+        for i in 1:length(ΔΦ_arr_deg)
             ΔΦ_deg = ΔΦ_arr_deg[i]
 
             # convert RF phase cycling angle from degrees to radians
@@ -617,18 +612,16 @@ for j in 1:num_taus
 
     global curr_scan = 1
 
-    plot!(p_m, scan_idx,sig_arr[:,j], linewidth=0, markershape=tau_marker, label="τ_fs = $τ_fs")
-    plot!(p_p, scan_idx,sig_arr_phase[:,j], linewidth=0, markershape=tau_marker, label="τ_fs = $τ_fs")
+    plot!(p_m, scan_idx,sig_arr[:,j], linewidth=0, markershape=tau_marker,
+        label = latexstring("\$τ_{\\mathrm{fs}}\$ = $τ_fs ms"))
+    plot!(p_p, scan_idx,sig_arr_phase[:,j], linewidth=0, markershape=tau_marker,
+        label = latexstring("\$τ_{\\mathrm{fs}}\$ = $τ_fs ms"))
 end
 
 # plot results and label axes
-p = plot(p_m, p_p, layout = (2,1))
-plot!(size=(600,800))
-xlabel!(p, "Scan Index")
-ylabel!(p_m, "Signal Magnitude")
-ylabel!(p_p, "Signal Phase")
-p
+p = plot(p_m, p_p, layout = (2,1), xlabel = "Scan Index")
 
+#
+prompt()
 
-
-include("../../../inc/reproduce.jl")
+#todo include("../../../inc/reproduce.jl")
