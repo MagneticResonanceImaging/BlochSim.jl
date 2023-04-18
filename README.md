@@ -132,9 +132,13 @@ are based on the corresponding section in the tutorial (see
 <!-- URLs -->
 [action-img]: https://github.com/StevenWhitaker/BlochSim.jl/actions/workflows/runtests.yml/badge.svg
 [action-url]: https://github.com/StevenWhitaker/BlochSim.jl/actions
+[pkgeval-img]: https://juliaci.github.io/NanosoldierReports/pkgeval_badges/B/BlochSim.svg
+[pkgeval-url]: https://juliaci.github.io/NanosoldierReports/pkgeval_badges/B/BlochSim.html
 [codecov-img]: https://codecov.io/gh/StevenWhitaker/BlochSim.jl/branch/main/graph/badge.svg?token=tduieBgema
 [codecov-url]: https://codecov.io/gh/StevenWhitaker/BlochSim.jl
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
 [docs-stable-url]: https://StevenWhitaker.github.io/BlochSim.jl/stable
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
 [docs-dev-url]: https://StevenWhitaker.github.io/BlochSim.jl/dev
+[license-img]: http://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat
+[license-url]: LICENSE
