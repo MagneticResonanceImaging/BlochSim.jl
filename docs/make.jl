@@ -79,7 +79,7 @@ format = Documenter.HTML(;
 
 Documenter.makedocs(;
     modules = [repo],
-    authors = "Jeff Fessler and contributors",
+    authors = "Amaya Murgia, Steven Whitaker, Jeff Fessler and contributors",
     sitename = "$repo.jl",
     format,
     strict = true, # fail on "warnings"

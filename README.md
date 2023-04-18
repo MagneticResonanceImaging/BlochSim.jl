@@ -1,7 +1,13 @@
 # BlochSim.jl
 
-[![action status](https://github.com/StevenWhitaker/BlochSim.jl/actions/workflows/runtests.yml/badge.svg)](https://github.com/StevenWhitaker/BlochSim.jl/actions)
-[![codecov](https://codecov.io/gh/StevenWhitaker/BlochSim.jl/branch/main/graph/badge.svg?token=tduieBgema)](https://codecov.io/gh/StevenWhitaker/BlochSim.jl)
+https://github.com/StevenWhitaker/BlochSim.jl
+
+[![docs-stable][docs-stable-img]][docs-stable-url]
+[![docs-dev][docs-dev-img]][docs-dev-url]
+[![action status][action-img]][action-url]
+[![pkgeval status][pkgeval-img]][pkgeval-url]
+[![codecov][codecov-img]][codecov-url]
+[![license][license-img]][license-url]
 
 This Julia package provides functionality
 for simulating arbitrary MRI pulse sequences.
@@ -122,3 +128,13 @@ This package was developed based on
 All tests for this package of the form `testX0x` (like `testA5b` or `testF3d`)
 are based on the corresponding section in the tutorial (see
 [test/matlab.jl](test/matlab.jl)).
+
+<!-- URLs -->
+[action-img]: https://github.com/StevenWhitaker/BlochSim.jl/actions/workflows/runtests.yml/badge.svg
+[action-url]: https://github.com/StevenWhitaker/BlochSim.jl/actions
+[codecov-img]: https://codecov.io/gh/StevenWhitaker/BlochSim.jl/branch/main/graph/badge.svg?token=tduieBgema
+[codecov-url]: https://codecov.io/gh/StevenWhitaker/BlochSim.jl
+[docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
+[docs-stable-url]: https://StevenWhitaker.github.io/BlochSim.jl/stable
+[docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
+[docs-dev-url]: https://StevenWhitaker.github.io/BlochSim.jl/dev
