@@ -740,6 +740,24 @@ function Base.:*(A::BlochMatrix, ::IdealSpoilingMatrix)
 
 end
 
+function Base.:*(A::FreePrecessionMatrix, B::BlochMatrix)
+
+    (sinθ, cosθ) = sincos(A.θ)
+    return BlochMatrix(
+        A.E2 * cosθ * B.a11 + A.E2 * sinθ * B.a21,
+        -A.E2 * sinθ * B.a11 + A.E2 * cosθ * B.a21,
+        A.E1 * B.a31,
+        A.E2 * cosθ * B.a12 + A.E2 * sinθ * B.a22,
+        -A.E2 * sinθ * B.a12 + A.E2 * cosθ * B.a22,
+        A.E1 * B.a32,
+        A.E2 * cosθ * B.a13 + A.E2 * sinθ * B.a23,
+        -A.E2 * sinθ * B.a13 + A.E2 * cosθ * B.a23,
+        A.E1 * B.a33
+    )
+
+end
+
+Base.:*(A::ExcitationMatrix, B::FreePrecessionMatrix) = A.A * B
 Base.:*(A::ExcitationMatrix, ::IdealSpoilingMatrix) = A.A * idealspoiling
 
 function Base.:*(A::BlochMcConnellMatrix{T1,N}, B::BlochMcConnellMatrix{T2,N}) where {T1,T2,N}

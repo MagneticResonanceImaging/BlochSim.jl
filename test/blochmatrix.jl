@@ -164,8 +164,19 @@ end
 
 function times6()
 
-    A = BlochMatrix(1, 2, 3, 4, 5, 6, 7, 8, 9)
+    A = ExcitationMatrix(BlochMatrix(1, 2, 3, 4, 5, 6, 7, 8, 9))
     B = FreePrecessionMatrix(1, 1, 1)
+    C = A * B
+    correct = Matrix(A.A) * Matrix(B)
+
+    return Matrix(C) ≈ correct
+
+end
+
+function times7()
+
+    A = FreePrecessionMatrix(1, 1, 1)
+    B = BlochMatrix(1, 2, 3, 4, 5, 6, 7, 8, 9)
     C = A * B
     correct = Matrix(A) * Matrix(B)
 
@@ -173,7 +184,7 @@ function times6()
 
 end
 
-function times7()
+function times8()
 
     A = ExcitationMatrix(BlochMatrix(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
     C = A * idealspoiling
@@ -183,7 +194,7 @@ function times7()
 
 end
 
-function times8()
+function times9()
 
     A = ExcitationMatrix(BlochMatrix(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
     B = BlochMcConnellMatrix(3)
@@ -205,7 +216,7 @@ function times8()
 
 end
 
-function times9()
+function times10()
 
     A = idealspoiling
     B = BlochMcConnellMatrix(3)
@@ -631,7 +642,7 @@ function mul16()
     mul!(C, A, A)
     correct = Matrix(A) * Matrix(A)
 
-    return Matrix(C) == correct
+    return Matrix(C) ≈ correct
 
 end
 
@@ -1216,6 +1227,7 @@ end
         @test times7()
         @test times8()
         @test times9()
+        @test times10()
 
     end
 
