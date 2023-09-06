@@ -37,7 +37,15 @@ For examples of how to simulate full MRI sequences, see
 [src/mese.jl](src/mese.jl) and [src/spgr.jl](src/spgr.jl) in this repo,
 and [STFR.jl](https://github.com/StevenWhitaker/STFR.jl).
 
-Below are some concrete examples of how to use this package.
+Additionally,
+the following blog posts
+cover the basics of the Bloch equations
+and some examples of how to use this package.
+- [Simulating MRI Physics with the Bloch Equations](https://blog.glcs.io/simulating-mri-physics-with-the-bloch-equations)
+- [Mastering MRI Bloch Simulations with BlochSim.jl in Julia](https://blog.glcs.io/mastering-mri-bloch-simulations-with-blochsimjl-in-julia)
+- [Simulating MRI Scans with BlochSim.jl](https://blog.glcs.io/simulating-mri-scans-with-blochsimjl)
+
+Below are some more concrete examples of how to use this package.
 
 ```julia
 julia> using BlochSim
