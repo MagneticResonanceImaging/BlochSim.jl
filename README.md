@@ -1,6 +1,6 @@
 # BlochSim.jl
 
-https://github.com/StevenWhitaker/BlochSim.jl
+https://github.com/MagneticResonanceImaging/BlochSim.jl
 
 [![docs-stable][docs-stable-img]][docs-stable-url]
 [![docs-dev][docs-dev-img]][docs-dev-url]
@@ -24,9 +24,11 @@ The main functionality is provided by the functions
 `freeprecess`, `excite`, and `spoil`
 (and their mutating variants `freeprecess!`, `excite!`, and `spoil!`).
 These functions can be used to simulate a wide variety of MRI sequences.
-In addition, this package provides implementations for
-a multi-echo spin echo (MESE) scan (`MESEBlochSim`)
-and a spoiled gradient-recalled echo (SPGR) scan (`SPGRBlochSim`).
+In addition, this package provides implementations
+for specific scan sequences:
+
+- multi-echo spin echo (MESE) scan (`MESEBlochSim`)
+- spoiled gradient-recalled echo (SPGR) scan (`SPGRBlochSim`).
 
 ## Examples
 See the examples given in the documentation strings for how to use the provided
@@ -128,6 +130,8 @@ julia> signal(spinmc)
 
 * [MRIgeneralizedBloch.jl](https://github.com/JakobAsslaender/MRIgeneralizedBloch.jl)
   focuses on [magnetization transfer](https://doi.org/10.1002/mrm.29071)
+* [KomaMRI.jl](https://github.com/JuliaHealth/KomaMRI.jl)
+  has Pulseq compatability
 
 
 ## Acknowledgement
@@ -137,16 +141,24 @@ All tests for this package of the form `testX0x` (like `testA5b` or `testF3d`)
 are based on the corresponding section in the tutorial (see
 [test/matlab.jl](test/matlab.jl)).
 
+
+## Status
+
+On 2024-04-08 this repo moved here from
+https://github.com/StevenWhitaker/BlochSim.jl.
+Submit issues for outdated URLs.
+
+
 <!-- URLs -->
-[action-img]: https://github.com/StevenWhitaker/BlochSim.jl/actions/workflows/runtests.yml/badge.svg
-[action-url]: https://github.com/StevenWhitaker/BlochSim.jl/actions
+[action-img]: https://github.com/MagneticResonanceImaging/BlochSim.jl/actions/workflows/runtests.yml/badge.svg
+[action-url]: https://github.com/MagneticResonanceImaging/BlochSim.jl/actions
 [pkgeval-img]: https://juliaci.github.io/NanosoldierReports/pkgeval_badges/B/BlochSim.svg
 [pkgeval-url]: https://juliaci.github.io/NanosoldierReports/pkgeval_badges/B/BlochSim.html
-[codecov-img]: https://codecov.io/gh/StevenWhitaker/BlochSim.jl/branch/main/graph/badge.svg?token=tduieBgema
-[codecov-url]: https://codecov.io/gh/StevenWhitaker/BlochSim.jl
+[codecov-img]: https://codecov.io/gh/MagneticResonanceImaging/BlochSim.jl/branch/main/graph/badge.svg?token=tduieBgema
+[codecov-url]: https://codecov.io/gh/MagneticResonanceImaging/BlochSim.jl
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
-[docs-stable-url]: https://StevenWhitaker.github.io/BlochSim.jl/stable
+[docs-stable-url]: https://MagneticResonanceImaging.github.io/BlochSim.jl/stable
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
-[docs-dev-url]: https://StevenWhitaker.github.io/BlochSim.jl/dev
+[docs-dev-url]: https://MagneticResonanceImaging.github.io/BlochSim.jl/dev
 [license-img]: http://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat
 [license-url]: LICENSE
