@@ -82,7 +82,7 @@ Documenter.makedocs(;
     authors = "Amaya Murgia, Steven Whitaker, Jeff Fessler and contributors",
     sitename = "$repo.jl",
     format,
-    strict = true, # fail on "warnings"
+#   strict = true, # fail on "warnings" - deprecated
     pages = [
         "Home" => "index.md",
         "Methods" => "methods.md",
