@@ -150,7 +150,7 @@ Submit issues for outdated URLs.
 
 
 <!-- URLs -->
-[action-img]: https://github.com/MagneticResonanceImaging/BlochSim.jl/actions/workflows/runtests.yml/badge.svg
+[action-img]: https://github.com/MagneticResonanceImaging/BlochSim.jl/actions/workflows/ci.yml/badge.svg
 [action-url]: https://github.com/MagneticResonanceImaging/BlochSim.jl/actions
 [pkgeval-img]: https://juliaci.github.io/NanosoldierReports/pkgeval_badges/B/BlochSim.svg
 [pkgeval-url]: https://juliaci.github.io/NanosoldierReports/pkgeval_badges/B/BlochSim.html
