@@ -27,10 +27,10 @@ gentestF3f;
 
 % http://mrsrl.stanford.edu/~brian/bloch/a5b.m
 function gentestA5b
-    
-    % Bloch Equation Simulation, Excercise A-5b
+
+    % Bloch Equation Simulation, Exercise A-5b
     % -----------------------------------------
-    % 
+    %
 
     dT = 1;		% 1ms delta-time.
     T = 1000;	% total duration
@@ -57,54 +57,54 @@ function gentestA5b
     % ===== Save the Results ======
 
     save('matlabtestdata/testA5b.mat', 'M', '-v7.3');
-    
+
 end
 
 function gentestB2c
-    
+
     sig = sesignal(600, 100, 50, 1000, 0);
-    
+
     save('matlabtestdata/testB2c.mat', 'sig', '-v7.3');
-    
+
 end
 
 function gentestB2d
-    
+
     sig = fsesignal(600, 100, 50, 1000, 0, 8);
-    
+
     save('matlabtestdata/testB2d.mat', 'sig', '-v7.3');
-    
+
 end
 
 function gentestB3a
-    
+
     [~,M] = gssignal(pi/3,600,100,2,10,0,pi/2);
-    
+
     save('matlabtestdata/testB3a.mat', 'M', '-v7.3');
-    
+
 end
 
 function gentestB3b
-    
+
     [~,M] = gresignal(pi/3,600,100,2,10,0);
-    
+
     save('matlabtestdata/testB3b.mat', 'M', '-v7.3');
-    
+
 end
 
 function gentestB3c
-    
+
     [~,M] = srsignal(pi/3,600,100,2,10,0);
-    
+
     save('matlabtestdata/testB3c.mat', 'M', '-v7.3');
-    
+
 end
 
 % http://mrsrl.stanford.edu/~brian/bloch/b5a.m
 function gentestB5a
-    % Bloch Equation Simulation, Excercise B-5a
+    % Bloch Equation Simulation, Exercise B-5a
     % -----------------------------------------
-    % 
+    %
 
     df = 0;		% Hz off-resonance.
     T1 = 600;	% ms.
@@ -150,19 +150,19 @@ function gentestB5a
         Rfph = Rfph+Rfinc;
         Rfinc = Rfinc+inc;
     end;
-    
+
     sig = sig(end);
-    
+
     save('matlabtestdata/testB5a.mat', 'sig', '-v7.3');
 
 end
 
 % http://mrsrl.stanford.edu/~brian/bloch/b5b.m
 function gentestB5b
-    
-    % Bloch Equation Simulation, Excercise B-5b
+
+    % Bloch Equation Simulation, Exercise B-5b
     % -----------------------------------------
-    % 
+    %
 
     df = 0;		% Hz off-resonance.
     T1 = 600;	% ms.
@@ -179,17 +179,17 @@ function gentestB5b
         [Msig,M]=srsignal(flip(k),T1,T2,TE,TR,df);
         sig2(k)=M(1)+i*M(2);
     end;
-    
+
     save('matlabtestdata/testB5b.mat', 'sig1', 'sig2', '-v7.3');
 
 end
 
 % http://mrsrl.stanford.edu/~brian/bloch/f1a.m
 function gentestF1a
-    
-    % Bloch Equation Simulation, Excercise F-1a
+
+    % Bloch Equation Simulation, Exercise F-1a
     % -----------------------------------------
-    % 
+    %
 
     rf = [pi/4 pi/4];	% Complex sequence of RF rotations.
                 % This will make more sense in later exercises.
@@ -215,17 +215,17 @@ function gentestF1a
         sig(f) = M(1)+i*M(2);
 
     end;
-    
+
     save('matlabtestdata/testF1a.mat', 'sig', '-v7.3');
-    
+
 end
 
 % http://mrsrl.stanford.edu/~brian/bloch/f1b.m
 function gentestF1b
-    
-    % Bloch Equation Simulation, Excercise F-1b
+
+    % Bloch Equation Simulation, Exercise F-1b
     % -----------------------------------------
-    % 
+    %
 
     rf = [pi/4 pi/4];	% Complex sequence of RF rotations.
                 % This will make more sense in later exercises.
@@ -247,7 +247,7 @@ function gentestF1b
         for k = 2:length(rf)
         [A,B] = freeprecess(dT,T1,T2,0);	% No off-resonance.
         M = A*M+B;				% Propagate to next pulse.
-        gradrot = 4258*2*pi*(dT/1000)*grad*(xpos(x)/10);  
+        gradrot = 4258*2*pi*(dT/1000)*grad*(xpos(x)/10);
                             % Rotation from gradient.
         M = zrot(gradrot)*M;
             M = throt(abs(rf(k)),angle(rf(k))) * M;	% RF Rotation.
@@ -255,17 +255,17 @@ function gentestF1b
         sig(x) = M(1)+i*M(2);
 
     end;
-    
+
     save('matlabtestdata/testF1b.mat', 'sig', '-v7.3');
-    
+
 end
 
 % http://mrsrl.stanford.edu/~brian/bloch/f1c.m
 function gentestF1c
-    
-    % Bloch Equation Simulation, Excercise F-1c
+
+    % Bloch Equation Simulation, Exercise F-1c
     % -----------------------------------------
-    % 
+    %
 
     rf = [pi/4 pi/4];	% Complex sequence of RF rotations.
                 % This will make more sense in later exercises.
@@ -288,7 +288,7 @@ function gentestF1c
         [A,B] = freeprecess(dT,T1,T2,0);	% No off-resonance.
         M = A*M+B;				% Propagate to next pulse.
 
-        gradrot = 4258*2*pi*(dT/1000)*grad*(xpos(x)/10);  
+        gradrot = 4258*2*pi*(dT/1000)*grad*(xpos(x)/10);
                             % Rotation from gradient.
         M = zrot(gradrot)*M;
             M = throt(abs(rf(k)),angle(rf(k))) * M;	% RF Rotation.
@@ -299,23 +299,23 @@ function gentestF1c
         [A,B] = freeprecess(dT,T1,T2,0);	% No off-resonance.
         M = A*M+B;				% Propagate .
 
-        gradrot = 4258*2*pi*(dT/1000)*(-0.5*grad)*(xpos(x)/10);  
+        gradrot = 4258*2*pi*(dT/1000)*(-0.5*grad)*(xpos(x)/10);
                                 % Rotation from gradient.
         M = zrot(gradrot)*M;
         sig(x) = M(1)+i*M(2);
 
     end;
-    
+
     save('matlabtestdata/testF1c.mat', 'sig', '-v7.3');
-    
+
 end
 
 % http://mrsrl.stanford.edu/~brian/bloch/f2c.m
 function gentestF2c
-    
-    % Bloch Equation Simulation, Excercise F-1a
+
+    % Bloch Equation Simulation, Exercise F-1a
     % -----------------------------------------
-    % 
+    %
 
 
     t = 0:.04:6;           % in ms.
@@ -345,37 +345,37 @@ function gentestF2c
         sig(f) = M(1)+i*M(2);
 
     end;
-    
+
     save('matlabtestdata/testF2c.mat', 'sig', '-v7.3');
-    
+
 end
 
 function gentestF3a
-    
-    % Bloch Equation Simulation, Excercise F-1a
+
+    % Bloch Equation Simulation, Exercise F-1a
     % -----------------------------------------
-    % 
+    %
     %function [msig,m]=sliceprofile(rf,grad,t,T1,T2,pos,df)
 
     t = [0:.0001:.006];
     x= [-20:.1:20];
     [sig,~]=sliceprofile(.05*sinc(1000*t-3),0.1*ones(size(t)),t,600,100,x,0);
-    
+
     save('matlabtestdata/testF3a.mat', 'sig', '-v7.3');
-    
+
 end
 
 % http://mrsrl.stanford.edu/~brian/bloch/f3c.m
 function gentestF3c
-    
-    % Bloch Equation Simulation, Excercise F-3c
+
+    % Bloch Equation Simulation, Exercise F-3c
     % -----------------------------------------
-    % 
+    %
     %	Almost the same as F-3b:
 
 
     t = .0001:.00005:.006;           % in s.
-    rf = .05*sinc(1000*t-3);	
+    rf = .05*sinc(1000*t-3);
     grad = .1*ones(size(t));
 
     % Now add refocussing gradient, and append to rf and t.
@@ -383,7 +383,7 @@ function gentestF3c
     refocratio = -.52;
     grad = [grad refocratio*grad];
     t = [t t+.006];
-    rf = [rf 0*rf];	
+    rf = [rf 0*rf];
 
     T1 = 600;       % ms.
     T2 = 100;       % ms.
@@ -391,22 +391,22 @@ function gentestF3c
     df = 0;
     [sig,m] = sliceprofile(rf,grad,t,T1,T2,x,df);
     mz = m(3,:);
-    
+
     save('matlabtestdata/testF3c.mat', 'sig', 'mz', '-v7.3');
-    
+
 end
 
 % http://mrsrl.stanford.edu/~brian/bloch/f3d.m
 function gentestF3d
-    
-    % Bloch Equation Simulation, Excercise F-3c
+
+    % Bloch Equation Simulation, Exercise F-3c
     % -----------------------------------------
-    % 
+    %
     %	Almost the same as F-3b:
 
 
     t = .0001:.00005:.006;           % in s.
-    rf = .05*sinc(1000*t-3);	
+    rf = .05*sinc(1000*t-3);
     grad = .1*ones(size(t));
 
     % Now add refocussing gradient, and append to rf and t.
@@ -414,7 +414,7 @@ function gentestF3d
     refocratio = -.52;
     grad = [grad refocratio*grad];
     t = [t t+.006];
-    rf = [rf 0*rf];	
+    rf = [rf 0*rf];
 
     T1 = 600;       % ms.
     T2 = 100;       % ms.
@@ -422,22 +422,22 @@ function gentestF3d
     df = 100;
     [sig,m] = sliceprofile(rf,grad,t,T1,T2,x,df);
     mz = m(3,:);
-    
+
     save('matlabtestdata/testF3d.mat', 'sig', 'mz', '-v7.3');
-    
+
 end
 
 % http://mrsrl.stanford.edu/~brian/bloch/f3f.m
 function gentestF3f
-    
-    % Bloch Equation Simulation, Excercise F-3c
+
+    % Bloch Equation Simulation, Exercise F-3c
     % -----------------------------------------
-    % 
+    %
     %	Almost the same as F-3b:
 
 
     t = .0001:.00005:.006;           % in s.
-    rf = .05*sinc(1000*t-3);	
+    rf = .05*sinc(1000*t-3);
     rfmod = exp(2*pi*900*i*t);
     rf = [rf.*rfmod + rf.*conj(rfmod)];
     grad = .1*ones(size(t));
@@ -447,7 +447,7 @@ function gentestF3f
     refocratio = -.52;
     grad = [grad refocratio*grad];
     t = [t t+.006];
-    rf = [rf 0*rf];	
+    rf = [rf 0*rf];
 
     T1 = 600;       % ms.
     T2 = 100;       % ms.
@@ -455,9 +455,9 @@ function gentestF3f
     df = 0;
     [sig,m] = sliceprofile(rf,grad,t,T1,T2,x,df);
     mz = m(3,:);
-    
+
     save('matlabtestdata/testF3f.mat', 'sig', 'mz', '-v7.3');
-    
+
 end
 
 % http://mrsrl.stanford.edu/~brian/bloch/zrot.m
@@ -498,7 +498,7 @@ function [Afp,Bfp]=freeprecess(T,T1,T2,df)
 %	and off-resonance df.  Times in ms, off-resonance in Hz.
 
     phi = 2*pi*df*T/1000;	% Resonant precession, radians.
-    E1 = exp(-T/T1);	
+    E1 = exp(-T/T1);
     E2 = exp(-T/T2);
 
     Afp = [E2 0 0;0 E2 0;0 0 E1]*zrot(phi);
@@ -507,9 +507,9 @@ end
 
 % http://mrsrl.stanford.edu/~brian/bloch/sesignal.m
 function [Msig,Mss] = sesignal(T1,T2,TE,TR,dfreq)
-    % 
+    %
     %	function [Msig,Mss] = sesignal(T1,T2,TE,TR,dfreq)
-    % 
+    %
     %	Calculate the steady state signal at TE for a spin-echo
     %	sequence, given T1,T2,TR,TE in ms.  Force the
     %	transverse magnetization to zero before each excitation.
@@ -547,10 +547,10 @@ end
 
 % http://mrsrl.stanford.edu/~brian/bloch/fsesignal.m
 function [Msig,Mss] = fsesignal(T1,T2,TE,TR,dfreq,ETL)
-    
-    % 
+
+    %
     %	function [Msig,Mss] = sesignal(T1,T2,TE,TR,dfreq,ETL)
-    % 
+    %
     %	Calculate the steady state signal at TE for a multi-echo spin-echo
     %	sequence, given T1,T2,TR,TE in ms.  Force the
     %	transverse magnetization to zero before each excitation.
@@ -601,9 +601,9 @@ end
 
 % http://mrsrl.stanford.edu/~brian/bloch/gssignal.m
 function [Msig,Mss] = gssignal(flip,T1,T2,TE,TR,dfreq,phi)
-    % 
+    %
     %	function [Msig,Mss] = gssignal(flip,T1,T2,TE,TR,dfreq,phi)
-    % 
+    %
     %	Calculate the steady state signal at TE for repeated
     %	excitations given T1,T2,TR,TE in ms.  dfreq is the resonant
     %	frequency in Hz.  flip is in radians.
@@ -638,9 +638,9 @@ end
 
 % http://mrsrl.stanford.edu/~brian/bloch/gresignal.m
 function [Msig,Mss] = gresignal(flip,T1,T2,TE,TR,dfreq)
-    % 
+    %
     %	function [Msig,Mss] = gresignal(flip,T1,T2,TE,TR,dfreq)
-    % 
+    %
     %	Calculate the steady state gradient-spoiled signal at TE for repeated
     %	excitations given T1,T2,TR,TE in ms.  dfreq is the resonant
     %	frequency in Hz.  flip is in radians.
@@ -663,15 +663,15 @@ end
 
 % http://mrsrl.stanford.edu/~brian/bloch/srsignal.m
 function [Msig,Mss] = srsignal(flip,T1,T2,TE,TR,dfreq)
-    % 
+    %
     %	function [Msig,Mss] = srsignal(flip,T1,T2,TE,TR,dfreq)
-    % 
+    %
     %	Calculate the steady state signal at TE for repeated
     %	excitations given T1,T2,TR,TE in ms.  Force the
     %	transverse magnetization to zero before each excitation.
     %	dfreq is the resonant frequency in Hz.  flip is in radians.
     %
-    
+
     Rflip = yrot(-flip);
     [Atr,Btr] = freeprecess(TR-TE,T1,T2,dfreq);
     [Ate,Bte] = freeprecess(TE,T1,T2,dfreq);
@@ -782,5 +782,5 @@ function [msig,m]=sliceprofile(rf,grad,t,T1,T2,pos,df)
         msig(x) = M(1)+i*M(2);
 
     end;
-   
+
 end
