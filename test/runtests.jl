@@ -1,9 +1,10 @@
 using BlochSim
-using ForwardDiff
 using LinearAlgebra
-using MAT
-using Statistics
 using Test
+
+@testset "aqua.jl" begin
+    include("aqua.jl")
+end
 
 @testset "BlochSim.jl" begin
     include("matlab.jl")

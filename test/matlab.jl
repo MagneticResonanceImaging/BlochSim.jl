@@ -1,3 +1,10 @@
+# test/matlab.jl
+
+using StatsBase: mean
+using MAT: matread
+using BlochSim
+using Test: @test, @testset
+
 function testA5b()
 
     answer = matread("matlabtestdata/testA5b.mat")

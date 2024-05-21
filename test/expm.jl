@@ -1,3 +1,12 @@
+using BlochSim: BlochMcConnellMatrix, InstantaneousRF
+using BlochSim: ExcitationMatrix, FreePrecessionMatrix
+using BlochSim: Magnetization, MagnetizationMC, Spin, SpinMC
+using BlochSim: applydynamics!, excite!, freeprecess!, signal
+import BlochSim # BlochMcConnellDynamicsMatrix, expm! (etc)
+using ForwardDiff: ForwardDiff
+import ForwardDiff: derivative, gradient
+using Test: @test, @testset
+
 function expm1()
 
     T11 = 1

@@ -1,4 +1,4 @@
-name: Unit Tests
+name: CI
 
 on:
   create:
@@ -55,3 +55,6 @@ jobs:
         if: ${{ matrix.version == '1' && matrix.os == 'ubuntu-latest' }}
         with:
           file: lcov.info
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
