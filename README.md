@@ -131,7 +131,7 @@ julia> signal(spinmc)
 * [MRIgeneralizedBloch.jl](https://github.com/JakobAsslaender/MRIgeneralizedBloch.jl)
   focuses on [magnetization transfer](https://doi.org/10.1002/mrm.29071)
 * [KomaMRI.jl](https://github.com/JuliaHealth/KomaMRI.jl)
-  has Pulseq compatability
+  has Pulseq compatibility
 
 
 ## Acknowledgement
