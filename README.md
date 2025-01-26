@@ -128,7 +128,7 @@ julia> signal(spinmc)
 
 ## Features
 
-Offers many mutating (in-place) versions for compute efficiency.
+Offers many mutating (in-place) methods for compute efficiency.
 
 ## Related package(s)
 
