@@ -126,12 +126,18 @@ julia> signal(spinmc)
 0.060535257436693427 + 0.02465189787771933im
 ```
 
+## Features
+
+Offers many mutating (in-place) methods for compute efficiency.
+
 ## Related package(s)
 
 * [MRIgeneralizedBloch.jl](https://github.com/JakobAsslaender/MRIgeneralizedBloch.jl)
   focuses on [magnetization transfer](https://doi.org/10.1002/mrm.29071)
 * [KomaMRI.jl](https://github.com/JuliaHealth/KomaMRI.jl)
   has Pulseq compatibility
+* [BlochSimulators.jl](https://github.com/oscarvanderheide/BlochSimulators.jl)
+  has GPU support
 
 
 ## Acknowledgement
