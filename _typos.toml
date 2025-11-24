@@ -2,6 +2,7 @@
 extend-ignore-identifiers-re = [
     "Ba",
     "Bre",
+    "precess",
     "strang",
     "Fand",
 ]
