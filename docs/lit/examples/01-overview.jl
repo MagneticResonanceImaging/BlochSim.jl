@@ -70,7 +70,7 @@ using LaTeXStrings: latexstring
 using LinearAlgebra: I
 using MIRTjim: prompt
 using Plots: gui, plot, plot!, default
-default(titlefontsize = 10, markerstrokecolor = :auto, label="", width = 2)
+default(titlefontsize = 10, markerstrokecolor = :auto, label="", width = 1.5)
 
 
 # The following line is helpful when running this file as a script;
@@ -244,18 +244,13 @@ sig_matrix = bssfp_matrix.(flip_ang_arr_deg', Δf_arr_Hz)
 sig_blochsim = bssfp_blochsim.(flip_ang_arr_deg', Δf_arr_Hz)
 @assert sig_matrix ≈ sig_blochsim # yes they match!
 
-# Plot signal magnitude and phase
-p_m = plot(
-    ylabel = "Signal Magnitude",
-)
-p_p = plot(
+# Plot 1-pool signal magnitude and phase
+label = reshape(map(a -> "α = $(a)°", flip_ang_arr_deg), 1, :) # row!
+p_m = plot(Δf_arr_Hz, abs.(sig_blochsim); label,
+    ylabel = "Signal Magnitude")
+p_p = plot(Δf_arr_Hz, angle.(sig_blochsim); label,
     xlabel = "Resonant Frequency (Hz)",
-    ylabel = "Signal Phase",
-)
-for (i, α_deg) in enumerate(flip_ang_arr_deg)
-    plot!(p_m, Δf_arr_Hz, abs.(sig_blochsim[:,i]), label="α = $(α_deg)°")
-    plot!(p_p, Δf_arr_Hz, angle.(sig_blochsim[:,i]), label="α = $(α_deg)°")
-end
+    ylabel = "Signal Phase")
 pmp = plot(p_m, p_p, layout=(2,1), plot_title = "bSSFP single pool",
     plot_titlefontsize = 13)
 
@@ -398,9 +393,6 @@ T2_ms_tuple = (T2_f_ms, T2_s_ms)
 
 TR_ms, TE_ms = 20, 4; # scan parameters
 
-## tuple with fast-to-slow and slow-to-fast residence times
-τ_tuple_ms = get_τ_tuple(τ_fs, f_f)
-
 mwf_tuple = get_mwf_tuple(f_f) # tuple with fast and slow relaxing fractions
 
 
@@ -412,6 +404,8 @@ but with three different RF phase cycling factor values:
 For this example, choose one exchange rate:
 =#
 τ_fs = 50.0 # this will be varied in the next plot
+## tuple with fast-to-slow and slow-to-fast residence times
+τ_tuple_ms = get_τ_tuple(τ_fs, f_f)
 
 flip_ang_arr_deg = [10, 40] # flip angles
 
@@ -445,10 +439,12 @@ signal_MC = map(bssfp_blochsim_MC, tmp);
 pmcm = plot(ylabel = "Signal Magnitude")
 pmcp = plot( ylabel = "Signal Phase", xlabel = "Resonant Frequency (Hz)")
 for i in 1:size(signal_MC,3), j in 1:size(signal_MC,2)
-    label = "α = $(flip_ang_arr_deg[i])°, ΔΦ = $(ΔΦ_arr_deg[j])°"
-    plot!(pmcm, Δf_arr_Hz, abs.(signal_MC[:,j,i]); label)
-    plot!(pmcp, Δf_arr_Hz, angle.(signal_MC[:,j,i]); label)
+    label2 = "α = $(flip_ang_arr_deg[i])°, ΔΦ = $(ΔΦ_arr_deg[j])°"
+    tmp2 = signal_MC[:,j,i]
+    plot!(pmcm, Δf_arr_Hz, abs.(tmp2))
+    plot!(pmcp, Δf_arr_Hz, angle.(tmp2); label = label2)
 end
+
 p2 = plot(pmcm, pmcp, layout = (2,1), titlefontsize = 12,
     plot_title = "bSSFP 2-pool magnitude and phase")
 
@@ -465,7 +461,6 @@ p_m = plot(title="Signal Magnitude vs. Scan Index", ylabel = "Signal Magnitude")
 p_p = plot(title="Signal Phase vs. Scan Index", ylabel = "Signal Phase")
 
 num_scans = 40 # number of different scans
-#todo scan_idx = range(1,num_scans,num_scans)
 scan_idx = 1:num_scans
 
 flip_ang_arr_deg = [10.0, 40.0] # flip angles for plot
@@ -523,18 +518,18 @@ for j in 1:num_taus # iterate over exchange values
 
     global curr_scan = 1
 
-    plot!(p_m, scan_idx,sig_arr[:,j], linewidth=0, markershape=tau_marker,
+    plot!(p_m, scan_idx, sig_arr[:,j], linewidth=0, markershape=tau_marker,
         label = latexstring("\$τ_{\\mathrm{fs}}\$ = $τ_fs ms"))
-    plot!(p_p, scan_idx,sig_arr_phase[:,j], linewidth=0, markershape=tau_marker,
+    plot!(p_p, scan_idx, sig_arr_phase[:,j], linewidth=0, markershape=tau_marker,
         label = latexstring("\$τ_{\\mathrm{fs}}\$ = $τ_fs ms"))
 end
 
 ## plot results and label axes
 p3 = plot(p_m, p_p, layout = (2,1), xlabel = "Scan Index")
 
-gui(); throw(); # xx
 #
 prompt()
 
+## gui(); throw(); # xx
 
 include("../../../inc/reproduce.jl")
