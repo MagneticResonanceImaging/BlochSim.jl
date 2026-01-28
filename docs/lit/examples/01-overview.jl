@@ -27,7 +27,7 @@ This demo recreates Figure 3 from [1] and Figure 2 from [2].
 - [2] Murthy, N., Nielsen, J., Whitaker, S., Haskell, M., Swanson, S.,
   Seiberlich, N., & Fessler, J. (2022).
   Quantifying myelin water exchange using optimized bSSFP sequences.
-  [Proc. Intl. Soc. Mag. Res. Med (p. 2068)](https://cds.ismrm.org/protected/22MProceedings/PDFfiles/2068.html).
+  [Proc. Intl. Soc. Mag. Res. Med (#2068)](https://cds.ismrm.org/protected/22MProceedings/PDFfiles/2068.html).
 
 - [3] Hinshaw, W. S. (1976).
   Image formation by nuclear magnetic resonance: the sensitive‐point method.
@@ -262,8 +262,6 @@ pmp = plot(p_m, p_p, layout=(2,1), plot_title = "bSSFP single pool",
 #
 prompt()
 
-## gui(); throw(); # xx
-
 
 #=
 ## Multi-compartment spins and myelin water exchange
@@ -376,30 +374,34 @@ function bssfp_blochsim_MC(α_deg, TR_ms, TE_ms, spin_mc, spin_mc_no_rf_phase_fa
     ## steady-state magnetization at the echo time
     M = Matrix(PC_TE_A) * M + Vector(PE_TE_B)
 
-    return (complex(M[1]+M[4], M[2]+M[5])) # return the complex signal
+    return complex(M[1]+M[4], M[2]+M[5]) # return the complex signal
 end;
 
 
-# Define variables to be used in the following plots.
-# Values taken from [2] and [4].
+#=
+Define variables to be used in the following plots.
+Values taken from [2] and [4].
+=#
 
-mo = 0.77; # initial condition for longitudinal magnetization (constant)
+mo = 0.77 # initial condition for longitudinal magnetization (constant)
+Δf_myelin_Hz = 5.0 # frequency shift of myelin water
+f_f = 0.15; # myelin water fraction (MWF), fast fraction
 
 ## T1 and T2 values
 T1_f_ms = 400 # T1 for fast-relaxing, myelin water compartment
 T1_s_ms = 832 # T1 for slow-relaxing, non-myelin water compartment
-T1_ms_tuple = (T1_f_ms, T1_s_ms);
+T1_ms_tuple = (T1_f_ms, T1_s_ms)
 
 T2_f_ms = 20 # T2 for fast-relaxing, myelin water compartment
 T2_s_ms = 80 # T2 for slow-relaxing, non-myelin water compartment
 T2_ms_tuple = (T2_f_ms, T2_s_ms)
 
-Δf_myelin_Hz = 5.0 # frequency shift of myelin water
-
-f_f = 0.15 # myelin water fraction (MWF), fast fraction
-mwf_tuple = get_mwf_tuple(f_f) # tuple with fast and slow relaxing fractions
-
 TR_ms, TE_ms = 20, 4; # scan parameters
+
+## tuple with fast-to-slow and slow-to-fast residence times
+τ_tuple_ms = get_τ_tuple(τ_fs, f_f)
+
+mwf_tuple = get_mwf_tuple(f_f) # tuple with fast and slow relaxing fractions
 
 
 #=
@@ -411,76 +413,60 @@ For this example, choose one exchange rate:
 =#
 τ_fs = 50.0 # this will be varied in the next plot
 
-## tuple with fast-to-slow and slow-to-fast residence times
-τ_tuple_ms = get_τ_tuple(τ_fs, f_f)
-
-num_samples = 401 # number of samples (resonant frequencies)
-
-flip_ang_arr_deg = [10, 40] # flips angles for example
-num_flip_angles = length(flip_ang_arr_deg)
+flip_ang_arr_deg = [10, 40] # flip angles
 
 ΔΦ_arr_deg = [0, 90, 180] # RF phase cycling value (degrees)
-Δϕ_arr_marker = [:circle :star5 :utriangle]
-num_phases = length(ΔΦ_arr_deg);
 
-## array to store results
-sig_arr = zeros(num_flip_angles,num_phases,num_samples);
+## vector of off-resonance values
+num_samples = 401 # number of samples (resonant frequencies)
+Δf_arr_Hz = kHz_to_Hz(range(-1, 1, num_samples) / TR_ms)
 
-## array with off-resonance values
-Δf_arr_kHz = range(-1/TR_ms, 1/TR_ms, num_samples)
+# Helper function for broadcast
+function bssfp_blochsim_MC(Δf_Hz, ΔΦ_deg, α_deg)
+    ## convert inputted RF phase cycling angle from degrees to radians
+    ΔΦ_rad = deg2rad(ΔΦ_deg)
 
-p2 = plot(title="Steady-State Signal Magnitude vs. Resonant Frequency",
-    xlabel = "Resonant Frequency (kHz)",
-    ylabel = "Signal Magnitude",
-    titlefontsize=12,
-);
+    ## get tuple of values incorporating off-resonance and RF phase cycling for both compartments
+    Δf_tuple_Hz = get_Δf_tuple(ΔΦ_rad, Δf_Hz, Δf_myelin_Hz, TR_ms)
+    Δf_tuple_Hz_no_rf_phase_fact = get_Δf_tuple(0, Δf_Hz, Δf_myelin_Hz, TR_ms)
 
-for i in 1:num_flip_angles # iterate over flip angles
-    α_deg = flip_ang_arr_deg[i]
+    ## create spin (with and without RF phase-cycling factor)
+    spin_mc = SpinMC(mo, mwf_tuple, T1_ms_tuple, T2_ms_tuple, Δf_tuple_Hz, τ_tuple_ms)
+    spin_mc_no_rf_phase_fact = SpinMC(mo, mwf_tuple, T1_ms_tuple, T2_ms_tuple, Δf_tuple_Hz_no_rf_phase_fact, τ_tuple_ms)
 
-    for j in 1:num_phases # iterate over RF phases
-        ΔΦ_deg = ΔΦ_arr_deg[j]
-
-        for k in 1:num_samples # iterate over resonant frequencies
-            Δf_kHz = Δf_arr_kHz[k]
-
-            ## convert off-resonance from kHz to Hz before input into function
-            local Δf_Hz = kHz_to_Hz(Δf_kHz)
-
-            ## convert inputted RF phase cycling angle from degrees to radians
-            ΔΦ_rad = deg2rad(ΔΦ_deg)
-
-            ## get tuple of values incorporating off-resonance and RF phase cycling for both compartments
-            Δf_tuple_Hz = get_Δf_tuple(ΔΦ_rad, Δf_Hz, Δf_myelin_Hz, TR_ms)
-            Δf_tuple_Hz_no_rf_phase_fact = get_Δf_tuple(0, Δf_Hz, Δf_myelin_Hz, TR_ms)
-
-            ## create a spin (with and without RF phase-cycling factor)
-            spin_mc = SpinMC(mo, mwf_tuple, T1_ms_tuple, T2_ms_tuple, Δf_tuple_Hz, τ_tuple_ms)
-            spin_mc_no_rf_phase_fact = SpinMC(mo, mwf_tuple, T1_ms_tuple, T2_ms_tuple, Δf_tuple_Hz_no_rf_phase_fact, τ_tuple_ms)
-
-            ## run the bSSFP blochsim and add to result array
-            signal = bssfp_blochsim_MC(α_deg, TR_ms, TE_ms, spin_mc, spin_mc_no_rf_phase_fact)
-            sig_arr[i,j,k] = abs(signal)
-        end
-
-        plot!(p2, Δf_arr_kHz, sig_arr[i,j,:];
-           label = "α = $(α_deg)°, ΔΦ = $(ΔΦ_deg)°")
-    end
+    return bssfp_blochsim_MC(α_deg, TR_ms, TE_ms, spin_mc, spin_mc_no_rf_phase_fact)
 end
-p2
+bssfp_blochsim_MC(t::Tuple) = bssfp_blochsim_MC(t...);
+
+tmp = Iterators.product(Δf_arr_Hz, ΔΦ_arr_deg, flip_ang_arr_deg)
+signal_MC = map(bssfp_blochsim_MC, tmp);
+
+# Plot 2-pool signals
+pmcm = plot(ylabel = "Signal Magnitude")
+pmcp = plot( ylabel = "Signal Phase", xlabel = "Resonant Frequency (Hz)")
+for i in 1:size(signal_MC,3), j in 1:size(signal_MC,2)
+    label = "α = $(flip_ang_arr_deg[i])°, ΔΦ = $(ΔΦ_arr_deg[j])°"
+    plot!(pmcm, Δf_arr_Hz, abs.(signal_MC[:,j,i]); label)
+    plot!(pmcp, Δf_arr_Hz, angle.(signal_MC[:,j,i]); label)
+end
+p2 = plot(pmcm, pmcp, layout = (2,1), titlefontsize = 12,
+    plot_title = "bSSFP 2-pool magnitude and phase")
 
 #
 prompt()
 
 
+#=
 # Recreate Figure 2 (magnitude plot) from [2] and also add the phase plot.
+=#
 
 ## Initialize the plot:
 p_m = plot(title="Signal Magnitude vs. Scan Index", ylabel = "Signal Magnitude")
 p_p = plot(title="Signal Phase vs. Scan Index", ylabel = "Signal Phase")
 
 num_scans = 40 # number of different scans
-scan_idx = range(1,num_scans,num_scans)
+#todo scan_idx = range(1,num_scans,num_scans)
+scan_idx = 1:num_scans
 
 flip_ang_arr_deg = [10.0, 40.0] # flip angles for plot
 num_flip_angles = length(flip_ang_arr_deg)
@@ -546,7 +532,9 @@ end
 ## plot results and label axes
 p3 = plot(p_m, p_p, layout = (2,1), xlabel = "Scan Index")
 
+gui(); throw(); # xx
 #
 prompt()
+
 
 include("../../../inc/reproduce.jl")
