@@ -69,8 +69,8 @@ using InteractiveUtils: versioninfo
 using LaTeXStrings: latexstring
 using LinearAlgebra: I
 using MIRTjim: prompt
-using Plots: plot, plot!, default
-default(titlefontsize = 10, markerstrokecolor = :auto, label="")
+using Plots: gui, plot, plot!, default
+default(titlefontsize = 10, markerstrokecolor = :auto, label="", width = 2)
 
 
 # The following line is helpful when running this file as a script;
@@ -123,27 +123,26 @@ using method of
 - `mo` initial condition for magnetization in the z-direction (constant)
 - `T1_ms` MRI tissue parameter for T1 relaxation (ms)
 - `T2_ms` MRI tissue parameter for T2 relaxation (ms)
-- `Δf_Hz` off-resonance value (Hz)
+- `Δf_Hz` off-resonance value (Hz) (default 0)
 
 ## Out
 - `signal` steady-state magnetization (as a complex number)
 """
 function bssfp_matrix(α_deg, TR_ms, TE_ms, mo, T1_ms, T2_ms, Δf_Hz=0)
 
-    Δf_kHz = Hz_to_kHz(Δf_Hz) # convert off-resonance value to kHz
-
     M0 = [0; 0; mo] # initial magnetization vector
 
-    α_rad = deg2rad(α_deg) # convert flip angle α from degrees to radians
-
     ## rotation matrix for RF excitation about the x-axis
+    α_rad = deg2rad(α_deg) # convert flip angle α from degrees to radians
     R = [1 0 0; 0 cos(α_rad) sin(α_rad); 0 -sin(α_rad) cos(α_rad)]
 
     ## free precession matrix
-    P(τ_ms) = [cos(2π*Δf_kHz*τ_ms) sin(2π*Δf_kHz*τ_ms) 0 ; -sin(2π*Δf_kHz*τ_ms) cos(2π*Δf_kHz*τ_ms) 0 ; 0 0 1]
+    Pz(angle) = [cos(angle) sin(angle) 0 ; -sin(angle) cos(angle) 0 ; 0 0 1]
+    P(τ_ms) = Pz( 2π * Hz_to_kHz(Δf_Hz) * τ_ms ) # angle in radians
 
     ## matrices for T1 and T2 relaxation over a time τ
-    C(τ_ms) = [exp(-τ_ms/T2_ms) 0 0 ; 0 exp(-τ_ms/T2_ms) 0 ; 0 0 exp(-τ_ms/T1_ms)]
+    C(E1, E2) = [E2 0 0; 0 E2 0; 0 0 E1]
+    C(τ_ms) = C(exp(-τ_ms / T1_ms), exp(-τ_ms / T2_ms))
     D(τ_ms) = (I - C(τ_ms)) * [0 ; 0 ; mo]
 
     ## matrices for various values of τ
@@ -151,12 +150,12 @@ function bssfp_matrix(α_deg, TR_ms, TE_ms, mo, T1_ms, T2_ms, Δf_Hz=0)
     P2 = P(TR_ms - TE_ms)
     C1 = C(TE_ms)
     C2 = C(TR_ms - TE_ms)
-    D1 = D(TE_ms)
-    D2 = D(TR_ms - TE_ms)
+    d1 = D(TE_ms)
+    d2 = D(TR_ms - TE_ms)
 
     ## matrix A and vector b for steady-state calculation
-    A = P1*C1*R*P2*C2
-    b = P1*C1*R*D2 + D1
+    A = P1 * C1 * R * P2 * C2
+    b = P1 * C1 * R * d2 + d1
 
     Mss = (I - A) \ b # steady-state magnetization
 
@@ -195,28 +194,26 @@ end;
 
 
 function bssfp_blochsim(α_deg, TR_ms, TE_ms, spin::Spin)
-
     α_rad = deg2rad(α_deg) # convert flip angle α from degrees to radians
 
     #=
-    excite the spin
+    Matrix to excite the spin
     include RF phase for instantaneous RF because above code flips over x axis
     and blochsim flips over -y axis and want to make them consistent
     =#
     (R,) = excite(spin, InstantaneousRF(α_rad, -π/2))
-    R = Matrix(R.A)
 
-    ## put spin through precession/relaxation for various time period values
+    ## Matrices for precession/relaxation for various time period values
     (PC1_A, PC1_B) = freeprecess(spin, TE_ms)
     (PC2_A, PC2_B) = freeprecess(spin, TR_ms-TE_ms)
     (PC_TR_A, PC_TR_B) = freeprecess(spin, TR_ms)
 
-    ## calculate the A and B matrices
-    A = Matrix(PC1_A)*R*Matrix(PC2_A)
-    B = Matrix(PC1_A)*R*Vector(PC2_B)+Vector(PC1_B)
+    ## calculate the A matrix and b vector
+    A = Matrix(PC1_A * R.A * PC2_A)
+    b = Matrix(PC1_A * R.A) * Vector(PC2_B) + Vector(PC1_B)
 
     ## calculate the steady-state magnetization at the echo time
-    Mss = (I - A) \ B
+    Mss = (I - A) \ b
 
     return complex(Mss[1], Mss[2]) # return the complex signal
 end;
@@ -227,63 +224,51 @@ end;
 TR_ms, TE_ms = 10, 5 # scan parameters
 mo, T1_ms, T2_ms = 1, 400, 100 # tissue parameters
 
-num_off_res_values = 401 # array of off-resonance values
-Δf_arr_kHz = range(-1/TR_ms, 1/TR_ms, num_off_res_values) # 2 periods
+num_off_res_values = 401 # vector of off-resonance values
+Δf_arr_Hz = kHz_to_Hz(range(-1, 1, num_off_res_values) / TR_ms) # 2 periods
 
-flip_ang_arr_deg = [15, 30, 60, 90] # array of flip angles
-num_flip_angles = length(flip_ang_arr_deg);
+flip_ang_arr_deg = [15, 30, 60, 90]; # vector of flip angles
 
-## array to store calculated results for both plots (methods 1 and 2)
-num_plots = 2
-sig_arr = zeros(num_flip_angles, num_off_res_values, num_plots)
-
-p_m = plot(title="Matrix Version") # initialize plots
-p_b = plot(title="BlochSim Version");
+# Helper functions for broadcast:
+bssfp_matrix(α_deg, Δf_Hz) =
+    bssfp_matrix(α_deg, TR_ms, TE_ms, mo, T1_ms, T2_ms, Δf_Hz)
+bssfp_blochsim(α_deg, Δf_Hz) =
+    bssfp_blochsim(α_deg, TR_ms, TE_ms, mo, T1_ms, T2_ms, Δf_Hz);
 
 #=
 Call `bssfp_matrix` and `bssfp_blochsim`
 for various flip angles and off-resonance values
-and verify that they calculations match.
+and verify that the calculations match.
 =#
-for i in 1:num_flip_angles # iterate over flip angles
-    α_deg = flip_ang_arr_deg[i]
+sig_matrix = bssfp_matrix.(flip_ang_arr_deg', Δf_arr_Hz)
+sig_blochsim = bssfp_blochsim.(flip_ang_arr_deg', Δf_arr_Hz)
+@assert sig_matrix ≈ sig_blochsim # yes they match!
 
-    for j in 1:num_off_res_values # iterate over off-resonance values
-        Δf_kHz = Δf_arr_kHz[j]
-
-        local Δf_Hz = kHz_to_Hz(Δf_kHz) # convert from kHz to Hz
-
-        ## call both implementations (methods 1 and 2) of bSSFP signal model
-        signal_matrix = bssfp_matrix(α_deg, TR_ms, TE_ms, mo, T1_ms, T2_ms, Δf_Hz)
-        signal_blochsim = bssfp_blochsim(α_deg, TR_ms, TE_ms, mo, T1_ms, T2_ms, Δf_Hz)
-        @assert signal_blochsim ≈ signal_matrix # check!
-
-        ## save results for methods 1 and 2
-        sig_arr[i,j,1] = abs(signal_matrix)
-        sig_arr[i,j,2] = abs(signal_blochsim)
-    end
-
-    ## plot results for current flip angle
-    plot!(p_m, 1000Δf_arr_kHz, sig_arr[i,:,1], label="α = $(α_deg)°")
-    plot!(p_b, 1000Δf_arr_kHz, sig_arr[i,:,2], label="α = $(α_deg)°")
-end
-
-# Plot results and label axes:
-p1 = plot(p_m, p_b, layout = (2,1),
-    xlabel = "Resonant Frequency (Hz)",
+# Plot signal magnitude and phase
+p_m = plot(
     ylabel = "Signal Magnitude",
-    plot_title = "Steady-State Signal Magnitude vs. Resonant Frequency",
-    plot_titlefontsize = 12,
 )
+p_p = plot(
+    xlabel = "Resonant Frequency (Hz)",
+    ylabel = "Signal Phase",
+)
+for (i, α_deg) in enumerate(flip_ang_arr_deg)
+    plot!(p_m, Δf_arr_Hz, abs.(sig_blochsim[:,i]), label="α = $(α_deg)°")
+    plot!(p_p, Δf_arr_Hz, angle.(sig_blochsim[:,i]), label="α = $(α_deg)°")
+end
+pmp = plot(p_m, p_p, layout=(2,1), plot_title = "bSSFP single pool",
+    plot_titlefontsize = 13)
 
 #
 prompt()
+
+## gui(); throw(); # xx
 
 
 #=
 ## Multi-compartment spins and myelin water exchange
 
-Generate Figure 2 from [2] using BlochSim.
+Generate Figure 2 from [2] using `BlochSim`.
 First define some useful helper functions.
 These functions put the parameters in the correct format
 for the multi-compartment spin object constructors.
