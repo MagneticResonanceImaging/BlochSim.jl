@@ -27,7 +27,7 @@ This demo recreates Figure 3 from [1] and Figure 2 from [2].
 - [2] Murthy, N., Nielsen, J., Whitaker, S., Haskell, M., Swanson, S.,
   Seiberlich, N., & Fessler, J. (2022).
   Quantifying myelin water exchange using optimized bSSFP sequences.
-  [Proc. Intl. Soc. Mag. Res. Med (p. 2068)](https://submissions.mirasmart.com/ISMRM2022/Itinerary/Files/PDFFiles/2068.html).
+  [Proc. Intl. Soc. Mag. Res. Med (p. 2068)](https://cds.ismrm.org/protected/22MProceedings/PDFfiles/2068.html).
 
 - [3] Hinshaw, W. S. (1976).
   Image formation by nuclear magnetic resonance: the sensitive‐point method.
@@ -55,6 +55,7 @@ if false
         "BlochSim"
         "LaTeXStrings"
         "LinearAlgebra"
+        "MIRTjim"
         "Plots"
     ])
 end
@@ -81,7 +82,7 @@ isinteractive() || prompt(:draw);
 # Define some useful helper functions.
 
 Hz_to_kHz(Δf_Hz) = Δf_Hz * 10^(-3) # convert frequencies in Hz to kHz
-kHz_to_Hz(Δf_kHz) = Δf_kHz * 10^(3) # convert frequencies in kHz to Hz
+kHz_to_Hz(Δf_kHz) = Δf_kHz * 10^(3); # convert frequencies in kHz to Hz
 
 
 #=
@@ -242,6 +243,7 @@ p_b = plot(title="BlochSim Version");
 #=
 Call `bssfp_matrix` and `bssfp_blochsim`
 for various flip angles and off-resonance values
+and verify that they calculations match.
 =#
 for i in 1:num_flip_angles # iterate over flip angles
     α_deg = flip_ang_arr_deg[i]
