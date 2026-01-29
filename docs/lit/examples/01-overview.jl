@@ -509,15 +509,7 @@ prompt()
 # Recreate Figure 2 (magnitude plot) from [2] and also add the phase plot.
 =#
 
-## Initialize the plot:
-p_m = plot(title="Signal Magnitude vs. Scan Index", ylabel = "Signal Magnitude")
-p_p = plot(title="Signal Phase vs. Scan Index", ylabel = "Signal Phase")
-
-flip_ang_arr_deg = [10.0, 40.0] # flip angles for plot
-num_flip_angles = length(flip_ang_arr_deg)
-
 Δf_Hz = 0.0 # set off-resonance to zero for this plot
-
 tau_arr_ms = [250, 150, 50] # array of exchange values
 tau_arr_marker = [:circle, :star5, :utriangle]
 
@@ -526,39 +518,29 @@ tau_arr_marker = [:circle, :star5, :utriangle]
  [-168.8, -150.3, -130.1, -111.5, -93.19, -74.18, -54.68 , -37.15, -18.01, 1.342, 18.82, 38.64, 57.88, 76.48, 95.2, 113.3, 133.3, 153.1, 172.1],
 )
 
-num_scans = sum(length.(ΔΦ_design_deg)) # number of different scans = 40
+α_arr_deg = [10.0, 40.0] # flip angles for plot
+α_design_deg = [
+  fill(α_arr_deg[1], length(ΔΦ_design_deg[1]));
+  fill(α_arr_deg[2], length(ΔΦ_design_deg[2]))
+]
+scan_design = (ΔΦ_deg = vcat(ΔΦ_design_deg...), α_deg = α_design_deg)
+num_scans = length(scan_design.ΔΦ_deg) # number of different scans = 40
+
+tmp = (τ_fs) -> (ΔΦ_deg, α_deg) -> bssfp_mc(Δf_Hz, ΔΦ_deg, α_deg, τ_fs)
+bssfp_signal(τ_fs) = map(splat(tmp(τ_fs)), zip(scan_design...))
+
+signal = bssfp_signal.(tau_arr_ms)
+
+## Plot
 scan_idx = 1:num_scans
-
-signal_arr = zeros(ComplexF64, num_scans, length(tau_arr_ms)) # store results
-curr_scan = 1
-
-for (j, τ_fs) in enumerate(tau_arr_ms) # iterate over exchange values
-
-    for k in 1:num_flip_angles # iterate over flip angles
-        α_deg = flip_ang_arr_deg[k]
-
-        ## different RF phases for different flip angles - from Figure 1 in [2]
-        local ΔΦ_arr_deg = ΔΦ_design_deg[k]
-
-        for i in 1:length(ΔΦ_arr_deg) # iterate over RF phases
-            ΔΦ_deg = ΔΦ_arr_deg[i]
-
-            signal = bssfp_mc(Δf_Hz, ΔΦ_deg, α_deg, τ_fs)
-            signal_arr[curr_scan, j] = signal
-
-            global curr_scan += 1
-        end
-    end
-
-    global curr_scan = 1
-
+p_m = plot(title="Signal Magnitude vs. Scan Index", ylabel = "Signal Magnitude")
+p_p = plot(title="Signal Phase vs. Scan Index", ylabel = "Signal Phase")
+for j = 1:length(signal) # iterate over exchange values
     markershape = tau_arr_marker[j]
     local label = latexstring("\$τ_{\\mathrm{fs}}\$ = $τ_fs ms")
-    plot!(p_m, scan_idx, abs.(signal_arr[:,j]), linewidth=0; markershape, label)
-    plot!(p_p, scan_idx, angle.(signal_arr[:,j]), linewidth=0; markershape, label)
+    plot!(p_m, scan_idx, abs.(signal[j]), linewidth=0; markershape, label)
+    plot!(p_p, scan_idx, angle.(signal[j]), linewidth=0; markershape, label)
 end
-
-## plot results and label axes
 p3 = plot(p_m, p_p, layout = (2,1), xlabel = "Scan Index")
 
 #
