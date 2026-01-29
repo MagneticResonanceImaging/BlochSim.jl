@@ -278,6 +278,7 @@ get_mwf_tuple(f_f) = (f_f, 1-f_f)
 
 
 """
+    get_τ_tuple(τ_fs_ms, f_f)
 ## In:
 - `τ_fs_ms` residence time for exchange from myelin to non-myelin water (ms)
 - `f_f` fast fraction (myelin fraction)
@@ -327,7 +328,7 @@ end;
 
 Return steady-state magnetization signal value
 at the echo time
-for a bSSFP sequence
+for a phase-cycled bSSFP sequence
 using BlochSim.
 
 Ref: Murthy, N., Nielsen, J. F., Whitaker, S. T., Haskell, M. W.,
@@ -377,6 +378,65 @@ function bssfp(
 
     return complex(M[1]+M[4], M[2]+M[5]) # return the complex signal
 end;
+
+
+# Intermediate helper
+function bssfp(
+    Mz0::Number,
+    frac::NTuple{2, Number},
+    T1_ms::NTuple{2, Number},
+    T2_ms::NTuple{2, Number},
+    Δf_Hz::NTuple{2, Number},
+    Δf_no_rf_phase_Hz::NTuple{2, Number},
+    τ_ms::NTuple{2, Number},
+    α_deg::Number, TR_ms::Number, TE_ms::Number,
+)
+
+    ## create spin (with and without RF phase-cycling factor)
+    spin = SpinMC(Mz0, frac, T1_ms, T2_ms, Δf_Hz, τ_ms)
+    spin_no_rf_phase = SpinMC(Mz0, frac, T1_ms, T2_ms, Δf_no_rf_phase_Hz, τ_ms)
+
+    return bssfp(α_deg, TR_ms, TE_ms, spin, spin_no_rf_phase)
+end
+
+
+"""
+    bssfp(...)
+Version with scalar arguments (convenient for autodiff)
+"""
+function bssfp(
+    Mz0_phase::Number, # radians
+    Mz0::Number,
+    f_f::Number,
+    T1_f_ms::Number,
+    T1_s_ms::Number,
+    T2_f_ms::Number,
+    T2_s_ms::Number,
+    τ_fs_ms::Number,
+    Δff_Hz::Number, # fast shift
+    Δf0_Hz::Number, # B0 off resonance
+    α_deg::Number, TR_ms::Number, TE_ms::Number,
+    ΔΦ_deg::Number, # RF phase cycling value (degrees)
+)
+
+    τ_tuple_ms = get_τ_tuple(τ_fs, f_f) # fast-to-slow and slow-to-fast residence times
+
+    ## tuple of values incorporating off-resonance and RF phase cycling for both compartments
+    ΔΦ_rad = deg2rad(ΔΦ_deg)
+    Δf_tuple_Hz = get_Δf_tuple(ΔΦ_rad, Δf0_Hz, Δff_Hz, TR_ms)
+    Δf_tuple_Hz_no_rf_phase = get_Δf_tuple(0, Δf0_Hz, Δff_Hz, TR_ms)
+
+    return cis(Mz0_phase) * bssfp(
+     Mz0,
+     (f_f, 1 - f_f),
+     (T1_f_ms, T1_s_ms),
+     (T2_f_ms, T2_s_ms),
+     Δf_tuple_Hz,
+     Δf_tuple_Hz_no_rf_phase,
+     τ_tuple_ms,
+     α_deg, TR_ms, TE_ms,
+    )
+end
 
 
 #=
