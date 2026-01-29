@@ -416,15 +416,14 @@ function bssfp(
     T2_s_ms::Number,
     τ_fs_ms::Number,
     Δff_Hz::Number, # fast component frequency shift
-    # system parameter (sometimes known):
+    ## system parameter (sometimes known):
     Δf0_Hz::Number, # B0 off resonance
-    # scan parameters (always known):
+    ## scan parameters (always known):
     α_deg::Number, TR_ms::Number, TE_ms::Number,
     ΔΦ_deg::Number, # RF phase cycling value (degrees)
 )
 
     τ_tuple_ms = get_τ_tuple(τ_fs_ms, f_f) # fast-to-slow and slow-to-fast residence times
-#@show :a τ_tuple_ms
 
     ## tuple of values incorporating off-resonance and RF phase cycling for both compartments
     ΔΦ_rad = deg2rad(ΔΦ_deg)
