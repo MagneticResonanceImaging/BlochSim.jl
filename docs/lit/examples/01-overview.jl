@@ -287,15 +287,14 @@ get_mwf_tuple(f_f) = (f_f, 1-f_f)
 """
 function get_τ_tuple(τ_fs_ms, f_f)
     τ_sf_ms = (1-f_f) * τ_fs_ms / f_f
-    τ_tuple_ms = (τ_fs_ms, τ_sf_ms)
-    return τ_tuple_ms
+    return (τ_fs_ms, τ_sf_ms)
 end
 
 
 """
 ## In:
 - `ΔΦ_rad` RF phase cycling value (radians)
-- `Δf_Hz` off-resonance value (Hz)
+- `Δf0_Hz` off-resonance value (Hz)
 - `Δf_myelin_Hz` # additional off-resonance value only experienced by myelin water (Hz)
 - `TR_ms` repetition time (ms)
 ## Out:
@@ -303,13 +302,13 @@ end
 
 [Hinshaw, J. Appl. Phys. 1976](https://doi.org/10.1063/1.323136).
 """
-function get_Δf_tuple(ΔΦ_rad, Δf_Hz, Δf_myelin_Hz, TR_ms)
+function get_Δf_tuple(ΔΦ_rad, Δf0_Hz, Δf_myelin_Hz, TR_ms)
 
     ## convert the RF phase cycling value to Hz from radians
     ΔΦ_Hz = kHz_to_Hz((ΔΦ_rad) / (2π*TR_ms))
 
     ## subtract the RF phase cycling value from the off-resonance value
-    Δf_RF_Hz = Δf_Hz - ΔΦ_Hz
+    Δf_RF_Hz = Δf0_Hz - ΔΦ_Hz
 
     ## add the myelin off-resonance for the myelin term
     Δf_myelin_RF_Hz = Δf_RF_Hz + Δf_myelin_Hz
@@ -394,6 +393,7 @@ function bssfp(
 
     ## create spin (with and without RF phase-cycling factor)
     spin = SpinMC(Mz0, frac, T1_ms, T2_ms, Δf_Hz, τ_ms)
+global spin1 = spin
     spin_no_rf_phase = SpinMC(Mz0, frac, T1_ms, T2_ms, Δf_no_rf_phase_Hz, τ_ms)
 
     return bssfp(α_deg, TR_ms, TE_ms, spin, spin_no_rf_phase)
@@ -413,13 +413,16 @@ function bssfp(
     T2_f_ms::Number,
     T2_s_ms::Number,
     τ_fs_ms::Number,
-    Δff_Hz::Number, # fast shift
+    Δff_Hz::Number, # fast component frequency shift
+    # system parameter (sometimes known):
     Δf0_Hz::Number, # B0 off resonance
+    # scan parameters (always known):
     α_deg::Number, TR_ms::Number, TE_ms::Number,
     ΔΦ_deg::Number, # RF phase cycling value (degrees)
 )
 
-    τ_tuple_ms = get_τ_tuple(τ_fs, f_f) # fast-to-slow and slow-to-fast residence times
+    τ_tuple_ms = get_τ_tuple(τ_fs_ms, f_f) # fast-to-slow and slow-to-fast residence times
+#@show :a τ_tuple_ms
 
     ## tuple of values incorporating off-resonance and RF phase cycling for both compartments
     ΔΦ_rad = deg2rad(ΔΦ_deg)
@@ -451,15 +454,11 @@ f_f = 0.15; # myelin water fraction (MWF), fast fraction
 ## T1 and T2 values
 T1_f_ms = 400 # T1 for fast-relaxing, myelin water compartment
 T1_s_ms = 832 # T1 for slow-relaxing, non-myelin water compartment
-T1_ms_tuple = (T1_f_ms, T1_s_ms)
 
 T2_f_ms = 20 # T2 for fast-relaxing, myelin water compartment
 T2_s_ms = 80 # T2 for slow-relaxing, non-myelin water compartment
-T2_ms_tuple = (T2_f_ms, T2_s_ms)
 
-TR_ms, TE_ms = 20, 4; # scan parameters
-
-mwf_tuple = get_mwf_tuple(f_f) # tuple with fast and slow relaxing fractions
+TR_ms, TE_ms = 20, 4; # scan parameters (note: TE = TR/2 would be more logical)
 
 
 #=
@@ -479,29 +478,14 @@ flip_ang_arr_deg = [10, 40] # flip angles
 num_samples = 401 # number of samples (resonant frequencies)
 Δf_arr_Hz = kHz_to_Hz(range(-1, 1, num_samples) / TR_ms)
 
-# Helper function for 2-pool signal model
-function bssfp_mc(Δf_Hz, ΔΦ_deg, α_deg, τ_fs)
-    ## convert inputted RF phase cycling angle from degrees to radians
-    ΔΦ_rad = deg2rad(ΔΦ_deg)
 
-    ## tuple with fast-to-slow and slow-to-fast residence times
-    τ_tuple_ms = get_τ_tuple(τ_fs, f_f)
+# Broadcast via `map` using helper functions
+bssfp_mc(Δf0_Hz::Number, ΔΦ_deg::Number, α_deg::Number, τ_fs::Number) =
+    bssfp(0 #= phase =#, Mz0, f_f, T1_f_ms, T1_s_ms, T2_f_ms, T2_s_ms, τ_fs,
+        Δf_myelin_Hz, Δf0_Hz, α_deg, TR_ms, TE_ms, ΔΦ_deg)
 
-    ## get tuple of values incorporating off-resonance and RF phase cycling for both compartments
-    Δf_tuple_Hz = get_Δf_tuple(ΔΦ_rad, Δf_Hz, Δf_myelin_Hz, TR_ms)
-    Δf_tuple_Hz_no_rf_phase_fact = get_Δf_tuple(0, Δf_Hz, Δf_myelin_Hz, TR_ms)
-
-    ## create spin (with and without RF phase-cycling factor)
-    spin = SpinMC(Mz0, mwf_tuple, T1_ms_tuple, T2_ms_tuple, Δf_tuple_Hz, τ_tuple_ms)
-    spin_no_rf_phase_fact = SpinMC(Mz0, mwf_tuple, T1_ms_tuple, T2_ms_tuple,
-        Δf_tuple_Hz_no_rf_phase_fact, τ_tuple_ms)
-
-    return bssfp(α_deg, TR_ms, TE_ms, spin, spin_no_rf_phase_fact)
-end;
-
-# Broadcast via `map` using helper function
-bssfp_mc(t3::NTuple{3, Any}) = bssfp_mc(t3..., τ_fs)
 tmp = Iterators.product(Δf_arr_Hz, ΔΦ_arr_deg, flip_ang_arr_deg)
+bssfp_mc(t3::NTuple{3, Any}) = bssfp_mc(t3..., τ_fs) # (Δf_Hz, ΔΦ_deg, α_deg)
 signal_mc = map(bssfp_mc, tmp);
 
 # Plot 2-pool signals
