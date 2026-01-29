@@ -53,6 +53,7 @@ if false
     import Pkg
     Pkg.add([
         "BlochSim"
+        "ForwardDiff"
         "LaTeXStrings"
         "LinearAlgebra"
         "MIRTjim"
@@ -65,9 +66,10 @@ end
 # Run `Pkg.add()` in the preceding code block first, if needed.
 
 using BlochSim: Spin, SpinMC, InstantaneousRF, excite, freeprecess
+import ForwardDiff
 using InteractiveUtils: versioninfo
 using LaTeXStrings: latexstring
-using LinearAlgebra: I
+using LinearAlgebra: Diagonal, I, cond, diag, norm
 using MIRTjim: prompt
 using Plots: gui, plot, plot!, default
 default(titlefontsize = 10, markerstrokecolor = :auto, label="", width = 1.5)
@@ -405,7 +407,7 @@ end
 Version with scalar arguments (convenient for autodiff)
 """
 function bssfp(
-    Mz0_phase::Number, # radians
+    M0_phase::Number, # radians
     Mz0::Number,
     f_f::Number,
     T1_f_ms::Number,
@@ -429,7 +431,7 @@ function bssfp(
     Δf_tuple_Hz = get_Δf_tuple(ΔΦ_rad, Δf0_Hz, Δff_Hz, TR_ms)
     Δf_tuple_Hz_no_rf_phase = get_Δf_tuple(0, Δf0_Hz, Δff_Hz, TR_ms)
 
-    return cis(Mz0_phase) * bssfp(
+    return cis(M0_phase) * bssfp(
      Mz0,
      (f_f, 1 - f_f),
      (T1_f_ms, T1_s_ms),
@@ -523,11 +525,11 @@ tau_arr_marker = [:circle, :star5, :utriangle]
   fill(α_arr_deg[1], length(ΔΦ_design_deg[1]));
   fill(α_arr_deg[2], length(ΔΦ_design_deg[2]))
 ]
-scan_design = (ΔΦ_deg = vcat(ΔΦ_design_deg...), α_deg = α_design_deg)
-num_scans = length(scan_design.ΔΦ_deg) # number of different scans = 40
+design = (ΔΦ_deg = vcat(ΔΦ_design_deg...), α_deg = α_design_deg)
+num_scans = length(design.ΔΦ_deg) # number of different scans = 40
 
 tmp = (τ_fs) -> (ΔΦ_deg, α_deg) -> bssfp_mc(Δf_Hz, ΔΦ_deg, α_deg, τ_fs)
-bssfp_signal(τ_fs) = map(splat(tmp(τ_fs)), zip(scan_design...))
+bssfp_signal(τ_fs) = map(splat(tmp(τ_fs)), zip(design...))
 
 signal = bssfp_signal.(tau_arr_ms)
 
@@ -546,6 +548,40 @@ p3 = plot(p_m, p_p, layout = (2,1), xlabel = "Scan Index")
 #
 prompt()
 
-## gui(); throw(); # xx
+real_imag(x) = [real(x); imag(x)] # stacker
+
+#=
+## Cramer-Rao Bound
+for the designed scan
+=#
+kappa = 1 # also estimate the B1+ factor
+M0_phase = π/3 # just to make it non-trivial
+x = [M0_phase, Mz0, f_f, T1_f_ms, T1_s_ms, T2_f_ms, T2_s_ms, τ_fs, Δf_myelin_Hz, kappa] # unknowns
+signal_c = (x) -> bssfp.(x[1:end-1]..., Δf_Hz, x[end]*design.α_deg, TR_ms, TE_ms, design.ΔΦ_deg)
+signal_ri(x) = real_imag(signal_c(x))
+#src tmp = signal_ri(x) # test runs
+
+# Noise level
+snr2sigma(db, yb::AbstractArray{<:Complex}) = 10^(-db/20) * norm(yb) / sqrt(length(yb))
+dB = 40 # SNR
+σ = snr2sigma(dB, signal_c(x))
+
+# Jacobian
+jac = ForwardDiff.jacobian(signal_ri, x)
+fish = jac' * jac / σ^2
+cond(fish) # 5e10
+
+# The condition number depends on units, so remove units:
+D = Diagonal(1 ./ sqrt.(diag(fish)))
+tmp = D * fish * D
+cond(tmp) # 1e6
+
+# CRB and standard deviation:
+crb = inv(fish)
+crb_std = sqrt.(diag(crb))
+
+# Coefficient of variation
+round.(crb_std ./ x ; digits=2)
+
 
 include("../../../inc/reproduce.jl")
