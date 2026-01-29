@@ -404,8 +404,6 @@ but with three different RF phase cycling factor values:
 For this example, choose one exchange rate:
 =#
 τ_fs = 50.0 # this will be varied in the next plot
-## tuple with fast-to-slow and slow-to-fast residence times
-τ_tuple_ms = get_τ_tuple(τ_fs, f_f)
 
 flip_ang_arr_deg = [10, 40] # flip angles
 
@@ -415,10 +413,13 @@ flip_ang_arr_deg = [10, 40] # flip angles
 num_samples = 401 # number of samples (resonant frequencies)
 Δf_arr_Hz = kHz_to_Hz(range(-1, 1, num_samples) / TR_ms)
 
-# Helper function for broadcast
-function bssfp_blochsim_MC(Δf_Hz, ΔΦ_deg, α_deg)
+# Helper function for 2-pool signal model
+function bssfp_blochsim_MC(Δf_Hz, ΔΦ_deg, α_deg, τ_fs)
     ## convert inputted RF phase cycling angle from degrees to radians
     ΔΦ_rad = deg2rad(ΔΦ_deg)
+
+    ## tuple with fast-to-slow and slow-to-fast residence times
+    τ_tuple_ms = get_τ_tuple(τ_fs, f_f)
 
     ## get tuple of values incorporating off-resonance and RF phase cycling for both compartments
     Δf_tuple_Hz = get_Δf_tuple(ΔΦ_rad, Δf_Hz, Δf_myelin_Hz, TR_ms)
@@ -426,12 +427,14 @@ function bssfp_blochsim_MC(Δf_Hz, ΔΦ_deg, α_deg)
 
     ## create spin (with and without RF phase-cycling factor)
     spin_mc = SpinMC(mo, mwf_tuple, T1_ms_tuple, T2_ms_tuple, Δf_tuple_Hz, τ_tuple_ms)
-    spin_mc_no_rf_phase_fact = SpinMC(mo, mwf_tuple, T1_ms_tuple, T2_ms_tuple, Δf_tuple_Hz_no_rf_phase_fact, τ_tuple_ms)
+    spin_mc_no_rf_phase_fact = SpinMC(mo, mwf_tuple, T1_ms_tuple, T2_ms_tuple,
+        Δf_tuple_Hz_no_rf_phase_fact, τ_tuple_ms)
 
     return bssfp_blochsim_MC(α_deg, TR_ms, TE_ms, spin_mc, spin_mc_no_rf_phase_fact)
-end
-bssfp_blochsim_MC(t::Tuple) = bssfp_blochsim_MC(t...);
+end;
 
+# Broadcast via `map` using helper function
+bssfp_blochsim_MC(t3::NTuple{3, Any}) = bssfp_blochsim_MC(t3..., τ_fs)
 tmp = Iterators.product(Δf_arr_Hz, ΔΦ_arr_deg, flip_ang_arr_deg)
 signal_MC = map(bssfp_blochsim_MC, tmp);
 
@@ -460,32 +463,26 @@ prompt()
 p_m = plot(title="Signal Magnitude vs. Scan Index", ylabel = "Signal Magnitude")
 p_p = plot(title="Signal Phase vs. Scan Index", ylabel = "Signal Phase")
 
-num_scans = 40 # number of different scans
-scan_idx = 1:num_scans
-
 flip_ang_arr_deg = [10.0, 40.0] # flip angles for plot
 num_flip_angles = length(flip_ang_arr_deg)
 
-Δf_Hz = 0.0 # set off-resonance to zero
+Δf_Hz = 0.0 # set off-resonance to zero for this plot
 
 tau_arr_ms = [250, 150, 50] # array of exchange values
 tau_arr_marker = [:circle, :star5, :utriangle]
-num_taus = length(tau_arr_ms)
-
-sig_arr = zeros(num_scans,num_taus) # arrays to store results
-sig_arr_phase = zeros(num_scans,num_taus)
 
 ΔΦ_design_deg = ( # designed RF phase cycling increments
  [-176.4, -159.5, -142.1, -124.4, -107.6, -90.54, -73.62, -56.13, -39.41, -22.52, -5.272, 11.63, 28.93, 45.76, 63.08, 79.91, 96.97, 113.9, 131.3, 148.5, 166.1],
  [-168.8, -150.3, -130.1, -111.5, -93.19, -74.18, -54.68 , -37.15, -18.01, 1.342, 18.82, 38.64, 57.88, 76.48, 95.2, 113.3, 133.3, 153.1, 172.1],
 )
 
+num_scans = sum(length.(ΔΦ_design_deg)) # number of different scans = 40
+scan_idx = 1:num_scans
+
+signal_arr = zeros(ComplexF64, num_scans, length(tau_arr_ms)) # store results
 curr_scan = 1
 
-for j in 1:num_taus # iterate over exchange values
-    local τ_fs = tau_arr_ms[j]
-    local τ_tuple_ms = get_τ_tuple(tau_arr_ms[j], f_f)
-    tau_marker = tau_arr_marker[j]
+for (j, τ_fs) in enumerate(tau_arr_ms) # iterate over exchange values
 
     for k in 1:num_flip_angles # iterate over flip angles
         α_deg = flip_ang_arr_deg[k]
@@ -496,21 +493,8 @@ for j in 1:num_taus # iterate over exchange values
         for i in 1:length(ΔΦ_arr_deg) # iterate over RF phases
             ΔΦ_deg = ΔΦ_arr_deg[i]
 
-            ## convert RF phase cycling angle from degrees to radians
-            ΔΦ_rad = deg2rad(ΔΦ_deg)
-
-            ## tuple of values incorporating off-resonance and RF phase cycling for both compartments
-            Δf_tuple_Hz = get_Δf_tuple(ΔΦ_rad, Δf_Hz, Δf_myelin_Hz, TR_ms)
-            Δf_tuple_Hz_no_rf_phase_fact = get_Δf_tuple(0, Δf_Hz, Δf_myelin_Hz, TR_ms)
-
-            ## create a spin (with and without RF phase-cycling factor)
-            spin_mc = SpinMC(mo, mwf_tuple, T1_ms_tuple, T2_ms_tuple, Δf_tuple_Hz, τ_tuple_ms)
-            spin_mc_no_rf_phase_fact = SpinMC(mo, mwf_tuple, T1_ms_tuple, T2_ms_tuple, Δf_tuple_Hz_no_rf_phase_fact, τ_tuple_ms)
-
-            ## run the bSSFP blochsim and add to result array
-            signal = bssfp_blochsim_MC(α_deg, TR_ms, TE_ms, spin_mc, spin_mc_no_rf_phase_fact)
-            sig_arr[curr_scan,j] = abs(signal)
-            sig_arr_phase[curr_scan,j] = angle(signal)
+            signal = bssfp_blochsim_MC(Δf_Hz, ΔΦ_deg, α_deg, τ_fs)
+            signal_arr[curr_scan, j] = signal
 
             global curr_scan += 1
         end
@@ -518,10 +502,10 @@ for j in 1:num_taus # iterate over exchange values
 
     global curr_scan = 1
 
-    plot!(p_m, scan_idx, sig_arr[:,j], linewidth=0, markershape=tau_marker,
-        label = latexstring("\$τ_{\\mathrm{fs}}\$ = $τ_fs ms"))
-    plot!(p_p, scan_idx, sig_arr_phase[:,j], linewidth=0, markershape=tau_marker,
-        label = latexstring("\$τ_{\\mathrm{fs}}\$ = $τ_fs ms"))
+    markershape = tau_arr_marker[j]
+    local label = latexstring("\$τ_{\\mathrm{fs}}\$ = $τ_fs ms")
+    plot!(p_m, scan_idx, abs.(signal_arr[:,j]), linewidth=0; markershape, label)
+    plot!(p_p, scan_idx, angle.(signal_arr[:,j]), linewidth=0; markershape, label)
 end
 
 ## plot results and label axes
