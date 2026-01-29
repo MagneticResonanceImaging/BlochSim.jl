@@ -108,7 +108,7 @@ using the method from [1] using Equations 1 and 2 and Appendix A.
 =#
 
 """
-    bssfp_matrix(α_deg, TR_ms, TE_ms, mo, T1_ms, T2_ms, Δf_kHz=0)
+    bssfp_matrix(α_deg, TR_ms, TE_ms, Mz0, T1_ms, T2_ms, Δf_kHz=0)
 
 Return steady-state magnetization signal value
 at the echo time
@@ -120,7 +120,7 @@ using method of
 - `α_deg` flip angle of RF pulse (degrees)
 - `TR_ms` repetition time (ms)
 - `TE_ms` echo time (ms)
-- `mo` initial condition for magnetization in the z-direction (constant)
+- `Mz0` initial condition for magnetization in the z-direction (constant)
 - `T1_ms` MRI tissue parameter for T1 relaxation (ms)
 - `T2_ms` MRI tissue parameter for T2 relaxation (ms)
 - `Δf_Hz` off-resonance value (Hz) (default 0)
@@ -128,9 +128,9 @@ using method of
 ## Out
 - `signal` steady-state magnetization (as a complex number)
 """
-function bssfp_matrix(α_deg, TR_ms, TE_ms, mo, T1_ms, T2_ms, Δf_Hz=0)
+function bssfp_matrix(α_deg, TR_ms, TE_ms, Mz0, T1_ms, T2_ms, Δf_Hz=0)
 
-    M0 = [0; 0; mo] # initial magnetization vector
+    M0 = [0; 0; Mz0] # initial magnetization vector
 
     ## rotation matrix for RF excitation about the x-axis
     α_rad = deg2rad(α_deg) # convert flip angle α from degrees to radians
@@ -143,7 +143,7 @@ function bssfp_matrix(α_deg, TR_ms, TE_ms, mo, T1_ms, T2_ms, Δf_Hz=0)
     ## matrices for T1 and T2 relaxation over a time τ
     C(E1, E2) = [E2 0 0; 0 E2 0; 0 0 E1]
     C(τ_ms) = C(exp(-τ_ms / T1_ms), exp(-τ_ms / T2_ms))
-    D(τ_ms) = (I - C(τ_ms)) * [0 ; 0 ; mo]
+    D(τ_ms) = (I - C(τ_ms)) * [0 ; 0 ; Mz0]
 
     ## matrices for various values of τ
     P1 = P(TE_ms)
@@ -166,8 +166,8 @@ end;
 # ## Method 2: Use BlochSim
 
 """
-    bssfp_blochsim(α_deg, TR_ms, TE_ms, mo, T1_ms, T2_ms, Δf_kHz=0)
-    bssfp_blochsim(α_deg, TR_ms, TE_ms, spin)
+    bssfp(α_deg, TR_ms, TE_ms, Mz0, T1_ms, T2_ms, Δf_kHz=0)
+    bssfp(α_deg, TR_ms, TE_ms, spin)
 
 Return steady-state magnetization signal value
 at the echo time
@@ -179,7 +179,7 @@ See [Hargreaves et al., MRM 2001](https://doi.org/10.1002/mrm.1170).
 - `α_deg` flip angle of RF pulse (degrees)
 - `TR_ms` repetition time (ms)
 - `TE_ms` echo time (ms)
-- `mo` initial condition for magnetization in the z-direction (constant)
+- `Mz0` initial condition for magnetization in the z-direction (constant)
 - `T1_ms` MRI tissue parameter for T1 relaxation (ms)
 - `T2_ms` MRI tissue parameter for T2 relaxation (ms)
 - `Δf_Hz` off-resonance value (Hz)
@@ -187,25 +187,28 @@ See [Hargreaves et al., MRM 2001](https://doi.org/10.1002/mrm.1170).
 ## Out
 - `signal` steady-state magnetization (as a complex number)
 """
-function bssfp_blochsim(α_deg, TR_ms, TE_ms, mo, T1_ms, T2_ms, Δf_Hz=0)
-    spin = Spin(mo, T1_ms, T2_ms, Δf_Hz) # create a spin
-    return bssfp_blochsim(α_deg, TR_ms, TE_ms, spin)
+function bssfp(
+    α_deg::Number, TR_ms::Number, TE_ms::Number,
+    Mz0::Number, T1_ms::Number, T2_ms::Number, Δf_Hz::Number = 0,
+)
+    spin = Spin(Mz0, T1_ms, T2_ms, Δf_Hz) # create a spin
+    return bssfp(α_deg, TR_ms, TE_ms, spin)
 end;
 
 
-function bssfp_blochsim(α_deg, TR_ms, TE_ms, spin::Spin)
+function bssfp(α_deg::Number, TR_ms::Number, TE_ms::Number, spin::Spin)
     α_rad = deg2rad(α_deg) # convert flip angle α from degrees to radians
 
     #=
     Matrix to excite the spin
-    include RF phase for instantaneous RF because above code flips over x axis
-    and blochsim flips over -y axis and want to make them consistent
+    Include RF phase for instantaneous RF because above code flips over x axis
+    whereas BlochSim flips over -y axis, so need to make them consistent.
     =#
     (R,) = excite(spin, InstantaneousRF(α_rad, -π/2))
 
     ## Matrices for precession/relaxation for various time period values
     (PC1_A, PC1_B) = freeprecess(spin, TE_ms)
-    (PC2_A, PC2_B) = freeprecess(spin, TR_ms-TE_ms)
+    (PC2_A, PC2_B) = freeprecess(spin, TR_ms - TE_ms)
     (PC_TR_A, PC_TR_B) = freeprecess(spin, TR_ms)
 
     ## calculate the A matrix and b vector
@@ -222,7 +225,7 @@ end;
 # ## Recreate Figure 3 from [1] using Methods 1 and 2
 
 TR_ms, TE_ms = 10, 5 # scan parameters
-mo, T1_ms, T2_ms = 1, 400, 100 # tissue parameters
+Mz0, T1_ms, T2_ms = 1, 400, 100 # tissue parameters
 
 num_off_res_values = 401 # vector of off-resonance values
 Δf_arr_Hz = kHz_to_Hz(range(-1, 1, num_off_res_values) / TR_ms) # 2 periods
@@ -231,17 +234,17 @@ flip_ang_arr_deg = [15, 30, 60, 90]; # vector of flip angles
 
 # Helper functions for broadcast:
 bssfp_matrix(α_deg, Δf_Hz) =
-    bssfp_matrix(α_deg, TR_ms, TE_ms, mo, T1_ms, T2_ms, Δf_Hz)
-bssfp_blochsim(α_deg, Δf_Hz) =
-    bssfp_blochsim(α_deg, TR_ms, TE_ms, mo, T1_ms, T2_ms, Δf_Hz);
+    bssfp_matrix(α_deg, TR_ms, TE_ms, Mz0, T1_ms, T2_ms, Δf_Hz)
+bssfp(α_deg, Δf_Hz) =
+    bssfp(α_deg, TR_ms, TE_ms, Mz0, T1_ms, T2_ms, Δf_Hz);
 
 #=
-Call `bssfp_matrix` and `bssfp_blochsim`
+Call `bssfp_matrix` and `bssfp`
 for various flip angles and off-resonance values
 and verify that the calculations match.
 =#
 sig_matrix = bssfp_matrix.(flip_ang_arr_deg', Δf_arr_Hz)
-sig_blochsim = bssfp_blochsim.(flip_ang_arr_deg', Δf_arr_Hz)
+sig_blochsim = bssfp.(flip_ang_arr_deg', Δf_arr_Hz)
 @assert sig_matrix ≈ sig_blochsim # yes they match!
 
 # Plot 1-pool signal magnitude and phase
@@ -302,7 +305,7 @@ end
 function get_Δf_tuple(ΔΦ_rad, Δf_Hz, Δf_myelin_Hz, TR_ms)
 
     ## convert the RF phase cycling value to Hz from radians
-    ΔΦ_Hz = kHz_to_Hz((ΔΦ_rad)/(2π*TR_ms))
+    ΔΦ_Hz = kHz_to_Hz((ΔΦ_rad) / (2π*TR_ms))
 
     ## subtract the RF phase cycling value from the off-resonance value
     Δf_RF_Hz = Δf_Hz - ΔΦ_Hz
@@ -320,7 +323,7 @@ end;
 # but for multi-compartment spin objects.
 
 """
-    bssfp_blochsim_MC(α_deg, TR_ms, TE_ms, spin_mc, spin_mc_no_rf_phase_fact)
+    bssfp(α_deg, TR_ms, TE_ms, spin, spin_no_rf_phase_fact)
 
 Return steady-state magnetization signal value
 at the echo time
@@ -336,28 +339,31 @@ sequences. In Proc. Intl. Soc. Mag. Res. Med (p. 2068). [2]
 - `α_deg` flip angle of RF pulse (degrees)
 - `TR_ms` repetition time (ms)
 - `TE_ms` echo time (ms)
-- 'spin_mc' multi-compartment spin object with RF phase cycling factor
-- 'spin_mc_no_rf_phase_fact' multi-compartment spin object without RF phase cycling factor
+- 'spin' multi-compartment spin object with RF phase cycling factor
+- 'spin_no_rf_phase_fact' multi-compartment spin object without RF phase cycling factor
 
 ## Out
 - `signal` steady-state magnetization (as a complex number)
 """
-function bssfp_blochsim_MC(α_deg, TR_ms, TE_ms, spin_mc, spin_mc_no_rf_phase_fact)
+function bssfp(
+    α_deg::Number, TR_ms::Number, TE_ms::Number,
+    spin::SpinMC, spin_no_rf_phase_fact::SpinMC,
+)
 
     ## convert flip angle α from degrees to radians
     α_rad = deg2rad(α_deg)
 
     ## excite the spin and reshape R to be the correct dimensions for a SpinMC object
-    (R,) = excite(spin_mc, InstantaneousRF(α_rad))
+    (R,) = excite(spin, InstantaneousRF(α_rad))
     R = Matrix(R.A)
     R = kron(I(2),R)
 
     ## precession/relaxation of the spin for TR
-    (PC_TR_A, PC_TR_B) = freeprecess(spin_mc, TR_ms)
+    (PC_TR_A, PC_TR_B) = freeprecess(spin, TR_ms)
 
     ## precession/relaxation of the spin for TE
     ## assume receiver modulates signal and uses the receiver phase as the RF phase
-    (PC_TE_A, PE_TE_B) = freeprecess(spin_mc_no_rf_phase_fact, TE_ms)
+    (PC_TE_A, PE_TE_B) = freeprecess(spin_no_rf_phase_fact, TE_ms)
 
     ## calculate A matrix and b vector
     A = Matrix(PC_TR_A) * R
@@ -378,7 +384,7 @@ Define variables to be used in the following plots.
 Values taken from [2] and [4].
 =#
 
-mo = 0.77 # initial condition for longitudinal magnetization (constant)
+Mz0 = 0.77 # initial condition for longitudinal magnetization (constant)
 Δf_myelin_Hz = 5.0 # frequency shift of myelin water
 f_f = 0.15; # myelin water fraction (MWF), fast fraction
 
@@ -414,7 +420,7 @@ num_samples = 401 # number of samples (resonant frequencies)
 Δf_arr_Hz = kHz_to_Hz(range(-1, 1, num_samples) / TR_ms)
 
 # Helper function for 2-pool signal model
-function bssfp_blochsim_MC(Δf_Hz, ΔΦ_deg, α_deg, τ_fs)
+function bssfp_mc(Δf_Hz, ΔΦ_deg, α_deg, τ_fs)
     ## convert inputted RF phase cycling angle from degrees to radians
     ΔΦ_rad = deg2rad(ΔΦ_deg)
 
@@ -426,24 +432,24 @@ function bssfp_blochsim_MC(Δf_Hz, ΔΦ_deg, α_deg, τ_fs)
     Δf_tuple_Hz_no_rf_phase_fact = get_Δf_tuple(0, Δf_Hz, Δf_myelin_Hz, TR_ms)
 
     ## create spin (with and without RF phase-cycling factor)
-    spin_mc = SpinMC(mo, mwf_tuple, T1_ms_tuple, T2_ms_tuple, Δf_tuple_Hz, τ_tuple_ms)
-    spin_mc_no_rf_phase_fact = SpinMC(mo, mwf_tuple, T1_ms_tuple, T2_ms_tuple,
+    spin = SpinMC(Mz0, mwf_tuple, T1_ms_tuple, T2_ms_tuple, Δf_tuple_Hz, τ_tuple_ms)
+    spin_no_rf_phase_fact = SpinMC(Mz0, mwf_tuple, T1_ms_tuple, T2_ms_tuple,
         Δf_tuple_Hz_no_rf_phase_fact, τ_tuple_ms)
 
-    return bssfp_blochsim_MC(α_deg, TR_ms, TE_ms, spin_mc, spin_mc_no_rf_phase_fact)
+    return bssfp(α_deg, TR_ms, TE_ms, spin, spin_no_rf_phase_fact)
 end;
 
 # Broadcast via `map` using helper function
-bssfp_blochsim_MC(t3::NTuple{3, Any}) = bssfp_blochsim_MC(t3..., τ_fs)
+bssfp_mc(t3::NTuple{3, Any}) = bssfp_mc(t3..., τ_fs)
 tmp = Iterators.product(Δf_arr_Hz, ΔΦ_arr_deg, flip_ang_arr_deg)
-signal_MC = map(bssfp_blochsim_MC, tmp);
+signal_mc = map(bssfp_mc, tmp);
 
 # Plot 2-pool signals
 pmcm = plot(ylabel = "Signal Magnitude")
 pmcp = plot( ylabel = "Signal Phase", xlabel = "Resonant Frequency (Hz)")
-for i in 1:size(signal_MC,3), j in 1:size(signal_MC,2)
+for i in 1:size(signal_mc,3), j in 1:size(signal_mc,2)
     label2 = "α = $(flip_ang_arr_deg[i])°, ΔΦ = $(ΔΦ_arr_deg[j])°"
-    tmp2 = signal_MC[:,j,i]
+    tmp2 = signal_mc[:,j,i]
     plot!(pmcm, Δf_arr_Hz, abs.(tmp2))
     plot!(pmcp, Δf_arr_Hz, angle.(tmp2); label = label2)
 end
@@ -493,7 +499,7 @@ for (j, τ_fs) in enumerate(tau_arr_ms) # iterate over exchange values
         for i in 1:length(ΔΦ_arr_deg) # iterate over RF phases
             ΔΦ_deg = ΔΦ_arr_deg[i]
 
-            signal = bssfp_blochsim_MC(Δf_Hz, ΔΦ_deg, α_deg, τ_fs)
+            signal = bssfp_mc(Δf_Hz, ΔΦ_deg, α_deg, τ_fs)
             signal_arr[curr_scan, j] = signal
 
             global curr_scan += 1
