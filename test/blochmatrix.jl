@@ -286,7 +286,7 @@ function add1()
 
 end
 
-function subtract1()
+function subtract1mc()
 
     M1 = MagnetizationMC((1, 1, 1), (2, 2, 2))
     M2 = MagnetizationMC((1, 2, 3), (1, 2, 3))
@@ -1252,7 +1252,7 @@ end
 
     @testset "subtract!" begin
 
-        @test subtract1()
+        @test subtract1mc()
 
     end
 
