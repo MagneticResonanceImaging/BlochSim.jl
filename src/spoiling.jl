@@ -144,7 +144,7 @@ spoiler_gradient(s::RFandGradientSpoiling) = spoiler_gradient(s.gradient)
 
 Return the duration of the spoiler gradient (ms).
 """
-spoiler_gradient_duration(::AbstractSpoiling) = 0
+spoiler_gradient_duration(::AbstractSpoiling) = 0 # COV_EXCL_LINE
 spoiler_gradient_duration(s::GradientSpoiling) = s.Tg
 spoiler_gradient_duration(s::RFandGradientSpoiling) = spoiler_gradient_duration(s.gradient)
 
@@ -153,7 +153,7 @@ spoiler_gradient_duration(s::RFandGradientSpoiling) = spoiler_gradient_duration(
 
 Return the quadratic phase increment used for RF spoiling.
 """
-rfspoiling_increment(::AbstractSpoiling) = 0
+rfspoiling_increment(::AbstractSpoiling) = 0 # COV_EXCL_LINE
 rfspoiling_increment(s::RFSpoiling) = s.Δθ
 rfspoiling_increment(s::RFandGradientSpoiling) = rfspoiling_increment(s.rf)
 

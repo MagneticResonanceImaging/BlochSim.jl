@@ -137,6 +137,7 @@ end
     @test excitemc1()
     @test excitemc2()
     @test excitemc3()
+    @test duration(InstantaneousRF(π/2,0)) == 0
 
     @test Matrix(rotatetheta()) ≈ [0 0 1; 0 1 0; -1 0 0]
 
