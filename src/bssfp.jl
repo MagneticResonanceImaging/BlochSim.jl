@@ -94,13 +94,6 @@ for the multi-compartment spin object constructors.
 =#
 
 """
-- in: `f_f` fast fraction (myelin fraction)
-- out: `mwf_tuple` tuple with fast and slow fractions
-"""
-get_mwf_tuple(f_f) = (f_f, 1-f_f)
-
-
-"""
     get_τ_tuple(τ_fs_ms, f_f)
 # In:
 - `τ_fs_ms` residence time for exchange from myelin to non-myelin water (ms)
@@ -116,11 +109,15 @@ end
 
 """
     get_Δf_tuple(ΔΦ_rad, Δf0_Hz, Δf_myelin_Hz, TR_ms)
+
+Account for phase cycling increments as an effective frequency shift
+
 # In:
 - `ΔΦ_rad` RF phase cycling value (radians)
 - `Δf0_Hz` off-resonance value (Hz)
 - `Δf_myelin_Hz` # additional off-resonance value only experienced by myelin water (Hz)
 - `TR_ms` repetition time (ms)
+
 # Out:
 - `Δf_tuple_Hz` tuple with off-resonance values for fast and slow compartments
 
@@ -266,7 +263,7 @@ function bssfp(
 
     return cis(M0_phase) * bssfp(
         Mz0,
-        (f_f, 1 - f_f),
+        (f_f, 1 - f_f), # fast, slow fractions
         (T1_f_ms, T1_s_ms),
         (T2_f_ms, T2_s_ms),
         Δf_tuple_Hz,
