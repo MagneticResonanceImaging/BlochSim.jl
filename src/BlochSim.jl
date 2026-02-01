@@ -1,7 +1,7 @@
 module BlochSim
 
-using ForwardDiff
-using LinearAlgebra
+import ForwardDiff # Dual, partials, value
+using LinearAlgebra: LinearAlgebra, UniformScaling, ldiv!, lu!, mul!
 
 export GAMMA
 export GAMBAR

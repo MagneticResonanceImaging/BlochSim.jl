@@ -96,7 +96,7 @@ Base.length(rf::RF) = length(rf.α)
 
 Return the duration (ms) of the RF pulse.
 """
-duration(::InstantaneousRF) = 0
+duration(::InstantaneousRF) = 0 # COV_EXCL_LINE
 duration(rf::RF) = length(rf) * rf.Δt
 
 struct ExcitationWorkspace{T1,T2,T3,T4,T5}

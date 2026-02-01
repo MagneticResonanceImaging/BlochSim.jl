@@ -31,7 +31,8 @@ function Base.show(io::IO, ::MIME"text/plain", A::BlochMatrix{T}) where {T}
 
     print(io, "BlochMatrix{$T}:\n")
     haskey(io, :compact) || (io = IOContext(io, :compact => true))
-    Base.print_array(io, Matrix(A))
+    Base.print_array(io, Matrix(A)) # caution: private method
+#   show(stdout, MIME"text/plain"(), Matrix(A)) # public alternative
 
 end
 
