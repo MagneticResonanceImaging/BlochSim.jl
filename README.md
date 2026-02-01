@@ -149,10 +149,7 @@ are based on the corresponding section in the tutorial (see
 
 
 ## Status
-
-On 2024-04-08 this repo moved here from
-https://github.com/StevenWhitaker/BlochSim.jl.
-Submit issues for outdated URLs.
+Tested with Julia ≥ v1.12
 
 
 <!-- URLs -->
