@@ -5,7 +5,7 @@ test/bssfp.jl
 using BlochSim: bssfp, BSSFPTuple1
 using ForwardDiff: ForwardDiff
 import ForwardDiff: derivative, gradient
-using Test: @test, @testset
+using Test: @infered, @test, @testset
 
 real_imag(z) = [real(z); imag(z)] # stacker
 
@@ -17,10 +17,10 @@ real_imag(z) = [real(z); imag(z)] # stacker
     xt = (; Mz0, T1_ms, T2_ms, Δf_Hz) # tissue
     α_rad = deg2rad(α_deg)
     xs = (; TR_ms, TE_ms, α_rad)
-    tmp1 = bssfp(xt..., xs...)
+    tmp1 = @inferred bssfp(xt..., xs...)
     @test tmp1 isa Complex{<:AbstractFloat}
 
-    tmp2 = bssfp(xt, xs...)
+    tmp2 = @inferred bssfp(xt, xs...)
     @test tmp1 == tmp2
 
     fun(xt) = real_imag(bssfp(xt..., xs...))
@@ -51,12 +51,12 @@ end
     xt = (; M0_phase, Mz0, f_f, T1_f_ms, T1_s_ms, T2_f_ms, T2_s_ms,
         τ_fs_ms, Δf_myelin_Hz, Δf0_Hz)
     xs = (; ΔΦ_rad, TR_ms, TE_ms, α_rad)
-    tmp1 = bssfp(xt..., xs...)
+    tmp1 = @inferred bssfp(xt..., xs...)
 
     @test tmp1 isa Complex{<:AbstractFloat}
 
     fun(xt) = real_imag(bssfp(xt..., xs...))
-    tmp2 = fun(xt)
+    tmp2 = @inferred fun(xt)
     @test real_imag(tmp1) == tmp2
 
     grad = ForwardDiff.jacobian(fun, collect(xt))

@@ -1,7 +1,11 @@
+using BlochSim
+using LinearAlgebra: I, norm
+using Test: @inferred, @test, @testset
+
 function blochmatrix1()
 
-    A = BlochMatrix()
-    B = BlochMatrix(0.0, 0, 0, 0, 0, 0, 0, 0, 0)
+    A = @inferred BlochMatrix()
+    B = @inferred BlochMatrix(0.0, 0, 0, 0, 0, 0, 0, 0, 0)
 
     show(devnull, "text/plain", A)
     @test eltype(A) == eltype(B)
@@ -11,8 +15,8 @@ end
 
 function blochmatrix2()
 
-    A = BlochSim.BlochDynamicsMatrix()
-    B = BlochSim.BlochDynamicsMatrix(0f0, 0, 0)
+    A = @inferred BlochSim.BlochDynamicsMatrix()
+    B = @inferred BlochSim.BlochDynamicsMatrix(0f0, 0, 0)
 
     @test eltype(A) != eltype(B)
     return A == B
@@ -21,9 +25,9 @@ end
 
 function blochmatrix3()
 
-    A = FreePrecessionMatrix()
-    B = FreePrecessionMatrix(true, 1, 0)
-    C = BlochMatrix(1, 2, 3, 4, 5, 6, 7, 8, 9)
+    A = @inferred FreePrecessionMatrix()
+    B = @inferred FreePrecessionMatrix(true, 1, 0)
+    C = @inferred BlochMatrix(1, 2, 3, 4, 5, 6, 7, 8, 9)
     copyto!(C, A)
 
     show(devnull, "text/plain", A)
@@ -38,7 +42,7 @@ function make_identity1()
     BlochSim.make_identity!(A)
     @test Matrix(A) == I(3)
 
-    B = BlochMcConnellMatrix{Int}(2)
+    B = BlochMcConnellMatrix{Int}(2) # todo fails @inferred
     for i = 1:2, j = 1:2
         B.A[i][j].a11 = 1
         B.A[i][j].a21 = 2
@@ -57,9 +61,9 @@ end
 
 function sum1()
 
-    M1 = MagnetizationMC((1, 2, 3), (1, 2, 3))
-    M2 = MagnetizationMC((0.5, 0.5, 0.5), (0.1, 0.1, 0.1))
-    M = M1 + M2
+    M1 = @inferred MagnetizationMC((1, 2, 3), (1, 2, 3))
+    M2 = @inferred MagnetizationMC((0.5, 0.5, 0.5), (0.1, 0.1, 0.1))
+    M = @inferred M1 + M2
     correct = MagnetizationMC((1.5, 2.5, 3.5), (1.1, 2.1, 3.1))
 
     return M == correct
@@ -68,9 +72,9 @@ end
 
 function subtract1()
 
-    M1 = Magnetization(4, 3, 1)
-    M = M1 - M1
-    correct = Magnetization()
+    M1 = @inferred Magnetization(4, 3, 1)
+    M = @inferred M1 - M1
+    correct = @inferred Magnetization()
 
     return M == correct
 
@@ -78,9 +82,9 @@ end
 
 function subtract2()
 
-    M1 = MagnetizationMC((1, 2, 3), (1, 2, 3))
-    M2 = MagnetizationMC((0.5, 0.5, 0.5), (0.1, 0.1, 0.1))
-    M = M1 - M2
+    M1 = @inferred MagnetizationMC((1, 2, 3), (1, 2, 3))
+    M2 = @inferred MagnetizationMC((0.5, 0.5, 0.5), (0.1, 0.1, 0.1))
+    M = @inferred M1 - M2
     correct = MagnetizationMC((0.5, 1.5, 2.5), (0.9, 1.9, 2.9))
 
     return M == correct
@@ -90,7 +94,7 @@ end
 function subtract3()
 
     A = BlochMatrix(1, 0, 0, 0, 1, 0, 0, 0, 1)
-    C = I - A
+    C = @inferred I - A
     correct = BlochMatrix()
 
     return C == correct
@@ -100,7 +104,7 @@ end
 function times1()
 
     M1 = MagnetizationMC((1, 1, 1), (2, 2, 2))
-    M = M1 * 2
+    M = @inferred M1 * 2
     correct = MagnetizationMC((2, 2, 2), (4, 4, 4))
 
     return M == correct
@@ -109,9 +113,9 @@ end
 
 function times2()
 
-    A = FreePrecessionMatrix(2, 1, 0)
+    A = @inferred FreePrecessionMatrix(2, 1, 0)
     M = Magnetization(1, 1, 1)
-    B = A * M
+    B = @inferred A * M
     correct = Magnetization(1, 1, 2)
 
     return B == correct
@@ -133,7 +137,7 @@ function times3()
         A.A[i][j].a33 = 9
     end
     M = MagnetizationMC((0, 0, 1), (0, 0, 1))
-    B = A * M
+    B = @inferred A * M
     correct = Matrix(A) * Vector(M)
 
     show(devnull, "text/plain", A)
@@ -143,9 +147,9 @@ end
 
 function times4()
 
-    A = ExcitationMatrix(BlochMatrix(2, 0, 0, 0, 2, 0, 0, 0, 2))
-    M = MagnetizationMC((1, 1, 1), (2, 2, 3))
-    B = A * M
+    A = @inferred ExcitationMatrix(BlochMatrix(2, 0, 0, 0, 2, 0, 0, 0, 2))
+    M = @inferred MagnetizationMC((1, 1, 1), (2, 2, 3))
+    B = @inferred A * M
     correct = MagnetizationMC((2, 2, 2), (4, 4, 6))
 
     show(devnull, "text/plain", A)
@@ -155,8 +159,8 @@ end
 
 function times5()
 
-    M = idealspoiling * MagnetizationMC((1, 2, 1), (0.1, 0.2, 0.3))
-    correct = MagnetizationMC((0, 0, 1), (0, 0, 0.3))
+    M = @inferred idealspoiling * MagnetizationMC((1, 2, 1), (0.1, 0.2, 0.3))
+    correct = @inferred MagnetizationMC((0, 0, 1), (0, 0, 0.3))
 
     return M == correct
 
@@ -164,9 +168,9 @@ end
 
 function times6()
 
-    A = ExcitationMatrix(BlochMatrix(1, 2, 3, 4, 5, 6, 7, 8, 9))
-    B = FreePrecessionMatrix(1, 1, 1)
-    C = A * B
+    A = @inferred ExcitationMatrix(BlochMatrix(1, 2, 3, 4, 5, 6, 7, 8, 9))
+    B = @inferred FreePrecessionMatrix(1, 1, 1)
+    C = @inferred A * B
     correct = Matrix(A.A) * Matrix(B)
 
     return Matrix(C) ≈ correct
@@ -177,7 +181,7 @@ function times7()
 
     A = FreePrecessionMatrix(1, 1, 1)
     B = BlochMatrix(1, 2, 3, 4, 5, 6, 7, 8, 9)
-    C = A * B
+    C = @inferred A * B
     correct = Matrix(A) * Matrix(B)
 
     return Matrix(C) ≈ correct
@@ -186,9 +190,9 @@ end
 
 function times8()
 
-    A = ExcitationMatrix(BlochMatrix(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
-    C = A * idealspoiling
-    correct = BlochMatrix(0, 0, 0, 0, 0, 0, 0.7, 0.8, 0.9)
+    A = @inferred ExcitationMatrix(BlochMatrix(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
+    C = @inferred A * idealspoiling
+    correct = @inferred BlochMatrix(0, 0, 0, 0, 0, 0, 0.7, 0.8, 0.9)
 
     return C == correct
 
@@ -197,7 +201,7 @@ end
 function times9()
 
     A = ExcitationMatrix(BlochMatrix(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
-    B = BlochMcConnellMatrix(3)
+    B = BlochMcConnellMatrix(3) # todo @inferred
     for i = 1:3, j = 1:3
         B.A[i][j].a11 = 1
         B.A[i][j].a21 = 2
@@ -209,7 +213,7 @@ function times9()
         B.A[i][j].a23 = 8
         B.A[i][j].a33 = 9
     end
-    C = A * B
+    C = @inferred A * B
     correct = kron(I(3), Matrix(A.A)) * Matrix(B)
 
     return Matrix(C) ≈ correct
@@ -231,7 +235,7 @@ function times10()
         B.A[i][j].a23 = 8
         B.A[i][j].a33 = 9
     end
-    C = A * B
+    C = @inferred A * B
     correct = kron(I(3), [0 0 0; 0 0 0; 0 0 1]) * Matrix(B)
 
     return Matrix(C) == correct
@@ -240,8 +244,8 @@ end
 
 function rdiv1()
 
-    M = MagnetizationMC((2.0, 4.0, 8.0), (2.0, 4.0, 6.0)) / 2
-    correct = MagnetizationMC((1.0, 2.0, 4.0), (1.0, 2.0, 3.0))
+    M = @inferred MagnetizationMC((2.0, 4.0, 8.0), (2.0, 4.0, 6.0)) / 2
+    correct = @inferred MagnetizationMC((1.0, 2.0, 4.0), (1.0, 2.0, 3.0))
 
     return M == correct
 
@@ -249,9 +253,9 @@ end
 
 function ldiv1()
 
-    M = Magnetization(1, 2, 3)
-    A = BlochMatrix(1, 0, 0, 0, 1, 0, 0, 0, 1)
-    B = A \ M
+    M = @inferred Magnetization(1, 2, 3)
+    A = @inferred BlochMatrix(1, 0, 0, 0, 1, 0, 0, 0, 1)
+    B = @inferred A \ M
     correct = Magnetization(1, 2, 3)
 
     return B == correct
@@ -261,13 +265,13 @@ end
 function ldiv2()
 
     M = MagnetizationMC((1, 2, 3), (1, 2, 3))
-    A = BlochMcConnellMatrix(((
+    A = @inferred BlochMcConnellMatrix(((
         BlochMatrix(1, 0, 0, 0, 1, 0, 0, 0, 1),
         BlochMatrix{Int}()), (
         BlochMatrix{Int}(),
         BlochMatrix(1, 0, 0, 0, 1, 0, 0, 0, 1)))
     )
-    B = A \ M
+    B = @inferred A \ M
     correct = MagnetizationMC((1, 2, 3), (1, 2, 3))
 
     return B == correct
@@ -334,7 +338,7 @@ end
 
 function mul3()
 
-    A = BlochSim.ExchangeDynamicsMatrix()
+    A = @inferred BlochSim.ExchangeDynamicsMatrix()
     A.r = 2
     t = 10
     correct = Matrix(A) * t
@@ -353,7 +357,7 @@ function mul4()
     τ12 = 0.05
     τ21 = 0.1
 
-    A = BlochSim.BlochMcConnellDynamicsMatrix(2)
+    A = BlochSim.BlochMcConnellDynamicsMatrix(2) # todo @inferred
     A.A[1].R2 = -1 / T21 - 1 / τ12
     A.A[1].Δω = 2π
     A.A[1].R1 = -1 / T11 - 1 / τ12
