@@ -5,7 +5,7 @@ test/bssfp.jl
 using BlochSim: bssfp, BSSFPTuple1
 using ForwardDiff: ForwardDiff
 import ForwardDiff: derivative, gradient
-using Test: @infered, @test, @testset
+using Test: @inferred, @test, @testset
 
 real_imag(z) = [real(z); imag(z)] # stacker
 

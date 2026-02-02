@@ -316,7 +316,7 @@ struct BlochMcConnellDynamicsMatrix{T<:Real,N,M} <: AbstractBlochMcConnellMatrix
     end
 end
 
-# todo: return type depends on argument N, so not inferrable
+# todo: return type depends on argument N, so not inferable
 function BlochMcConnellDynamicsMatrix{T}(N) where {T}
 
     A = ntuple(i -> BlochDynamicsMatrix{T}(), N)
@@ -426,7 +426,7 @@ struct BlochMcConnellMatrix{T<:Real,N} <: AbstractBlochMcConnellMatrix{T,N}
 end
 
 # caution: the return type depends on the input argument N
-# making this function not type-inferrable (todo)
+# making this function not type-inferable (todo)
 function BlochMcConnellMatrix{T}(N) where {T}
 
     A = ntuple(i -> ntuple(i -> BlochMatrix{T}(), N), N)
