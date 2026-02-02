@@ -66,6 +66,7 @@ end
 # Run `Pkg.add()` in the preceding code block first, if needed.
 
 using BlochSim: Spin, SpinMC, InstantaneousRF, excite, freeprecess
+using BlochSim: bssfp
 import ForwardDiff
 using InteractiveUtils: versioninfo
 using LaTeXStrings: latexstring
@@ -167,6 +168,8 @@ end;
 
 # ## Method 2: Use BlochSim
 
+#= todo
+
 """
     bssfp(α_deg, TR_ms, TE_ms, Mz0, T1_ms, T2_ms, Δf_kHz=0)
     bssfp(α_deg, TR_ms, TE_ms, spin)
@@ -189,16 +192,16 @@ See [Hargreaves et al., MRM 2001](https://doi.org/10.1002/mrm.1170).
 ## Out
 - `signal` steady-state magnetization (as a complex number)
 """
-function bssfp(
+function bssfpOLD(
     α_deg::Number, TR_ms::Number, TE_ms::Number,
     Mz0::Number, T1_ms::Number, T2_ms::Number, Δf_Hz::Number = 0,
 )
     spin = Spin(Mz0, T1_ms, T2_ms, Δf_Hz) # create a spin
-    return bssfp(α_deg, TR_ms, TE_ms, spin)
+    return bssfpOLD(α_deg, TR_ms, TE_ms, spin)
 end;
 
 
-function bssfp(α_deg::Number, TR_ms::Number, TE_ms::Number, spin::Spin)
+function bssfpOLD(α_deg::Number, TR_ms::Number, TE_ms::Number, spin::Spin)
     α_rad = deg2rad(α_deg) # convert flip angle α from degrees to radians
 
     #=
@@ -223,6 +226,13 @@ function bssfp(α_deg::Number, TR_ms::Number, TE_ms::Number, spin::Spin)
     return complex(Mss[1], Mss[2]) # return the complex signal
 end;
 
+bssfpOLD(α_deg, Δf_Hz) =
+    bssfpOLD(α_deg, TR_ms, TE_ms, Mz0, T1_ms, T2_ms, Δf_Hz);
+
+#todo tmp = bssfpOLD.(flip_ang_arr_deg', Δf_arr_Hz)
+#todo @assert tmp ≈ sig_blochsim # yes they match!
+
+=#
 
 # ## Recreate Figure 3 from [1] using Methods 1 and 2
 
@@ -237,8 +247,8 @@ flip_ang_arr_deg = [15, 30, 60, 90]; # vector of flip angles
 # Helper functions for broadcast:
 bssfp_matrix(α_deg, Δf_Hz) =
     bssfp_matrix(α_deg, TR_ms, TE_ms, Mz0, T1_ms, T2_ms, Δf_Hz)
-bssfp(α_deg, Δf_Hz) =
-    bssfp(α_deg, TR_ms, TE_ms, Mz0, T1_ms, T2_ms, Δf_Hz);
+_bssfp(α_deg, Δf_Hz) = bssfp(Mz0, T1_ms, T2_ms, Δf_Hz,
+    TR_ms, TE_ms, deg2rad(α_deg), -π/2)
 
 #=
 Call `bssfp_matrix` and `bssfp`
@@ -246,7 +256,7 @@ for various flip angles and off-resonance values
 and verify that the calculations match.
 =#
 sig_matrix = bssfp_matrix.(flip_ang_arr_deg', Δf_arr_Hz)
-sig_blochsim = bssfp.(flip_ang_arr_deg', Δf_arr_Hz)
+sig_blochsim = _bssfp.(flip_ang_arr_deg', Δf_arr_Hz)
 @assert sig_matrix ≈ sig_blochsim # yes they match!
 
 # Plot 1-pool signal magnitude and phase
@@ -261,6 +271,27 @@ pmp = plot(p_m, p_p, layout=(2,1), plot_title = "bSSFP single pool",
 
 #
 prompt()
+
+
+#=
+Explore T1 dependence of bSSFP signal model
+=#
+T1_ms_arr = range(0.90, 1.1, 3) * T1_ms
+α_deg = 20
+sig_t1 = bssfp.(Mz0, T1_ms_arr', T2_ms, Δf_arr_Hz, TR_ms, TE_ms, deg2rad(α_deg))
+
+label = reshape(map(t -> "T1 = $t ms", T1_ms_arr), 1, :) # row!
+pt1_m = plot(Δf_arr_Hz, abs.(sig_t1); label,
+    ylabel = "Signal Magnitude")
+pt1_p = plot(Δf_arr_Hz, angle.(sig_t1); label,
+    xlabel = "Resonant Frequency (Hz)",
+    ylabel = "Signal Phase")
+pt1 = plot(pt1_m, pt1_p, layout=(2,1), plot_title = "bSSFP single pool for T1",
+    plot_titlefontsize = 13)
+
+
+# todo: phase-cycling for 1-pool case and CRB
+#todo gui(); throw() # xx
 
 
 #=
@@ -325,7 +356,7 @@ end;
 # but for multi-compartment spin objects.
 
 """
-    bssfp(α_deg, TR_ms, TE_ms, spin, spin_no_rf_phase_fact)
+    bssfp2(α_deg, TR_ms, TE_ms, spin, spin_no_rf_phase_fact)
 
 Return steady-state magnetization signal value
 at the echo time
@@ -347,7 +378,7 @@ sequences. In Proc. Intl. Soc. Mag. Res. Med (p. 2068). [2]
 ## Out
 - `signal` steady-state magnetization (as a complex number)
 """
-function bssfp(
+function bssfp2(
     α_deg::Number, TR_ms::Number, TE_ms::Number,
     spin::SpinMC, spin_no_rf_phase_fact::SpinMC,
 )
@@ -382,7 +413,7 @@ end;
 
 
 # Intermediate helper
-function bssfp(
+function bssfp2(
     Mz0::Number,
     frac::NTuple{2, Number},
     T1_ms::NTuple{2, Number},
@@ -398,15 +429,15 @@ function bssfp(
 global spin1 = spin
     spin_no_rf_phase = SpinMC(Mz0, frac, T1_ms, T2_ms, Δf_no_rf_phase_Hz, τ_ms)
 
-    return bssfp(α_deg, TR_ms, TE_ms, spin, spin_no_rf_phase)
+    return bssfp2(α_deg, TR_ms, TE_ms, spin, spin_no_rf_phase)
 end
 
 
 """
-    bssfp(...)
+    bssfp2(...)
 Version with scalar arguments (convenient for autodiff)
 """
-function bssfp(
+function bssfp2(
     M0_phase::Number, # radians
     Mz0::Number,
     f_f::Number,
@@ -430,7 +461,7 @@ function bssfp(
     Δf_tuple_Hz = get_Δf_tuple(ΔΦ_rad, Δf0_Hz, Δff_Hz, TR_ms)
     Δf_tuple_Hz_no_rf_phase = get_Δf_tuple(0, Δf0_Hz, Δff_Hz, TR_ms)
 
-    return cis(M0_phase) * bssfp(
+    return cis(M0_phase) * bssfp2(
      Mz0,
      (f_f, 1 - f_f),
      (T1_f_ms, T1_s_ms),
@@ -482,7 +513,7 @@ num_samples = 401 # number of samples (resonant frequencies)
 
 # Broadcast via `map` using helper functions
 bssfp_mc(Δf0_Hz::Number, ΔΦ_deg::Number, α_deg::Number, τ_fs::Number) =
-    bssfp(0 #= phase =#, Mz0, f_f, T1_f_ms, T1_s_ms, T2_f_ms, T2_s_ms, τ_fs,
+    bssfp2(0 #= phase =#, Mz0, f_f, T1_f_ms, T1_s_ms, T2_f_ms, T2_s_ms, τ_fs,
         Δf_myelin_Hz, Δf0_Hz, α_deg, TR_ms, TE_ms, ΔΦ_deg)
 
 tmp = Iterators.product(Δf_arr_Hz, ΔΦ_arr_deg, flip_ang_arr_deg)
