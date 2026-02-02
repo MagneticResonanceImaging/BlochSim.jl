@@ -9,9 +9,23 @@ using Test: @inferred, @test, @testset
 
 real_imag(z) = [real(z); imag(z)] # stacker
 
+
+"""
+bSSFP signal for TE = TR/2, Δϕ = π, Δf=0
+see lenz:10:lor
+"""
+function freeman_hill(T1, T2, TR, TE, α)
+    @assert TE ≈ TR/2
+    E1 = exp(-TR / T1)
+    E2 = exp(-TR / T2)
+    return sin(α) * (1 - E1) * sqrt(E2) /
+        (1 - E1 * E2 - (E1 - E2) * cos(α))
+end
+
+
 # single-pool test
 @testset "bssfp1" begin
-    α_deg, TR_ms, TE_ms = 20, 10, 5 # scan parameters
+    α_deg, TR_ms, TE_ms = 20, 10, 5f0 # scan parameters
     Mz0, T1_ms, T2_ms = 0.9, 400, 100 # tissue parameters
     Δf_Hz = -30.5
     xt = (; Mz0, T1_ms, T2_ms, Δf_Hz) # tissue
@@ -26,6 +40,15 @@ real_imag(z) = [real(z); imag(z)] # stacker
     fun(xt) = real_imag(bssfp(xt..., xs...))
     grad = ForwardDiff.jacobian(fun, collect(xt))
     @test grad isa Matrix{<:AbstractFloat}
+
+    # compare to classic Freeman-Hill formula:
+    tmp3 = Mz0 * freeman_hill(T1_ms, T2_ms, TR_ms, TE_ms, α_rad)
+    ΔΦ_rad = π
+    xtf = (; Mz0, T1_ms, T2_ms, Δf_Hz = 0 - ΔΦ_rad/(2π*(TR_ms/1000)))
+    rf_phase_rad = π/2
+    xsf = (; TR_ms, TE_ms, α_rad, rf_phase_rad)
+    tmp4 = @inferred bssfp(xtf, xsf...)
+    @test tmp3 ≈ tmp4
 end
 
 
