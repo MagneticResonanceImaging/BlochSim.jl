@@ -1,17 +1,19 @@
+using Test: @inferred, @test, @testset
+
 function Spin1()
 
-    Spin{Float64}(1, 1000, 100, 0)
-    Spin{Float64}(1, Int32(1000), 100, 0)
-    Spin{Float64}(1f0, 1000, 100, 0, Position(0, 1, 2))
-    Spin{Float64}(1, Int32(1000), 100, 0, Position(0.0, -1.0, -1))
-    Spin{Float64}(1f0, 1000f0, 100f0, 0f0)
-    Spin{Float64}(Magnetization(1, 1, Int32(1)), 1, 1000, 100, 0)
-    Spin(1, 1000, 100, 0)
-    Spin(1, Int32(1000), 100, 0)
-    Spin(1f0, 1000, 100, 0, Position(0, 1, 2))
-    Spin(1, Int32(1000), 100, 0, Position(0.0, -1.0, -1))
-    Spin(1f0, 1000f0, 100f0, 0f0)
-    s = Spin(Magnetization(1, 1, Int32(1)), 1, 1000, 100, 0)
+    @inferred Spin{Float64}(1, 1000, 100, 0)
+    @inferred Spin{Float64}(1, Int32(1000), 100, 0)
+    @inferred Spin{Float64}(1f0, 1000, 100, 0, Position(0, 1, 2))
+    @inferred Spin{Float64}(1, Int32(1000), 100, 0, Position(0.0, -1.0, -1))
+    @inferred Spin{Float64}(1f0, 1000f0, 100f0, 0f0)
+    @inferred Spin{Float64}(Magnetization(1, 1, Int32(1)), 1, 1000, 100, 0)
+    @inferred Spin(1, 1000, 100, 0)
+    @inferred Spin(1, Int32(1000), 100, 0)
+    @inferred Spin(1f0, 1000, 100, 0, Position(0, 1, 2))
+    @inferred Spin(1, Int32(1000), 100, 0, Position(0.0, -1.0, -1))
+    @inferred Spin(1f0, 1000f0, 100f0, 0f0)
+    s = @inferred Spin(Magnetization(1, 1, Int32(1)), 1, 1000, 100, 0)
 
     show(devnull, "text/plain", s)
     return s.N == 1
@@ -20,17 +22,17 @@ end
 
 function SpinMC1()
 
-    SpinMC{Float64}(1, (0.8, 0.2), (1000, 100), (100, 10), (0, 0), (100, 25))
-    SpinMC{Float64}(1, (0.8, 0.2), (1000f0, 100), (100, Int16(10)), (0, 0), (100, 25))
-    SpinMC{Float64}((Magnetization(0, 0, 1.0), Magnetization(0, 0, 1)), 1, (1, 1),
+    @inferred SpinMC{Float64}(1, (0.8, 0.2), (1000, 100), (100, 10), (0, 0), (100, 25))
+    @inferred SpinMC{Float64}(1, (0.8, 0.2), (1000f0, 100), (100, Int16(10)), (0, 0), (100, 25))
+    @inferred SpinMC{Float64}((Magnetization(0, 0, 1.0), Magnetization(0, 0, 1)), 1, (1, 1),
            (100, 100), (10.0, 10), (0, 0.0), (1f0, 1.0))
-    SpinMC{Float64}(((0, 0, 1.0), (0, 0, 1)), 1, (1, 1),
+    @inferred SpinMC{Float64}(((0, 0, 1.0), (0, 0, 1)), 1, (1, 1),
            (100, 100), (10.0, 10), (0, 0.0), (1f0, 1.0))
-    SpinMC(1, (0.8, 0.2), (1000, 100), (100, 10), (0, 0), (100, 25))
-    SpinMC(1, [0.8, 0.2], (1000f0, 100), (100, Int16(10)), (0, 0), (100, 25))
-    SpinMC((Magnetization(0, 0, 1.0), Magnetization(0, 0, 1)), 1, (1, 1),
+    @inferred SpinMC(1, (0.8, 0.2), (1000, 100), (100, 10), (0, 0), (100, 25))
+    SpinMC(1, [0.8, 0.2], (1000f0, 100), (100, Int16(10)), (0, 0), (100, 25)) # todo: @inferred fails
+    @inferred SpinMC((Magnetization(0, 0, 1.0), Magnetization(0, 0, 1)), 1, (1, 1),
            [100, 100], (10.0, 10), [0, 0.0], (1f0, 1.0))
-    s = SpinMC(((0, 0, 1.0), (0, 0, 1)), 1, (1, 1),
+    s = @inferred SpinMC(((0, 0, 1.0), (0, 0, 1)), 1, (1, 1),
            [100, 100], (10.0, 10), [0, 0.0], (1f0, 1.0))
 
     show(devnull, s)
@@ -59,8 +61,8 @@ end
 
 function Position1()
 
-    P1 = Position(1, 2, 3)
-    P2 = Position(1.0, 2.0, 3.0)
+    P1 = @inferred Position(1, 2, 3)
+    P2 = @inferred Position(1.0, 2.0, 3.0)
 
     show(devnull, P1)
     show(devnull, "text/plain", P2)

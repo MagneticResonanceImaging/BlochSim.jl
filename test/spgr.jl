@@ -1,6 +1,8 @@
+using Test: @inferred, @test, @testset
+
 function spgr1()
 
-    spgr! = SPGRBlochSim(10, 5, deg2rad(20), Val(1))
+    spgr! = @inferred SPGRBlochSim(10, 5, deg2rad(20), Val(1))
     s = Spin(1, 1000, 100, 0)
     spgr!(s)
 
@@ -12,13 +14,13 @@ end
 
 function spgr2()
 
-    spgr1! = SPGRBlochSim(10, 5, RF([0.1], 0.01), RFSpoiling(), Val(2), Val(true))
+    spgr1! = @inferred SPGRBlochSim(10, 5, RF([0.1], 0.01), RFSpoiling(), Val(2), Val(true))
     s1 = Spin(1, 1000, 100, 0)
     s2 = SpinMC(1, (1, 0), (1000, 100), (100, 10), (0, 0), (Inf, Inf))
     M11 = spgr1!(s1)
     M12 = spgr1!(s2)
 
-    spgr2! = SPGRBlochSim(10, 5, RF([0.1], 0.01), RFandGradientSpoiling(RFSpoiling(), GradientSpoiling(0, 0, 0, 0)), Val(2), Val(true))
+    spgr2! = @inferred SPGRBlochSim(10, 5, RF([0.1], 0.01), RFandGradientSpoiling(RFSpoiling(), GradientSpoiling(0, 0, 0, 0)), Val(2), Val(true))
     s1 = Spin(1, 1000, 100, 0)
     s2 = SpinMC(1, (1, 0), (1000, 100), (100, 10), (0, 0), (Inf, Inf))
     M21 = spgr2!(s1)

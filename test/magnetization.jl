@@ -1,8 +1,10 @@
+using Test: @inferred, @test, @testset
+
 function magnetization1()
 
-    M1 = Magnetization()
-    M2 = Magnetization{Int}()
-    M3 = Magnetization(0, 0, 0.0)
+    M1 = @inferred Magnetization()
+    M2 = @inferred Magnetization{Int}()
+    M3 = @inferred Magnetization(0, 0, 0.0)
 
     @test eltype(M1) == eltype(M3) != eltype(M2)
     return M1 == M2 == M3
@@ -64,9 +66,9 @@ end
 
 function magnetizationmc1()
 
-    M1 = MagnetizationMC(3)
-    M2 = MagnetizationMC{Int}(3)
-    M3 = MagnetizationMC((0, 0, 0), (0, 0, 0), (0, 0, 0))
+    M1 = MagnetizationMC(3) # todo: @inferred
+    M2 = MagnetizationMC{Int}(3) # todo: @inferred
+    M3 = @inferred MagnetizationMC((0, 0, 0), (0, 0, 0), (0, 0, 0))
 
     @test eltype(M1) != eltype(M2) == eltype(M3)
     return M1 == M2 == M3
@@ -85,7 +87,7 @@ end
 
 function magnetizationmc3()
 
-    M = MagnetizationMC((1, 2, 3), (3, 2, 1))
+    M = @inferred MagnetizationMC((1, 2, 3), (3, 2, 1))
     Mcopy = copy(M)
     Mcopyto = MagnetizationMC(2)
     copyto!(Mcopyto, M)
@@ -109,7 +111,7 @@ end
 function magnetizationmc5()
 
     src = [0, 0, 0, 0, 0, 0]
-    dst = MagnetizationMC((3, 2, 1), (4, 5, 6))
+    dst = @inferred MagnetizationMC((3//1, 2, 1), (4, 5, 6f0))
     copyto!(dst, src)
 
     return Vector(dst) == src

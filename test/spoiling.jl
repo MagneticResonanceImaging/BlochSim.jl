@@ -1,7 +1,9 @@
+using Test: @inferred, @test, @testset
+
 function GradientSpoiling1()
 
-    GradientSpoiling(0, 1, 0, 1)
-    g = GradientSpoiling(0.0, 1, 0f0, 2//3)
+    @inferred GradientSpoiling(0, 1, 0, 1)
+    g = @inferred GradientSpoiling(0.0, 1, 0f0, 2//3)
 
     show(devnull, g.gradient)
     show(devnull, "text/plain", g.gradient)
@@ -13,15 +15,15 @@ end
 
 function GradientSpoiling2()
 
-    grad = Gradient(0, 0, 0)
-    spoil = GradientSpoiling(grad, 3.0)
-    return spoiler_gradient(spoil) === grad
+    grad = @inferred Gradient(0, 0, 0)
+    spoil = @inferred GradientSpoiling(grad, 3.0)
+    return @inferred spoiler_gradient(spoil) === grad
 
 end
 
 function RFSpoiling1()
 
-    s = RFSpoiling(deg2rad(117))
+    s = @inferred RFSpoiling(deg2rad(117))
 
     show(devnull, s)
     show(devnull, "text/plain", s)
@@ -32,15 +34,15 @@ end
 function RFSpoiling2()
 
     Δθ = 1
-    spoil = RFSpoiling(Δθ)
-    return rfspoiling_increment(spoil) == Δθ
+    spoil = @inferred RFSpoiling(Δθ)
+    return @inferred rfspoiling_increment(spoil) == Δθ
 
 end
 
 function RFandGradientSpoiling1()
 
-    RFandGradientSpoiling(GradientSpoiling(0, 0, 0, 3), RFSpoiling(deg2rad(117)))
-    s = RFandGradientSpoiling(RFSpoiling(), GradientSpoiling(0, 0, 0, 3))
+    @inferred RFandGradientSpoiling(GradientSpoiling(0, 0, 0, 3), RFSpoiling(deg2rad(117)))
+    s = @inferred RFandGradientSpoiling(RFSpoiling(), GradientSpoiling(0, 0, 0, 3))
 
     show(devnull, s)
     show(devnull, "text/plain", s)
@@ -52,20 +54,20 @@ function RFandGradientSpoiling2()
 
     grad = Gradient(1.0, 2.0, 1//2)
     Δθ = 2f0
-    spoil = RFandGradientSpoiling(GradientSpoiling(grad, 1.0), RFSpoiling(Δθ))
-    @test spoiler_gradient(spoil) === grad
-    return rfspoiling_increment(spoil) == Δθ
+    spoil = @inferred RFandGradientSpoiling(GradientSpoiling(grad, 1.0), RFSpoiling(Δθ))
+    @test @inferred spoiler_gradient(spoil) === grad
+    return @inferred rfspoiling_increment(spoil) == Δθ
 
 end
 
 function spoil1()
 
     s = Spin(Magnetization(1, 0.4, 5), 1, 1000, 100, 0)
-    (S,) = spoil(s)
+    (S,) = @inferred spoil(s)
     applydynamics!(s, S)
     M_correct = Magnetization(0, 0, 5)
     @test s.M ≈ M_correct
-    return S === BlochSim.IdealSpoilingMatrix()
+    return S === @inferred BlochSim.IdealSpoilingMatrix()
 
 end
 
@@ -91,7 +93,7 @@ end
 function spoil4()
 
     s = Spin(1, 1000, 100, 0)
-    (A1, B1) = spoil(s, GradientSpoiling(1, 1, 1, 10))
+    (A1, B1) = @inferred spoil(s, GradientSpoiling(1, 1, 1, 10))
     (A2, B2) = freeprecess(s, 10)
 
     @test A1 == A2
@@ -102,11 +104,11 @@ end
 function spoilmc1()
 
     s = SpinMC(MagnetizationMC((1, 0.4, 5), (0.2, 10, 0.2)), 1, [0.2, 0.8], [400, 1000], [20, 100], [15, 0], [20, 40])
-    (S,) = spoil(s)
+    (S,) = @inferred spoil(s)
     applydynamics!(s, S)
     M_correct = MagnetizationMC((0, 0, 5), (0, 0, 0.2))
     @test s.M ≈ M_correct
-    return S === BlochSim.IdealSpoilingMatrix()
+    return S === @inferred BlochSim.IdealSpoilingMatrix()
 
 end
 

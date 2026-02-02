@@ -1,9 +1,11 @@
+using Test: @inferred, @test, @testset
+
 function freeprecess1()
 
     t = 100
     spin = Spin(1, 1000, 100, 1.25)
-    (A1, B1) = freeprecess(spin, t)
-    A2 = FreePrecessionMatrix()
+    (A1, B1) = @inferred freeprecess(spin, t)
+    A2 = @inferred FreePrecessionMatrix()
     B2 = Magnetization()
     freeprecess!(A2, B2, spin, t)
     @test A1 == A2
@@ -25,7 +27,7 @@ function freeprecess3()
     t = 100
     grad = Gradient(0, 0, 1)
     spin = Spin(1, 1000, 100, 1.25, Position(0, 0, 1))
-    (A1, B1) = freeprecess(spin, t, grad)
+    (A1, B1) = @inferred freeprecess(spin, t, grad)
     A2 = FreePrecessionMatrix()
     B2 = Magnetization(0.0, 0.0, 0.0)
     freeprecess!(A2, B2, spin, t, grad)
@@ -62,8 +64,8 @@ end
 function freeprecess6()
 
     s = Spin(1, 1000, 100, 3.75)
-    (A1, B1) = freeprecess(s, 100)
-    (A2, B2) = freeprecess(100, s.M0, s.T1, s.T2, s.Δf)
+    (A1, B1) = @inferred freeprecess(s, 100)
+    (A2, B2) = @inferred freeprecess(100, s.M0, s.T1, s.T2, s.Δf)
 
     @test A1 == A2
     return B1 == B2
@@ -75,8 +77,8 @@ function freeprecess7()
     t = 100
     grads = (Gradient(0, 0, 1), Gradient(0, 0, 1))
     spin = Spin(1, 1000, 100, 1.25, Position(0, 0, 1))
-    (A1, B1) = freeprecess(spin, t, grads)
-    (A2, B2) = freeprecess(spin, t, grads[1])
+    (A1, B1) = @inferred freeprecess(spin, t, grads)
+    (A2, B2) = @inferred freeprecess(spin, t, grads[1])
     @test A1 ≈ A2
     return B1 ≈ B2
 
@@ -86,7 +88,7 @@ function freeprecessmc1()
 
     t = 20
     spin = SpinMC(1, (0.7, 0.2, 0.1), (1000, 400, 1000), (100, 20, 0.01), (0, 15, 0), (100, 100, 25, Inf, Inf, Inf))
-    (A1, B1) = freeprecess(spin, t)
+    (A1, B1) = @inferred freeprecess(spin, t)
     A2 = BlochMcConnellMatrix(3)
     B2 = MagnetizationMC(3)
     freeprecess!(A2, B2, spin, t)
@@ -124,7 +126,7 @@ function freeprecessmc3()
     t = 20
     grad = Gradient(0, 0, 1)
     spin = SpinMC(1, (0.8, 0.2), (1000, 400), (100, 20), (0, 15), (100, 25), Position(0, 0, 1))
-    (A1, B1) = freeprecess(spin, t, grad)
+    (A1, B1) = @inferred freeprecess(spin, t, grad)
     A2 = BlochMcConnellMatrix(2)
     B2 = MagnetizationMC(2)
     freeprecess!(A2, B2, spin, t, grad)
@@ -137,8 +139,8 @@ function freeprecessmc4()
 
     s = SpinMC(1, (0.8, 0.2), (1000, 400), (100, 20), (0, 15), (Inf, Inf))
     t = 100
-    (A1, B1) = freeprecess(s, t)
-    (A2, B2) = freeprecess(s, t, nothing)
+    (A1, B1) = @inferred freeprecess(s, t)
+    (A2, B2) = @inferred freeprecess(s, t, nothing)
 
     @test A1 ≈ A2
     return B1 ≈ B2
@@ -150,8 +152,8 @@ function freeprecessmc5()
     t = 100
     grads = (Gradient(0, 0, 1), Gradient(0, 0, 1))
     spin = SpinMC(1, (0.8, 0.2), (1000, 400), (100, 20), (0, 15), (10, 100))
-    (A1, B1) = freeprecess(spin, t, grads)
-    (A2, B2) = freeprecess(spin, t, grads[1])
+    (A1, B1) = @inferred freeprecess(spin, t, grads)
+    (A2, B2) = @inferred freeprecess(spin, t, grads[1])
     @test A1 ≈ A2
     return B1 ≈ B2
 

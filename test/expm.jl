@@ -5,7 +5,7 @@ using BlochSim: applydynamics!, excite!, freeprecess!, signal
 import BlochSim # BlochMcConnellDynamicsMatrix, expm! (etc)
 using ForwardDiff: ForwardDiff
 import ForwardDiff: derivative, gradient
-using Test: @test, @testset
+using Test: @inferred, @test, @testset
 
 function expm1()
 
@@ -36,8 +36,9 @@ end
 
 function dfrexp1()
 
-    f = x -> 2x * BlochSim.frexp1(x)
+    f = x -> 2x * @inferred BlochSim.frexp1(x)
     x = LinRange(-5, 5, 1000)
+    @inferred BlochSim.dfrexp1(x[1])
     df_correct = 2BlochSim.frexp1.(x) .+ 2x .* BlochSim.dfrexp1.(x)
     df_forwarddiff = ForwardDiff.derivative.(f, x)
 
@@ -47,8 +48,9 @@ end
 
 function dfrexp2()
 
-    f = x -> 2x * BlochSim.frexp2(x)
+    f = x -> 2x * @inferred BlochSim.frexp2(x)
     x = LinRange(-5, 5, 1000)
+    @inferred BlochSim.dfrexp2(x[1])
     df_correct = 2BlochSim.frexp2.(x) .+ 2x .* BlochSim.dfrexp2.(x)
     df_forwarddiff = ForwardDiff.derivative.(f, x)
 
