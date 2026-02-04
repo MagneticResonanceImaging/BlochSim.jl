@@ -30,7 +30,9 @@ end
     Δf_Hz = -30.5
     xt = (; Mz0, T1_ms, T2_ms, Δf_Hz) # tissue
     α_rad = deg2rad(α_deg)
-    xs = (; TR_ms, TE_ms, α_rad)
+    Δϕ_rad = π/3
+Δϕ_rad = 0
+    xs = (; TR_ms, TE_ms, Δϕ_rad, α_rad)
     tmp1 = @inferred bssfp(xt..., xs...)
     @test tmp1 isa Complex{<:AbstractFloat}
 
@@ -43,14 +45,16 @@ end
 
     # compare to classic Freeman-Hill formula:
     tmp3 = Mz0 * freeman_hill(T1_ms, T2_ms, TR_ms, TE_ms, α_rad)
-    ΔΦ_rad = π
-    xtf = (; Mz0, T1_ms, T2_ms, Δf_Hz = 0 - ΔΦ_rad/(2π*(TR_ms/1000)))
+    Δϕ_rad = π
+    xtf = (; Mz0, T1_ms, T2_ms, Δf_Hz = 0 - Δϕ_rad/(2π*(TR_ms/1000)))
+#   xtf = (; Mz0, T1_ms, T2_ms, Δf_Hz = 0) # todo
     rf_phase_rad = π/2
-    xsf = (; TR_ms, TE_ms, α_rad, rf_phase_rad)
+    xsf = (; TR_ms, TE_ms, Δϕ_rad=0*Δϕ_rad, α_rad, rf_phase_rad) # todo
     tmp4 = @inferred bssfp(xtf, xsf...)
     @test tmp3 ≈ tmp4
 end
 
+#throw()
 
 # two-pool test
 @testset "bssfp2" begin
@@ -68,12 +72,12 @@ end
     Δf0_Hz = -40. # from B0
     α_deg, TR_ms, TE_ms = 20, 10, 5 # scan parameters
     α_rad = deg2rad(α_deg)
-    ΔΦ_deg = 30 # RF phase cycling increment
-    ΔΦ_rad = deg2rad(ΔΦ_deg)
+    Δϕ_deg = 30 # RF phase cycling increment
+    Δϕ_rad = deg2rad(Δϕ_deg)
 
     xt = (; M0_phase, Mz0, f_f, T1_f_ms, T1_s_ms, T2_f_ms, T2_s_ms,
         τ_fs_ms, Δf_myelin_Hz, Δf0_Hz)
-    xs = (; ΔΦ_rad, TR_ms, TE_ms, α_rad)
+    xs = (; Δϕ_rad, TR_ms, TE_ms, α_rad)
     tmp1 = @inferred bssfp(xt..., xs...)
 
     @test tmp1 isa Complex{<:AbstractFloat}
