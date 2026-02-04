@@ -610,6 +610,9 @@ function Base.show(io::IO, ::MIME"text/plain", A::ExcitationMatrix{T}) where {T}
 
 end
 
+Base.Matrix(A::ExcitationMatrix) = Matrix(A.A)
+
+
 """
     idealspoiling = IdealSpoilingMatrix()
 
