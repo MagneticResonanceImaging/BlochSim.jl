@@ -2,7 +2,7 @@
 test/bssfp.jl
 =#
 
-using BlochSim: bssfp, BSSFPTuple1
+using BlochSim: bssfp, BSSFPTuple1, Spin, InstantaneousRF
 using ForwardDiff: ForwardDiff
 import ForwardDiff: derivative, gradient
 using Test: @inferred, @test, @testset
@@ -11,7 +11,7 @@ real_imag(z) = [real(z); imag(z)] # stacker
 
 
 """
-bSSFP signal for TE = TR/2, Δϕ = π, Δf=0
+bSSFP signal for TE = TR/2, Δϕ = π, Δf = 0, θ_rf = 0
 see lenz:10:lor
 """
 function freeman_hill(T1, T2, TR, TE, α)
@@ -23,38 +23,56 @@ function freeman_hill(T1, T2, TR, TE, α)
 end
 
 
+# old vs new way for Δϕ_rad=0 (the only option the old way supports)
+# todo: cut after new way works!
+@testset "bssfp0" begin
+    Mz0, T1_ms, T2_ms, Δf_Hz = 0.7, 400, 80, -9 # tissue
+    spin = Spin(Mz0, T1_ms, T2_ms, Δf_Hz)
+    TR_ms, TE_ms, α_rad, Δϕ_rad, θ_rf_rad = 10, 5f0, 0, π/5, π/7 # scan
+    rf = InstantaneousRF(α_rad, θ_rf_rad)
+    oldsig = @inferred bssfp(spin, TR_ms, TE_ms, rf)
+    newsig = @inferred bssfp(spin, TR_ms, TE_ms, Δϕ_rad, rf)
+    @test oldsig ≈ newsig
+end
+
+
 # single-pool test
 @testset "bssfp1" begin
-    α_deg, TR_ms, TE_ms = 20, 10, 5f0 # scan parameters
-    Mz0, T1_ms, T2_ms = 0.9, 400, 100 # tissue parameters
-    Δf_Hz = -30.5
+    Mz0, T1_ms, T2_ms, Δf_Hz = 0.7, 400, 80, -9 # tissue parameters
     xt = (; Mz0, T1_ms, T2_ms, Δf_Hz) # tissue
-    α_rad = deg2rad(α_deg)
-    Δϕ_rad = π/3
-Δϕ_rad = 0
-    xs = (; TR_ms, TE_ms, Δϕ_rad, α_rad)
-    tmp1 = @inferred bssfp(xt..., xs...)
-    @test tmp1 isa Complex{<:AbstractFloat}
+    TR_ms, TE_ms, Δϕ_rad, α_rad, θ_rf_rad = 20, 10, 5f0, π/3, π/5, π/7 # scan
+    xs = (; TR_ms, TE_ms, Δϕ_rad, α_rad, θ_rf_rad)
+    sig1 = @inferred bssfp(xt..., xs...)
+    @test sig1 isa Complex{<:AbstractFloat}
 
-    tmp2 = @inferred bssfp(xt, xs...)
-    @test tmp1 == tmp2
+    sig2 = @inferred bssfp(xt, xs...) # tuple version
+    @test sig1 == sig2
 
+    # jacobian
     fun(xt) = real_imag(bssfp(xt..., xs...))
     grad = ForwardDiff.jacobian(fun, collect(xt))
     @test grad isa Matrix{<:AbstractFloat}
 
-    # compare to classic Freeman-Hill formula:
-    tmp3 = Mz0 * freeman_hill(T1_ms, T2_ms, TR_ms, TE_ms, α_rad)
-    Δϕ_rad = π
-    xtf = (; Mz0, T1_ms, T2_ms, Δf_Hz = 0 - Δϕ_rad/(2π*(TR_ms/1000)))
-#   xtf = (; Mz0, T1_ms, T2_ms, Δf_Hz = 0) # todo
-    rf_phase_rad = π/2
-    xsf = (; TR_ms, TE_ms, Δϕ_rad=0*Δϕ_rad, α_rad, rf_phase_rad) # todo
-    tmp4 = @inferred bssfp(xtf, xsf...)
-    @test tmp3 ≈ tmp4
+    # short vs long form
+    spin = Spin(Mz0, T1_ms, T2_ms, Δf_Hz)
+    rf = InstantaneousRF(α_rad, θ_rf_rad)
+    sig3 = @inferred bssfp(spin, TR_ms, TE_ms, Δϕ_rad, rf)
+    @test sig1 == sig3
 end
 
-#throw()
+
+# compare to classic Freeman-Hill formula:
+@testset "freeman-hill" begin
+    Mz0, T1_ms, T2_ms, Δf_Hz = 0.7, 400, 80, 0 # note Δf_Hz=0 !
+    xt = (; Mz0, T1_ms, T2_ms, Δf_Hz) # tissue
+    TR_ms, TE_ms, Δϕ_rad, α_rad, θ_rf_rad = 20, 10, π, π/5, 0 # scan
+    xs = (; TR_ms, TE_ms, Δϕ_rad, α_rad, θ_rf_rad)
+
+    sig4 = Mz0 * freeman_hill(T1_ms, T2_ms, TR_ms, TE_ms, α_rad)
+    sig5 = @inferred bssfp(xt, xs...)
+    @test sig4 ≈ sig5
+end
+
 
 # two-pool test
 @testset "bssfp2" begin

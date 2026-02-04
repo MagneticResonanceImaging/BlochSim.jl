@@ -61,22 +61,20 @@ function bssfp(
     tRF_ms = duration(rf)
     tRF_ms/2 < TE_ms < TR_ms - tRF_ms/2 ||
         throw("bad TE=$TE_ms for TR=$TR_ms and tRF=$tRF_ms")
-#   Δf_shift_Hz = Δf_Hz - Δϕ_rad/(2π*TR_ms/1000) # effect of phase cycling
     spin = Spin(Mz0, T1_ms, T2_ms, Δf_Hz, pos)
     return bssfp(spin, TR_ms, TE_ms, Δϕ_rad, rf)
 end
 
 
 """
-    function bssfp(spin, TR_ms, TE_ms, Δϕ_rad, rf::AbstractRF)
+    function bssfp(spin, TR_ms, TE_ms, rf::AbstractRF)
+Classic version with no phase cycling increment,
+for InstantaneousRF only.
 """
-function bssfp(spin,
-    TR_ms::Number, TE_ms::Number, Δϕ_rad::Number, rf::AbstractRF,
-)
+function bssfp(spin, TR_ms::Number, TE_ms::Number, rf::AbstractRF)
 
     (R,) = excite(spin, rf) # matrix for spin excitation
-    rf isa InstantaneousRF ||
-        throw("todo: relaxation and duraction effects?  need to test!")
+    rf isa InstantaneousRF || throw("unsupported")
 
     #=
     Matrices for precession/relaxation for various time period values
@@ -86,7 +84,6 @@ function bssfp(spin,
     - `c` is immediately after the next RF pulse
     - `d` is TE after that next RF pulse
     =#
-    Δϕ_rad == 0 || throw("Δϕ_rad=$Δϕ_rad not done")
     (PC1_A, PC1_B) = freeprecess(spin, TE_ms)
     (PC2_A, PC2_B) = freeprecess(spin, TR_ms - TE_ms)
     (PC_TR_A, PC_TR_B) = freeprecess(spin, TR_ms)
@@ -97,7 +94,17 @@ function bssfp(spin,
 
     Mss = (I - A) \ b # steady-state magnetization at the echo time
     return complex(Mss[1], Mss[2]) # complex signal
-#=
+end
+
+
+"""
+    function bssfp(spin, TR_ms, TE_ms, Δϕ_rad, rf::AbstractRF)
+Signal accounting for  phase cycling increment `Δϕ_rad`,
+allowing for finite duration `rf` pulse.
+"""
+function bssfp(spin,
+    TR_ms::Number, TE_ms::Number, Δϕ_rad::Number, rf::AbstractRF,
+)
 
     (A0, d0) = excite(spin, rf) # matrix for spin excitation
 
@@ -113,8 +120,7 @@ function bssfp(spin,
 #   Efree = FreePrecessionMatrix(I, exp(-t_free_ms/spin.T2), spin.Δf_Hz)
     return complex(Mss[1], Mss[2]) * # complex signal
         exp(-t_free_ms / spin.T2) * # T2 decay
-        cis(-2π*1000*spin.Δf*t_free_ms) # off resonance
-=#
+        cis(-2π/1000*spin.Δf*t_free_ms) # off resonance
 end
 
 
