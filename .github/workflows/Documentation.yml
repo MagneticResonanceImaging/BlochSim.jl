@@ -41,7 +41,7 @@ jobs:
       - name: BuildAndDeploy
         env:
 # https://juliadocs.github.io/Documenter.jl/stable/man/hosting/#Authentication:-GITHUB_TOKEN
-#         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # for previews
           ssh: ${{ secrets.DOCUMENTER_KEY }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
         run: julia --project=docs/ docs/make.jl

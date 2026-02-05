@@ -1,3 +1,5 @@
+using Test: @inferred, @test, @testset
+
 function mese1()
 
     rfex = RF([π/2], [0], 0, 0, Gradient(0, 0, 0))
@@ -6,8 +8,8 @@ function mese1()
     rephaser2 = GradientSpoiling([0], [0], [0], 0)
     crusher = GradientSpoiling(0, 0, 0, 0)
     spoiler = GradientSpoiling(0, 0, 0, 0)
-    mese1! = MESEBlochSim(3000, 10, 32, rfex, rfref, rephaser1, crusher, spoiler)
-    mese2! = MESEBlochSim(3000, 10, 32, rfex, rfref, rephaser2, crusher, nothing)
+    mese1! = @inferred MESEBlochSim(3000, 10, 32, rfex, rfref, rephaser1, crusher, spoiler)
+    mese2! = @inferred MESEBlochSim(3000, 10, 32, rfex, rfref, rephaser2, crusher, nothing)
     s1 = Spin(1, 1000, 100, 0)
     s2 = SpinMC(1, (1, 0), (1000, 100), (100, 10), (0, 0), (Inf, Inf))
     M1 = mese1!(s1)

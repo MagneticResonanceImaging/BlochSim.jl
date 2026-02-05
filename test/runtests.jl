@@ -15,6 +15,7 @@ end
     include("expm.jl")
     include("freeprecess.jl")
     include("excite.jl")
+    include("bssfp.jl")
     include("mese.jl")
     include("spgr.jl")
 end

@@ -31,7 +31,8 @@ function Base.show(io::IO, ::MIME"text/plain", A::BlochMatrix{T}) where {T}
 
     print(io, "BlochMatrix{$T}:\n")
     haskey(io, :compact) || (io = IOContext(io, :compact => true))
-    Base.print_array(io, Matrix(A))
+    Base.print_array(io, Matrix(A)) # caution: private method
+#   show(stdout, MIME"text/plain"(), Matrix(A)) # public alternative
 
 end
 
@@ -315,6 +316,7 @@ struct BlochMcConnellDynamicsMatrix{T<:Real,N,M} <: AbstractBlochMcConnellMatrix
     end
 end
 
+# todo: return type depends on argument N, so not inferable
 function BlochMcConnellDynamicsMatrix{T}(N) where {T}
 
     A = ntuple(i -> BlochDynamicsMatrix{T}(), N)
@@ -423,10 +425,12 @@ struct BlochMcConnellMatrix{T<:Real,N} <: AbstractBlochMcConnellMatrix{T,N}
     A::NTuple{N,NTuple{N,BlochMatrix{T}}}
 end
 
+# caution: the return type depends on the input argument N
+# making this function not type-inferable (todo)
 function BlochMcConnellMatrix{T}(N) where {T}
 
     A = ntuple(i -> ntuple(i -> BlochMatrix{T}(), N), N)
-    BlochMcConnellMatrix(A)
+    return BlochMcConnellMatrix(A)::BlochMcConnellMatrix{T, N}
 
 end
 
@@ -605,6 +609,9 @@ function Base.show(io::IO, ::MIME"text/plain", A::ExcitationMatrix{T}) where {T}
     Base.print_array(io, Matrix(A.A))
 
 end
+
+Base.Matrix(A::ExcitationMatrix) = Matrix(A.A)
+
 
 """
     idealspoiling = IdealSpoilingMatrix()

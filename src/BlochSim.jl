@@ -1,7 +1,7 @@
 module BlochSim
 
-using ForwardDiff
-using LinearAlgebra
+import ForwardDiff # Dual, partials, value
+using LinearAlgebra: LinearAlgebra, UniformScaling, ldiv!, lu!, mul!
 
 export GAMMA
 export GAMBAR
@@ -67,5 +67,6 @@ include("freeprecess.jl")
 include("excite.jl")
 include("mese.jl")
 include("spgr.jl")
+include("bssfp.jl")
 
 end

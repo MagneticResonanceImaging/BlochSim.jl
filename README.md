@@ -28,7 +28,8 @@ In addition, this package provides implementations
 for specific scan sequences:
 
 - multi-echo spin echo (MESE) scan (`MESEBlochSim`)
-- spoiled gradient-recalled echo (SPGR) scan (`SPGRBlochSim`).
+- spoiled gradient-recalled echo (SPGR) scan (`SPGRBlochSim`)
+- balanced steady-state free precession (bSSFP) scan (`bssfp`).
 
 ## Examples
 See the examples given in the documentation strings for how to use the provided
@@ -149,10 +150,7 @@ are based on the corresponding section in the tutorial (see
 
 
 ## Status
-
-On 2024-04-08 this repo moved here from
-https://github.com/StevenWhitaker/BlochSim.jl.
-Submit issues for outdated URLs.
+Tested with Julia ≥ v1.12
 
 
 <!-- URLs -->

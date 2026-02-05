@@ -200,7 +200,7 @@ end
 frexp1(x) = frexp(x)[1]
 frexp2(x) = frexp(x)[2]
 dfrexp1(x) = 2.0^(-floor(log2(abs(x))) - 1)
-dfrexp2(x) = 0
+dfrexp2(x) = 0 # COV_EXCL_LINE
 
 for (f, df) in ((:frexp1, :dfrexp1), (:frexp2, :dfrexp2))
 @eval begin
