@@ -233,7 +233,7 @@ prompt()
 # helper functions for CRB
 real_imag(x) = [real(x); imag(x)] # stacker
 snr2sigma(db::Real, yb::AbstractArray{<:Complex}) =
-    10^(-db/20) * norm(yb) / sqrt(length(yb))
+    10^(-db/20) * norm(yb) / sqrt(length(yb));
 
 #=
 ## CRB for 1-pool bSSFP
@@ -275,7 +275,7 @@ cov1 = round.(crb_std ./ x ; digits=3) # coefficient of variation
 
 
 #=
-RF pulse duration
+## RF pulse duration
 The preceding calculations were all
 for hypothetical instantaneous" RF pulses.
 
@@ -288,15 +288,14 @@ TR_ms, TE_ms, α_rad = 8, 4, deg2rad(50) # scan parameters
 
 Δϕ_rad = range(-1,1,101) * π
 rf0 = InstantaneousRF(α_rad)
-_bssfp(Δϕ_rad, rf) = bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, Δϕ_rad, rf)
+_bssfp(Δϕ_rad, rf) = bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, Δϕ_rad, rf);
 
 #=
 Specify finite-duration hard (rectangular) RF pulse
-`GAMMA` has units rad/s/G
-Tip angle for constant pulse:
-`α_rad = GAMMA * b1_gauss * tRF_s`
-so
-`b1_gauss = α_rad / GAMMA / tRF_s`
+- `GAMMA` has units rad/s/G
+- Tip angle for constant pulse:
+  `α_rad = GAMMA * b1_gauss * tRF_s`
+- so `b1_gauss = α_rad / GAMMA / tRF_s`
 =#
 #src tRF_ms = 1e-12 # super-short for first test
 tRF_ms = 1
@@ -471,7 +470,7 @@ global spin1 = spin
     spin_no_rf_phase = SpinMC(Mz0, frac, T1_ms, T2_ms, Δf_no_rf_phase_Hz, τ_ms)
 
     return bssfp2(α_deg, TR_ms, TE_ms, spin, spin_no_rf_phase)
-end
+end;
 
 
 """
@@ -512,7 +511,7 @@ function bssfp2(
      τ_tuple_ms,
      α_deg, TR_ms, TE_ms,
     )
-end
+end;
 
 
 #=
@@ -549,7 +548,7 @@ flip_ang_arr_deg = [10, 40] # flip angles
 
 ## vector of off-resonance values
 num_samples = 401 # number of samples (resonant frequencies)
-Δf_arr_Hz = kHz_to_Hz(range(-1, 1, num_samples) / TR_ms)
+Δf_arr_Hz = kHz_to_Hz(range(-1, 1, num_samples) / TR_ms);
 
 
 # Broadcast via `map` using helper functions
@@ -579,7 +578,8 @@ prompt()
 
 
 #=
-# Recreate Figure 2 (magnitude plot) from [2] and also add the phase plot.
+## Recreate Figure 2 (magnitude plot) from [2]
+and also plot the phase.
 =#
 
 Δf_Hz = 0.0 # set off-resonance to zero for this plot
