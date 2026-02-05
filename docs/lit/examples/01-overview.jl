@@ -65,8 +65,8 @@ end
 # Tell this Julia session to use the following packages for this example.
 # Run `Pkg.add()` in the preceding code block first, if needed.
 
-using BlochSim: Spin, SpinMC, InstantaneousRF, excite, freeprecess
-using BlochSim: bssfp
+using BlochSim: Spin, SpinMC, InstantaneousRF, RF, excite, freeprecess
+using BlochSim: bssfp, GAMMA
 import ForwardDiff
 using InteractiveUtils: versioninfo
 using LaTeXStrings: latexstring
@@ -166,75 +166,12 @@ function bssfp_matrix(α_deg, TR_ms, TE_ms, Mz0, T1_ms, T2_ms, Δf_Hz=0)
 end;
 
 
-# ## Method 2: Use BlochSim
 
-#= todo
-
-"""
-    bssfp(α_deg, TR_ms, TE_ms, Mz0, T1_ms, T2_ms, Δf_kHz=0)
-    bssfp(α_deg, TR_ms, TE_ms, spin)
-
-Return steady-state magnetization signal value
-at the echo time
-for a bSSFP sequence
-using BlochSim.
-See [Hargreaves et al., MRM 2001](https://doi.org/10.1002/mrm.1170).
-
-## In
-- `α_deg` flip angle of RF pulse (degrees)
-- `TR_ms` repetition time (ms)
-- `TE_ms` echo time (ms)
-- `Mz0` initial condition for magnetization in the z-direction (constant)
-- `T1_ms` MRI tissue parameter for T1 relaxation (ms)
-- `T2_ms` MRI tissue parameter for T2 relaxation (ms)
-- `Δf_Hz` off-resonance value (Hz)
-
-## Out
-- `signal` steady-state magnetization (as a complex number)
-"""
-function bssfpOLD(
-    α_deg::Number, TR_ms::Number, TE_ms::Number,
-    Mz0::Number, T1_ms::Number, T2_ms::Number, Δf_Hz::Number = 0,
-)
-    spin = Spin(Mz0, T1_ms, T2_ms, Δf_Hz) # create a spin
-    return bssfpOLD(α_deg, TR_ms, TE_ms, spin)
-end;
-
-
-function bssfpOLD(α_deg::Number, TR_ms::Number, TE_ms::Number, spin::Spin)
-    α_rad = deg2rad(α_deg) # convert flip angle α from degrees to radians
-
-    #=
-    Matrix to excite the spin
-    Include RF phase for instantaneous RF because above code flips over x axis
-    whereas BlochSim flips over -y axis, so need to make them consistent.
-    =#
-    (R,) = excite(spin, InstantaneousRF(α_rad, -π/2))
-
-    ## Matrices for precession/relaxation for various time period values
-    (PC1_A, PC1_B) = freeprecess(spin, TE_ms)
-    (PC2_A, PC2_B) = freeprecess(spin, TR_ms - TE_ms)
-    (PC_TR_A, PC_TR_B) = freeprecess(spin, TR_ms)
-
-    ## calculate the A matrix and b vector
-    A = Matrix(PC1_A * R.A * PC2_A)
-    b = Matrix(PC1_A * R.A) * Vector(PC2_B) + Vector(PC1_B)
-
-    ## calculate the steady-state magnetization at the echo time
-    Mss = (I - A) \ b
-
-    return complex(Mss[1], Mss[2]) # return the complex signal
-end;
-
-bssfpOLD(α_deg, Δf_Hz) =
-    bssfpOLD(α_deg, TR_ms, TE_ms, Mz0, T1_ms, T2_ms, Δf_Hz);
-
-#todo tmp = bssfpOLD.(flip_ang_arr_deg', Δf_arr_Hz)
-#todo @assert tmp ≈ sig_blochsim # yes they match!
-
+#=
+## Recreate Figure 3 from [1]
+And compare Method 1 above
+with Method 2 (using `bssfp` in `BlochSim`)
 =#
-
-# ## Recreate Figure 3 from [1] using Methods 1 and 2
 
 TR_ms, TE_ms = 10, 5 # scan parameters
 Mz0, T1_ms, T2_ms = 1, 400, 100 # tissue parameters
@@ -246,9 +183,9 @@ flip_ang_arr_deg = [15, 30, 60, 90]; # vector of flip angles
 
 # Helper functions for broadcast:
 bssfp_matrix(α_deg, Δf_Hz) =
-    bssfp_matrix(α_deg, TR_ms, TE_ms, Mz0, T1_ms, T2_ms, Δf_Hz)
-_bssfp(α_deg, Δf_Hz) = bssfp(Mz0, T1_ms, T2_ms, Δf_Hz,
-    TR_ms, TE_ms, deg2rad(α_deg), -π/2)
+    bssfp_matrix(α_deg, TR_ms, TE_ms, Mz0, T1_ms, T2_ms, Δf_Hz) # method 1
+_bssfp(α_rad, Δf_Hz, Δϕ_rad) = bssfp(Mz0, T1_ms, T2_ms, Δf_Hz,
+    TR_ms, TE_ms, Δϕ_rad, α_rad, -π/2) # method 2
 
 #=
 Call `bssfp_matrix` and `bssfp`
@@ -256,7 +193,7 @@ for various flip angles and off-resonance values
 and verify that the calculations match.
 =#
 sig_matrix = bssfp_matrix.(flip_ang_arr_deg', Δf_arr_Hz)
-sig_blochsim = _bssfp.(flip_ang_arr_deg', Δf_arr_Hz)
+sig_blochsim = _bssfp.(deg2rad.(flip_ang_arr_deg)', Δf_arr_Hz, 0. #= Δϕ_rad =#)
 @assert sig_matrix ≈ sig_blochsim # yes they match!
 
 # Plot 1-pool signal magnitude and phase
@@ -278,7 +215,8 @@ Explore T1 dependence of bSSFP signal model
 =#
 T1_ms_arr = range(0.90, 1.1, 3) * T1_ms
 α_deg = 20
-sig_t1 = bssfp.(Mz0, T1_ms_arr', T2_ms, Δf_arr_Hz, TR_ms, TE_ms, deg2rad(α_deg))
+sig_t1 = bssfp.(Mz0, T1_ms_arr', T2_ms, Δf_arr_Hz,
+    TR_ms, TE_ms, 0. #= Δϕ_rad =#, deg2rad(α_deg))
 
 label = reshape(map(t -> "T1 = $t ms", T1_ms_arr), 1, :) # row!
 pt1_m = plot(Δf_arr_Hz, abs.(sig_t1); label,
@@ -289,9 +227,112 @@ pt1_p = plot(Δf_arr_Hz, angle.(sig_t1); label,
 pt1 = plot(pt1_m, pt1_p, layout=(2,1), plot_title = "bSSFP single pool for T1",
     plot_titlefontsize = 13)
 
+#
+prompt()
 
-# todo: phase-cycling for 1-pool case and CRB
-#todo gui(); throw() # xx
+# helper functions for CRB
+real_imag(x) = [real(x); imag(x)] # stacker
+snr2sigma(db::Real, yb::AbstractArray{<:Complex}) =
+    10^(-db/20) * norm(yb) / sqrt(length(yb))
+
+#=
+## CRB for 1-pool bSSFP
+Using arbitrary flip angles and phase cycling increments as scan "design"
+=#
+kappa = 1 # also estimate the B1+ factor
+M0_phase = π/3 # just to make it non-trivial
+x = [M0_phase, Mz0, T1_ms, T2_ms, kappa] # unknowns
+Δf_Hz = -7 # known
+
+Δϕ_rad = (0:7)/8 * 2π
+α_rad = [π/7, π/3]
+tmp = Iterators.product(Δϕ_rad, α_rad)
+design = (
+  Δϕ_rad = vec(map(x->x[1], tmp)),
+  α_rad = vec(map(x->x[2], tmp)),
+)
+
+signal_c = (x) -> cis(x[1] #= M0_phase =#) *
+    bssfp.(x[2:end-1]..., Δf_Hz,
+        TR_ms, TE_ms, design.Δϕ_rad, design.α_rad * x[end] #= kappa =#)
+signal_ri(x) = real_imag(signal_c(x))
+
+#src tmp = signal_ri(x) # test run
+
+dB = 40 # SNR
+σ = snr2sigma(dB, signal_c(x)) # noise level
+
+# Jacobian
+jac = ForwardDiff.jacobian(signal_ri, x)
+fish = jac' * jac / σ^2
+cond(fish) # 9e8
+
+# CRB and standard deviation:
+crb = inv(fish)
+crb_std = sqrt.(diag(crb))
+cov1 = round.(crb_std ./ x ; digits=3) # coefficient of variation
+
+
+
+#=
+RF pulse duration
+The preceding calculations were all
+for hypothetical instantaneous" RF pulses.
+
+Examine effects of finite RF pulse duration
+for a spin with a relatively short T2.
+=#
+
+Mz0, T1_ms, T2_ms, Δf_Hz = 1, 400, 40, 0 # tissue parameters
+TR_ms, TE_ms, α_rad = 8, 4, deg2rad(50) # scan parameters
+
+Δϕ_rad = range(-1,1,101) * π
+rf0 = InstantaneousRF(α_rad)
+_bssfp(Δϕ_rad, rf) = bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, Δϕ_rad, rf)
+
+#=
+Specify finite-duration hard (rectangular) RF pulse
+`GAMMA` has units rad/s/G
+Tip angle for constant pulse:
+`α_rad = GAMMA * b1_gauss * tRF_s`
+so
+`b1_gauss = α_rad / GAMMA / tRF_s`
+=#
+#src tRF_ms = 1e-12 # super-short for first test
+tRF_ms = 1
+waveform1 = [1] * α_rad / (tRF_ms / 1000) / GAMMA # single sample i.e. instant!
+rf1 = RF(waveform1, tRF_ms)
+signal0 = map(Δϕ -> _bssfp(Δϕ, rf0), Δϕ_rad)
+signal1 = map(Δϕ -> _bssfp(Δϕ, rf1), Δϕ_rad)
+@assert signal0 ≈ signal1
+@assert α_rad == rf0.α ≈ only(rf1.α)
+
+# Plot
+prfm = plot(
+ xlabel = "phase cycling increment Δϕ (rad)",
+ ylabel = "bSSFP signal mag",
+)
+prfa = plot(
+ xlabel = "phase cycling increment Δϕ (rad)",
+ ylabel = "bSSFP signal phase",
+)
+plot!(prfm, Δϕ_rad, abs.(signal0), label="Instantaneous")
+plot!(prfa, Δϕ_rad, angle.(signal0), label="Instantaneous")
+#src plot!(Δϕ_rad, abs.(signal1), label="tRF = $tRF_ms")
+nw = 1000 # approximately 1μs dwell time
+for tRF_ms in [1e-2 1 2]
+    waveform2 = ones(nw) * α_rad / (tRF_ms / 1000) / GAMMA
+    rf2 = RF(waveform2, tRF_ms/nw)
+    @assert rf0.α ≈ sum(rf2.α)
+    signal2 = map(Δϕ -> _bssfp(Δϕ, rf2), Δϕ_rad)
+    label = "tRF = $tRF_ms ms, nw=$nw"
+    plot!(prfm, Δϕ_rad, abs.(signal2); label)
+    plot!(prfa, Δϕ_rad, angle.(signal2); label)
+end;
+
+prf = plot(prfm, prfa, layout=(2,1),
+ plot_title="RF pulse duration effect, T2=$T2_ms (ms)")
+
 
 
 #=
@@ -326,7 +367,7 @@ end
 
 """
 ## In:
-- `ΔΦ_rad` RF phase cycling value (radians)
+- `Δϕ_rad` RF phase cycling value (radians)
 - `Δf0_Hz` off-resonance value (Hz)
 - `Δf_myelin_Hz` # additional off-resonance value only experienced by myelin water (Hz)
 - `TR_ms` repetition time (ms)
@@ -335,13 +376,13 @@ end
 
 [Hinshaw, J. Appl. Phys. 1976](https://doi.org/10.1063/1.323136).
 """
-function get_Δf_tuple(ΔΦ_rad, Δf0_Hz, Δf_myelin_Hz, TR_ms)
+function get_Δf_tuple(Δϕ_rad, Δf0_Hz, Δf_myelin_Hz, TR_ms)
 
     ## convert the RF phase cycling value to Hz from radians
-    ΔΦ_Hz = kHz_to_Hz((ΔΦ_rad) / (2π*TR_ms))
+    Δϕ_Hz = kHz_to_Hz((Δϕ_rad) / (2π*TR_ms))
 
     ## subtract the RF phase cycling value from the off-resonance value
-    Δf_RF_Hz = Δf0_Hz - ΔΦ_Hz
+    Δf_RF_Hz = Δf0_Hz - Δϕ_Hz
 
     ## add the myelin off-resonance for the myelin term
     Δf_myelin_RF_Hz = Δf_RF_Hz + Δf_myelin_Hz
@@ -451,14 +492,14 @@ function bssfp2(
     Δf0_Hz::Number, # B0 off resonance
     ## scan parameters (always known):
     α_deg::Number, TR_ms::Number, TE_ms::Number,
-    ΔΦ_deg::Number, # RF phase cycling value (degrees)
+    Δϕ_deg::Number, # RF phase cycling value (degrees)
 )
 
     τ_tuple_ms = get_τ_tuple(τ_fs_ms, f_f) # fast-to-slow and slow-to-fast residence times
 
     ## tuple of values incorporating off-resonance and RF phase cycling for both compartments
-    ΔΦ_rad = deg2rad(ΔΦ_deg)
-    Δf_tuple_Hz = get_Δf_tuple(ΔΦ_rad, Δf0_Hz, Δff_Hz, TR_ms)
+    Δϕ_rad = deg2rad(Δϕ_deg)
+    Δf_tuple_Hz = get_Δf_tuple(Δϕ_rad, Δf0_Hz, Δff_Hz, TR_ms)
     Δf_tuple_Hz_no_rf_phase = get_Δf_tuple(0, Δf0_Hz, Δff_Hz, TR_ms)
 
     return cis(M0_phase) * bssfp2(
@@ -504,7 +545,7 @@ For this example, choose one exchange rate:
 
 flip_ang_arr_deg = [10, 40] # flip angles
 
-ΔΦ_arr_deg = [0, 90, 180] # RF phase cycling value (degrees)
+Δϕ_arr_deg = [0, 90, 180] # RF phase cycling value (degrees)
 
 ## vector of off-resonance values
 num_samples = 401 # number of samples (resonant frequencies)
@@ -512,19 +553,19 @@ num_samples = 401 # number of samples (resonant frequencies)
 
 
 # Broadcast via `map` using helper functions
-bssfp_mc(Δf0_Hz::Number, ΔΦ_deg::Number, α_deg::Number, τ_fs::Number) =
+bssfp_mc(Δf0_Hz::Number, Δϕ_deg::Number, α_deg::Number, τ_fs::Number) =
     bssfp2(0 #= phase =#, Mz0, f_f, T1_f_ms, T1_s_ms, T2_f_ms, T2_s_ms, τ_fs,
-        Δf_myelin_Hz, Δf0_Hz, α_deg, TR_ms, TE_ms, ΔΦ_deg)
+        Δf_myelin_Hz, Δf0_Hz, α_deg, TR_ms, TE_ms, Δϕ_deg)
 
-tmp = Iterators.product(Δf_arr_Hz, ΔΦ_arr_deg, flip_ang_arr_deg)
-bssfp_mc(t3::NTuple{3, Any}) = bssfp_mc(t3..., τ_fs) # (Δf_Hz, ΔΦ_deg, α_deg)
+tmp = Iterators.product(Δf_arr_Hz, Δϕ_arr_deg, flip_ang_arr_deg)
+bssfp_mc(t3::NTuple{3, Any}) = bssfp_mc(t3..., τ_fs) # (Δf_Hz, Δϕ_deg, α_deg)
 signal_mc = map(bssfp_mc, tmp);
 
 # Plot 2-pool signals
 pmcm = plot(ylabel = "Signal Magnitude")
 pmcp = plot( ylabel = "Signal Phase", xlabel = "Resonant Frequency (Hz)")
 for i in 1:size(signal_mc,3), j in 1:size(signal_mc,2)
-    label2 = "α = $(flip_ang_arr_deg[i])°, ΔΦ = $(ΔΦ_arr_deg[j])°"
+    label2 = "α = $(flip_ang_arr_deg[i])°, Δϕ = $(Δϕ_arr_deg[j])°"
     tmp2 = signal_mc[:,j,i]
     plot!(pmcm, Δf_arr_Hz, abs.(tmp2))
     plot!(pmcp, Δf_arr_Hz, angle.(tmp2); label = label2)
@@ -545,20 +586,20 @@ prompt()
 tau_arr_ms = [250, 150, 50] # array of exchange values
 tau_arr_marker = [:circle, :star5, :utriangle]
 
-ΔΦ_design_deg = ( # designed RF phase cycling increments
+Δϕ_design_deg = ( # designed RF phase cycling increments
  [-176.4, -159.5, -142.1, -124.4, -107.6, -90.54, -73.62, -56.13, -39.41, -22.52, -5.272, 11.63, 28.93, 45.76, 63.08, 79.91, 96.97, 113.9, 131.3, 148.5, 166.1],
  [-168.8, -150.3, -130.1, -111.5, -93.19, -74.18, -54.68 , -37.15, -18.01, 1.342, 18.82, 38.64, 57.88, 76.48, 95.2, 113.3, 133.3, 153.1, 172.1],
 )
 
 α_arr_deg = [10.0, 40.0] # flip angles for plot
 α_design_deg = [
-  fill(α_arr_deg[1], length(ΔΦ_design_deg[1]));
-  fill(α_arr_deg[2], length(ΔΦ_design_deg[2]))
+  fill(α_arr_deg[1], length(Δϕ_design_deg[1]));
+  fill(α_arr_deg[2], length(Δϕ_design_deg[2]))
 ]
-design = (ΔΦ_deg = vcat(ΔΦ_design_deg...), α_deg = α_design_deg)
-num_scans = length(design.ΔΦ_deg) # number of different scans = 40
+design = (Δϕ_deg = vcat(Δϕ_design_deg...), α_deg = α_design_deg)
+num_scans = length(design.Δϕ_deg) # number of different scans = 40
 
-tmp = (τ_fs) -> (ΔΦ_deg, α_deg) -> bssfp_mc(Δf_Hz, ΔΦ_deg, α_deg, τ_fs)
+tmp = (τ_fs) -> (Δϕ_deg, α_deg) -> bssfp_mc(Δf_Hz, Δϕ_deg, α_deg, τ_fs)
 bssfp_signal(τ_fs) = map(splat(tmp(τ_fs)), zip(design...))
 
 signal = bssfp_signal.(tau_arr_ms)
@@ -578,7 +619,6 @@ p3 = plot(p_m, p_p, layout = (2,1), xlabel = "Scan Index")
 #
 prompt()
 
-real_imag(x) = [real(x); imag(x)] # stacker
 
 #=
 ## Cramer-Rao Bound
@@ -587,12 +627,11 @@ for the designed scan
 kappa = 1 # also estimate the B1+ factor
 M0_phase = π/3 # just to make it non-trivial
 x = [M0_phase, Mz0, f_f, T1_f_ms, T1_s_ms, T2_f_ms, T2_s_ms, τ_fs, Δf_myelin_Hz, kappa] # unknowns
-signal_c = (x) -> bssfp.(x[1:end-1]..., Δf_Hz, x[end]*design.α_deg, TR_ms, TE_ms, design.ΔΦ_deg)
-signal_ri(x) = real_imag(signal_c(x))
+signal_c = (x) -> bssfp.(x[1:end-1]..., Δf_Hz, x[end]*design.α_deg, TR_ms, TE_ms, design.Δϕ_deg)
+signal_ri(x) = real_imag(signal_c(x));
 #src tmp = signal_ri(x) # test runs
 
 # Noise level
-snr2sigma(db, yb::AbstractArray{<:Complex}) = 10^(-db/20) * norm(yb) / sqrt(length(yb))
 dB = 40 # SNR
 σ = snr2sigma(dB, signal_c(x))
 
