@@ -141,5 +141,6 @@ end
     @test duration(InstantaneousRF(π/2,0)) == 0
 
     @test Matrix(rotatetheta()) ≈ [0 0 1; 0 1 0; -1 0 0]
+    @test Matrix(ExcitationMatrix()) == zeros(3,3)
 
 end
