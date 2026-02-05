@@ -25,10 +25,13 @@ Base.show(io::IO, ::MIME"text/plain", rf::InstantaneousRF{T}) where {T} =
 """
     RF(waveform, Δt, [Δθ], [grad]) <: AbstractRF
 
-Represents an RF pulse with the given (possibly complex-valued) waveform (G) and
-time step `Δt` (ms). `Δθ` is additional phase added to the waveform (defaults to
-`0`), and `grad` is the B0 gradient that is turned on during the RF pulse
-(defaults to `Gradient(0, 0, 0)`, i.e., turned off).
+Represent an RF pulse with the given (possibly complex-valued) `waveform` (G)
+and time step `Δt` (ms).
+
+# Options
+- `Δθ` additional phase added to the waveform (defaults to `0` radians)
+- `grad` B0 gradient that is turned on during the RF pulse
+  (defaults to `Gradient(0, 0, 0)`, i.e., turned off).
 
 # Properties
 - `α::Vector{<:Real}`: Instantaneous flip angles (rad) at each time point;
