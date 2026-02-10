@@ -1,7 +1,7 @@
 name = "BlochSim"
 uuid = "5c0f8cbe-99a4-11e9-108b-216da9629524"
 authors = ["Steven Whitaker <stwhit@umich.edu> and contributors"]
-version = "0.8"
+version = "0.8.1"
 
 [deps]
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
