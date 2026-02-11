@@ -2,7 +2,8 @@
 test/bssfp.jl
 =#
 
-using BlochSim: bssfp, BSSFPTuple1, Spin, InstantaneousRF
+using BlochSim: bssfp, Spin, InstantaneousRF
+using BlochSim: bSSFPbloch, bSSFPellipse
 using ForwardDiff: ForwardDiff
 import ForwardDiff: derivative, gradient
 using Test: @inferred, @test, @testset
@@ -48,6 +49,11 @@ end
     sig2 = @inferred bssfp(xt, xs...) # tuple version
     @test sig1 == sig2
 
+    # ellipse formula
+    sig7 = @inferred bssfp(bSSFPellipse, xt..., xs...)
+    @test isapprox(sig1, sig7; atol=1e-9)
+
+
     # jacobian
     fun(xt) = real_imag(bssfp(xt..., xs...))
     grad = ForwardDiff.jacobian(fun, collect(xt))
@@ -58,6 +64,7 @@ end
     rf = InstantaneousRF(α_rad, θ_rf_rad)
     sig3 = @inferred bssfp(spin, TR_ms, TE_ms, Δϕ_rad, rf)
     @test sig1 == sig3
+
 end
 
 
@@ -71,6 +78,9 @@ end
     sig4 = Mz0 * freeman_hill(T1_ms, T2_ms, TR_ms, TE_ms, α_rad)
     sig5 = @inferred bssfp(xt, xs...)
     @test sig4 ≈ sig5
+
+    sig6 = @inferred bssfp(bSSFPbloch, xt, xs...)
+    @test sig4 ≈ sig6
 end
 
 
