@@ -4,15 +4,29 @@ Balanced steady-state free precession (bSSFP) signal
 for an isochromat (1-pool) and for a 2-pool model with exchange.
 =#
 
-export bssfp, bssfp_ellipse, BSSFPTuple1
+export bssfp, bSSFPtuple1
+export bSSFPbloch, bSSFPellipse
 
 using BlochSim: Position, Spin, SpinMC, excite, freeprecess, duration
 using BlochSim: AbstractRF, InstantaneousRF
 using LinearAlgebra: I
 
 
+
 """
-    bssfp_ellipse(Mz0, T1_ms, T2_ms, Δf_Hz,
+    bSSFPmode
+
+A type used to control how bSSFP signal is calculated.
+- `bSSFPbloch` use `BlochSim` matrix computations (default)
+- `bSSFPellipse` use ellipse model for 1-pool
+"""
+struct bSSFPmode{T} end
+const bSSFPbloch = bSSFPmode{:Bloch}()
+const bSSFPellipse = bSSFPmode{:Ellipse}()
+
+
+"""
+    bssfp(bSSFPellipse, Mz0, T1_ms, T2_ms, Δf_Hz,
        TR_ms, TE_ms, Δϕ_rad, α_rad, θ_rf_rad=0)
 
 Elliptical signal model for bSSFP.
@@ -24,7 +38,7 @@ https://doi.org/10.1002/mrm.25098
 Keskin et al. IEEE T-MI 2022;
 https://doi.org/10.1109/TMI.2021.3102852
 """
-function bssfp_ellipse(
+function bssfp(::bSSFPmode{:Ellipse},
     Mz0::Number, T1_ms::Number, T2_ms::Number, Δf_Hz::Number,
     TR_ms::Number, TE_ms::Number, Δϕ_rad::Number,
     α_rad::Number, θ_rf_rad::Number = 0,
@@ -78,6 +92,8 @@ Or, instead of `α_rad` and `θ_rf_rad`, provide:
 # Out
 - `signal` steady-state transverse magnetization (as a complex number)
 """
+bssfp(::bSSFPmode{:Bloch}, args...) = bssfp(args...)
+
 function bssfp(
     Mz0::Number, T1_ms::Number, T2_ms::Number, Δf_Hz::Number,
     TR_ms::Number, TE_ms::Number, Δϕ_rad::Number,
@@ -159,9 +175,11 @@ function bssfp(spin,
 end
 
 
-BSSFPTuple1 = (:Mz0, :T1_ms, :T2_ms, :Δf_Hz)
+bSSFPtuple1 = (:Mz0, :T1_ms, :T2_ms, :Δf_Hz)
 
-bssfp(xt::NamedTuple{BSSFPTuple1}, args...) = bssfp(xt..., args...)
+bssfp(xt::NamedTuple{bSSFPtuple1}, args...) = bssfp(xt..., args...)
+bssfp(::bSSFPmode{:Ellipse}, xt::NamedTuple{bSSFPtuple1}, args...) =
+    bssfp(bSSFPellipse, xt..., args...)
 
 
 #=
