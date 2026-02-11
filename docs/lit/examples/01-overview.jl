@@ -66,7 +66,7 @@ end
 # Run `Pkg.add()` in the preceding code block first, if needed.
 
 using BlochSim: Spin, SpinMC, InstantaneousRF, RF, excite, freeprecess
-using BlochSim: bssfp, bssfp_ellipse, GAMMA
+using BlochSim: bssfp, bSSFPellipse, GAMMA
 import ForwardDiff
 using InteractiveUtils: versioninfo
 using LaTeXStrings: latexstring
@@ -208,13 +208,13 @@ _bssfp(α_rad, Δf_Hz, Δϕ_rad) = # method 2
         TR_ms, TE_ms, Δϕ_rad, α_rad, θ_rf_rad,
     )
 _bssfp_ellipse(α_rad, Δf_Hz, Δϕ_rad) = # method 3
-    bssfp_ellipse(
+    bssfp(bSSFPellipse,
         Mz0, T1_ms, T2_ms, Δf_Hz,
         TR_ms, TE_ms, Δϕ_rad, α_rad, θ_rf_rad,
     )
 
 #=
-Call `bssfp` and `bssfp_matrix` and `bssfp_ellipse`
+Call `bssfp` and `bssfp_matrix` and `bssfp(bSSFPellipse, ...)`
 for various flip angles and off-resonance values
 and verify that the calculations match.
 =#
@@ -353,7 +353,7 @@ for tRF_ms in [1e-2 1 2]
     rf2 = RF(waveform2, tRF_ms/nw)
     @assert rf0.α ≈ sum(rf2.α)
     signal2 = map(Δϕ -> _bssfp(Δϕ, rf2), Δϕ_rad)
-    label = "tRF = $tRF_ms ms, nw=$nw"
+    local label = "tRF = $tRF_ms ms, nw=$nw"
     plot!(prfm, Δϕ_rad, abs.(signal2); label)
     plot!(prfa, Δϕ_rad, angle.(signal2); label)
 end;
