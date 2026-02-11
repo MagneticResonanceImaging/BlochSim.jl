@@ -4,13 +4,62 @@ Balanced steady-state free precession (bSSFP) signal
 for an isochromat (1-pool) and for a 2-pool model with exchange.
 =#
 
-export bssfp, BSSFPTuple1
+export bssfp, bSSFPtuple1
+export bSSFPbloch, bSSFPellipse
 
-using BlochSim: Spin, SpinMC, InstantaneousRF, excite, freeprecess, duration
+using BlochSim: Position, Spin, SpinMC, excite, freeprecess, duration
+using BlochSim: AbstractRF, InstantaneousRF
 using LinearAlgebra: I
 
+
+
 """
-    bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, Δϕ_rad, α_rad, θ_rf_rad=-π/2)
+    bSSFPmode
+
+A type used to control how bSSFP signal is calculated.
+- `bSSFPbloch` use `BlochSim` matrix computations (default)
+- `bSSFPellipse` use ellipse model for 1-pool
+"""
+struct bSSFPmode{T} end
+const bSSFPbloch = bSSFPmode{:Bloch}()
+const bSSFPellipse = bSSFPmode{:Ellipse}()
+
+
+"""
+    bssfp(bSSFPellipse, Mz0, T1_ms, T2_ms, Δf_Hz,
+       TR_ms, TE_ms, Δϕ_rad, α_rad, θ_rf_rad=0)
+
+Elliptical signal model for bSSFP.
+This is the analytical solution to the 1-pool bSSFP signal.
+
+Xiang et al. MRM 2014;
+https://doi.org/10.1002/mrm.25098
+
+Keskin et al. IEEE T-MI 2022;
+https://doi.org/10.1109/TMI.2021.3102852
+"""
+function bssfp(::bSSFPmode{:Ellipse},
+    Mz0::Number, T1_ms::Number, T2_ms::Number, Δf_Hz::Number,
+    TR_ms::Number, TE_ms::Number, Δϕ_rad::Number,
+    α_rad::Number, θ_rf_rad::Number = 0,
+)
+    s, c = sincos(α_rad)
+    E1 = exp(-TR_ms / T1_ms)
+    E2 = exp(-TR_ms / T2_ms)
+    denom = 1 - E1 * c - E2^2 * (E1 - c)
+    M = Mz0 * (1 - E1) * s / denom
+    a = E2
+    b = E2 * (1 - E1) * (1 + c) / denom
+    Δω_kHz = 2π * Δf_Hz / 1000
+    θ = Δω_kHz * TR_ms - Δϕ_rad # per eqn. (2) of keskin-22-cef
+    post_rf = M * (1 - a * cis(θ)) / (1 - b * cos(θ)) # [6] of xiang-14-bar
+    signal = post_rf * exp(-TE_ms / T2_ms) * cis(-Δω_kHz * TE_ms) # echo
+    return cis(-θ_rf_rad) * signal # RF phase
+end
+
+
+"""
+    bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, Δϕ_rad, α_rad, θ_rf_rad=0)
     bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, Δϕ_rad, rf, [pos])
     bssfp(spin, Δf_Hz, TR_ms, TE_ms, Δϕ_rad, rf)
 
@@ -43,10 +92,12 @@ Or, instead of `α_rad` and `θ_rf_rad`, provide:
 # Out
 - `signal` steady-state transverse magnetization (as a complex number)
 """
+bssfp(::bSSFPmode{:Bloch}, args...) = bssfp(args...)
+
 function bssfp(
     Mz0::Number, T1_ms::Number, T2_ms::Number, Δf_Hz::Number,
     TR_ms::Number, TE_ms::Number, Δϕ_rad::Number,
-    α_rad::Number, θ_rf_rad::Number = -π/2,
+    α_rad::Number, θ_rf_rad::Number = 0,
 )
     rf = InstantaneousRF(α_rad, θ_rf_rad)
     return bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, Δϕ_rad, rf)
@@ -124,9 +175,11 @@ function bssfp(spin,
 end
 
 
-BSSFPTuple1 = (:Mz0, :T1_ms, :T2_ms, :Δf_Hz)
+bSSFPtuple1 = (:Mz0, :T1_ms, :T2_ms, :Δf_Hz)
 
-bssfp(xt::NamedTuple{BSSFPTuple1}, args...) = bssfp(xt..., args...)
+bssfp(xt::NamedTuple{bSSFPtuple1}, args...) = bssfp(xt..., args...)
+bssfp(::bSSFPmode{:Ellipse}, xt::NamedTuple{bSSFPtuple1}, args...) =
+    bssfp(bSSFPellipse, xt..., args...)
 
 
 #=
@@ -225,7 +278,7 @@ function bssfp(
 )
 
     rf isa InstantaneousRF ||
-        throw("todo: relaxation and duraction effects?  need to derive!")
+        throw("todo: relaxation and duraction effects?  need to derive for MC!")
 
     # excite the spin and reshape R to be the correct dimensions for a SpinMC object
     (R,) = excite(spin, rf)

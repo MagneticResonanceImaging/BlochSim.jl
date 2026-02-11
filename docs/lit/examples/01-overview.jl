@@ -66,7 +66,7 @@ end
 # Run `Pkg.add()` in the preceding code block first, if needed.
 
 using BlochSim: Spin, SpinMC, InstantaneousRF, RF, excite, freeprecess
-using BlochSim: bssfp, GAMMA
+using BlochSim: bssfp, bSSFPellipse, GAMMA
 import ForwardDiff
 using InteractiveUtils: versioninfo
 using LaTeXStrings: latexstring
@@ -111,7 +111,8 @@ using the method from [1] using Equations 1 and 2 and Appendix A.
 =#
 
 """
-    bssfp_matrix(α_deg, TR_ms, TE_ms, Mz0, T1_ms, T2_ms, Δf_kHz=0)
+    bssfp_matrix(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, α_rad, θ_rf_rad=0)
+)
 
 Return steady-state magnetization signal value
 at the echo time
@@ -119,25 +120,36 @@ for a bSSFP sequence
 using method of
 [Hargreaves et al., MRM 2001](https://doi.org/10.1002/mrm.1170).
 
-## In
-- `α_deg` flip angle of RF pulse (degrees)
-- `TR_ms` repetition time (ms)
-- `TE_ms` echo time (ms)
+## In tissue:
 - `Mz0` initial condition for magnetization in the z-direction (constant)
 - `T1_ms` MRI tissue parameter for T1 relaxation (ms)
 - `T2_ms` MRI tissue parameter for T2 relaxation (ms)
 - `Δf_Hz` off-resonance value (Hz) (default 0)
 
+## In scan:
+- `TR_ms` repetition time (ms)
+- `TE_ms` echo time (ms)
+- `α_rad` flip angle of RF pulse (radians)
+- `θ_rf_rad` RF pulse phase (radians) (default 0)
+
 ## Out
 - `signal` steady-state magnetization (as a complex number)
 """
-function bssfp_matrix(α_deg, TR_ms, TE_ms, Mz0, T1_ms, T2_ms, Δf_Hz=0)
+function bssfp_matrix(
+    Mz0, T1_ms, T2_ms, Δf_Hz,
+    TR_ms, TE_ms, α_rad, θ_rf_rad::Number = 0,
+)
 
     M0 = [0; 0; Mz0] # initial magnetization vector
 
-    ## rotation matrix for RF excitation about the x-axis
-    α_rad = deg2rad(α_deg) # convert flip angle α from degrees to radians
-    R = [1 0 0; 0 cos(α_rad) sin(α_rad); 0 -sin(α_rad) cos(α_rad)]
+    ## rotation matrix for RF excitation about the y-axis
+    if θ_rf_rad == 0 # y-axis
+        R = [cos(α_rad) 0 sin(α_rad); 0 1 0; -sin(α_rad) 0 cos(α_rad)]
+    elseif θ_rf_rad == -π/2 # x-axis
+        R = [1 0 0; 0 cos(α_rad) sin(α_rad); 0 -sin(α_rad) cos(α_rad)]
+    else
+        throw("θ_rf_rad = $θ_rf_rad not implemented")
+    end
 
     ## free precession matrix
     Pz(angle) = [cos(angle) sin(angle) 0 ; -sin(angle) cos(angle) 0 ; 0 0 1]
@@ -179,22 +191,39 @@ Mz0, T1_ms, T2_ms = 1, 400, 100 # tissue parameters
 num_off_res_values = 401 # vector of off-resonance values
 Δf_arr_Hz = kHz_to_Hz(range(-1, 1, num_off_res_values) / TR_ms) # 2 periods
 
-flip_ang_arr_deg = [15, 30, 60, 90]; # vector of flip angles
+flip_ang_arr_deg = [15, 30, 60, 90] # vector of flip angles
+
+#src θ_rf_rad = -π/2 # x-axis rotation
+θ_rf_rad = 0; # y-axis rotation
 
 # Helper functions for broadcast:
-bssfp_matrix(α_deg, Δf_Hz) =
-    bssfp_matrix(α_deg, TR_ms, TE_ms, Mz0, T1_ms, T2_ms, Δf_Hz) # method 1
-_bssfp(α_rad, Δf_Hz, Δϕ_rad) = bssfp(Mz0, T1_ms, T2_ms, Δf_Hz,
-    TR_ms, TE_ms, Δϕ_rad, α_rad, -π/2) # method 2
+bssfp_matrix(α_rad, Δf_Hz) = # method 1
+    bssfp_matrix(
+        Mz0, T1_ms, T2_ms, Δf_Hz,
+        TR_ms, TE_ms, α_rad, θ_rf_rad,
+    )
+_bssfp(α_rad, Δf_Hz, Δϕ_rad) = # method 2
+    bssfp(
+        Mz0, T1_ms, T2_ms, Δf_Hz,
+        TR_ms, TE_ms, Δϕ_rad, α_rad, θ_rf_rad,
+    )
+_bssfp_ellipse(α_rad, Δf_Hz, Δϕ_rad) = # method 3
+    bssfp(bSSFPellipse,
+        Mz0, T1_ms, T2_ms, Δf_Hz,
+        TR_ms, TE_ms, Δϕ_rad, α_rad, θ_rf_rad,
+    );
 
 #=
-Call `bssfp_matrix` and `bssfp`
+Call all `bssfp` versions
 for various flip angles and off-resonance values
 and verify that the calculations match.
 =#
-sig_matrix = bssfp_matrix.(flip_ang_arr_deg', Δf_arr_Hz)
+sig_matrix = bssfp_matrix.(deg2rad.(flip_ang_arr_deg)', Δf_arr_Hz)
 sig_blochsim = _bssfp.(deg2rad.(flip_ang_arr_deg)', Δf_arr_Hz, 0. #= Δϕ_rad =#)
 @assert sig_matrix ≈ sig_blochsim # yes they match!
+
+sig_ellipse = _bssfp_ellipse.(deg2rad.(flip_ang_arr_deg)', Δf_arr_Hz, 0. #= Δϕ_rad =#)
+@assert sig_matrix ≈ sig_ellipse # yes they match!
 
 # Plot 1-pool signal magnitude and phase
 label = reshape(map(a -> "α = $(a)°", flip_ang_arr_deg), 1, :) # row!
@@ -324,7 +353,7 @@ for tRF_ms in [1e-2 1 2]
     rf2 = RF(waveform2, tRF_ms/nw)
     @assert rf0.α ≈ sum(rf2.α)
     signal2 = map(Δϕ -> _bssfp(Δϕ, rf2), Δϕ_rad)
-    label = "tRF = $tRF_ms ms, nw=$nw"
+    local label = "tRF = $tRF_ms ms, nw=$nw"
     plot!(prfm, Δϕ_rad, abs.(signal2); label)
     plot!(prfa, Δϕ_rad, angle.(signal2); label)
 end;
@@ -629,7 +658,7 @@ M0_phase = π/3 # just to make it non-trivial
 x = [M0_phase, Mz0, f_f, T1_f_ms, T1_s_ms, T2_f_ms, T2_s_ms, τ_fs, Δf_myelin_Hz, kappa] # unknowns
 signal_c = (x) -> bssfp.(x[1:end-1]..., Δf_Hz, x[end]*design.α_deg, TR_ms, TE_ms, design.Δϕ_deg)
 signal_ri(x) = real_imag(signal_c(x));
-#src tmp = signal_ri(x) # test runs
+#src tmp = signal_ri(x) # test run
 
 # Noise level
 dB = 40 # SNR
