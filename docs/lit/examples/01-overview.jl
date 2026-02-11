@@ -191,10 +191,10 @@ Mz0, T1_ms, T2_ms = 1, 400, 100 # tissue parameters
 num_off_res_values = 401 # vector of off-resonance values
 Δf_arr_Hz = kHz_to_Hz(range(-1, 1, num_off_res_values) / TR_ms) # 2 periods
 
-flip_ang_arr_deg = [15, 30, 60, 90]; # vector of flip angles
+flip_ang_arr_deg = [15, 30, 60, 90] # vector of flip angles
 
 #src θ_rf_rad = -π/2 # x-axis rotation
-θ_rf_rad = 0 # y-axis rotation
+θ_rf_rad = 0; # y-axis rotation
 
 # Helper functions for broadcast:
 bssfp_matrix(α_rad, Δf_Hz) = # method 1
@@ -211,10 +211,10 @@ _bssfp_ellipse(α_rad, Δf_Hz, Δϕ_rad) = # method 3
     bssfp(bSSFPellipse,
         Mz0, T1_ms, T2_ms, Δf_Hz,
         TR_ms, TE_ms, Δϕ_rad, α_rad, θ_rf_rad,
-    )
+    );
 
 #=
-Call `bssfp` and `bssfp_matrix` and `bssfp(bSSFPellipse, ...)`
+Call all `bssfp` versions
 for various flip angles and off-resonance values
 and verify that the calculations match.
 =#
