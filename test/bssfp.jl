@@ -43,15 +43,20 @@ end
     xt = (; Mz0, T1_ms, T2_ms, Δf_Hz) # tissue
     TR_ms, TE_ms, Δϕ_rad, α_rad, θ_rf_rad = 20, 10, 5f0, π/3, π/5, π/7 # scan
     xs = (; TR_ms, TE_ms, Δϕ_rad, α_rad, θ_rf_rad)
+
     sig1 = @inferred bssfp(xt..., xs...)
     @test sig1 isa Complex{<:AbstractFloat}
 
     sig2 = @inferred bssfp(xt, xs...) # tuple version
     @test sig1 == sig2
 
+
     # ellipse formula
     sig7 = @inferred bssfp(bSSFPellipse, xt..., xs...)
     @test isapprox(sig1, sig7; atol=1e-9)
+
+    sig8 = @inferred bssfp(bSSFPellipse, xt, xs...)
+    @test sig7 == sig8
 
 
     # jacobian
