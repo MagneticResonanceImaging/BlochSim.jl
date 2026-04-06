@@ -99,9 +99,11 @@ b1_gauss(α_rad, tRF_ms) = α_rad / GAMMA / (tRF_ms / 1000)
 tRF_ms = 1e-12 # super-short for first test
 waveform1 = [1] * b1_gauss(α_rad, tRF_ms) # single sample i.e. instant!
 rf1 = RF(waveform1, tRF_ms)
+#=
 signal1 = _bssfp(rf1)
 @assert signal0 ≈ signal1 # should be essentially identical
 @assert α_rad == rf0.α ≈ only(rf1.α)
+=#
 
 
 #=
@@ -114,9 +116,11 @@ for each sample and here there is just a single sample.
 tRF_ms = 2
 waveform2 = [1] * b1_gauss(α_rad, tRF_ms) # single sample i.e. instant!
 rf2 = RF(waveform2, tRF_ms)
+#=
 signal2 = _bssfp(rf2)
 @assert signal0 ≈ signal2 # matches!?
 @assert α_rad == rf0.α ≈ only(rf2.α)
+=#
 
 
 #=
@@ -131,6 +135,9 @@ A1, B1 = excite(spin, rf1)
 A2, B2 = excite(spin, rf2)
 @assert !(Matrix(A1) ≈ Matrix(A2)) # huh!?
 Matrix(A1) - Matrix(A2)
+
+@which excite(spin, rf2)
+throw()
 
 #=
 A1 and A2 differ, so why are is signal0 ≈ signal2
