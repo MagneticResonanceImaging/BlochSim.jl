@@ -5,11 +5,12 @@ Abstract type for representing radiofrequency (RF) pulses.
 """
 abstract type AbstractRF end
 
+
 """
     InstantaneousRF(α, θ = 0) <: AbstractRF
 
-Represents an idealized instantaneous RF pulse with flip angle `α` and phase
-`θ`.
+Represent an idealized instantaneous RF pulse
+with flip angle `α` and phase `θ`.
 """
 struct InstantaneousRF{T<:Real} <: AbstractRF
     α::T
@@ -18,9 +19,12 @@ end
 
 InstantaneousRF(α, θ = zero(α)) = InstantaneousRF(promote(α, θ)...)
 
-Base.show(io::IO, rf::InstantaneousRF) = print(io, "InstantaneousRF(", rf.α, ", ", rf.θ, ")")
+Base.show(io::IO, rf::InstantaneousRF) =
+     print(io, "InstantaneousRF(", rf.α, ", ", rf.θ, ")")
 Base.show(io::IO, ::MIME"text/plain", rf::InstantaneousRF{T}) where {T} =
-    print(io, "Instantaneous RF pulse with eltype $T:\n α = ", rf.α, " rad\n θ = ", rf.θ, " rad")
+    print(io, "Instantaneous RF pulse with eltype $T:\n α = ", rf.α,
+        " rad\n θ = ", rf.θ, " rad")
+
 
 """
     RF(waveform, Δt, [Δθ], [grad]) <: AbstractRF
@@ -47,7 +51,7 @@ and time step `Δt` (ms).
   - `::Gradient`: Constant gradient
   - `::Vector{<:Gradient}`: Time-varying gradient
 """
-struct RF{T<:Real,G<:Union{<:Gradient,<:AbstractVector{<:Gradient}}} <: AbstractRF
+struct RF{T<:Real, G<:Union{<:Gradient,<:AbstractVector{<:Gradient}}} <: AbstractRF
     α::Vector{T}
     θ::Vector{T}
     Δt::Float64
@@ -73,7 +77,8 @@ struct RF{T<:Real,G<:Union{<:Gradient,<:AbstractVector{<:Gradient}}} <: Abstract
 end
 
 # waveform in Gauss, Δt in ms
-RF(waveform, Δt, Δθ, grad) = RF(GAMMA .* abs.(waveform) .* (Δt / 1000), angle.(waveform), Δt, Δθ, grad)
+RF(waveform, Δt, Δθ, grad) =
+    RF(GAMMA .* abs.(waveform) .* (Δt / 1000), angle.(waveform), Δt, Δθ, grad)
 RF(waveform, Δt, Δθ::Real) = RF(waveform, Δt, Δθ, Gradient(0, 0, 0))
 RF(waveform, Δt, grad) = RF(waveform, Δt, 0, grad)
 RF(waveform, Δt) = RF(waveform, Δt, 0, Gradient(0, 0, 0))
@@ -94,6 +99,7 @@ end
 
 Base.length(rf::RF) = length(rf.α)
 
+
 """
     duration(rf)
 
@@ -102,6 +108,11 @@ Return the duration (ms) of the RF pulse.
 duration(::InstantaneousRF) = 0 # COV_EXCL_LINE
 duration(rf::RF) = length(rf) * rf.Δt
 
+
+"""
+    ExcitationWorkspace
+Struct for in-place operations.
+"""
 struct ExcitationWorkspace{T1,T2,T3,T4,T5}
     Af::T1
     Bf::T2
@@ -147,6 +158,7 @@ function ExcitationWorkspace(
 
 end
 
+
 """
     rotatetheta!(A, α, θ)
 
@@ -188,6 +200,7 @@ function rotatetheta!(A, α, θ)
 
 end
 
+
 """
     rotatetheta(α::Real = π/2, θ::Real = 0)
 
@@ -221,17 +234,22 @@ function rotatetheta(α::Real = π/2, θ::Real = 0)
 
 end
 
+
 """
     excite(spin, rf::InstantaneousRF, [nothing])
     excite(spin, rf::RF, [workspace])
 
-Simulate excitation for the given spin. Returns `(A, B)` such that `A * M + B`
-applies excitation to the magnetization `M`. If `isnothing(B)` (as is the case
-for `InstantaneousRF`s), then `A * M` applies excitation to `M`.
+Simulate excitation for the given spin.
+Returns `(A, B)` such that `A * M + B`
+applies excitation to the magnetization `M`.
+If `isnothing(B)` (as is the case for `InstantaneousRF`s),
+then `A * M` applies excitation to `M`.
 
-For `RF` objects, `workspace isa ExcitationWorkspace`. For `SpinMC` objects, use
-`workspace = ExcitationWorkspace(spin, nothing)` to use an approximate matrix
-exponential to solve the Bloch-McConnell equation.
+For `RF` objects, `workspace isa ExcitationWorkspace`.
+For `SpinMC` objects, use
+`workspace = ExcitationWorkspace(spin, nothing)`
+to use an approximate matrix exponential
+to solve the Bloch-McConnell equation.
 
 For an in-place version, see [`excite!`](@ref).
 
@@ -258,12 +276,13 @@ function excite(spin::AbstractSpin, rf::InstantaneousRF, ::Nothing = nothing)
 
 end
 
+
 """
     excite!(A, [nothing], spin, rf::InstantaneousRF, [nothing])
     excite!(A, B, spin, rf::RF, [workspace])
 
-Simulate excitation, overwriting `A` and `B` (in-place version of
-[`excite`](@ref)).
+Simulate excitation, overwriting `A` and `B`
+(in-place version of [`excite`](@ref)).
 """
 function excite!(A::ExcitationMatrix, spin::AbstractSpin, rf::InstantaneousRF)
 
@@ -293,6 +312,20 @@ function excite(spin::AbstractSpin, rf::RF, workspace = ExcitationWorkspace(spin
 
 end
 
+
+"""
+    excite!(A, B, spin, rf, workspace)
+
+Mutate `A` and `B`
+for an RF pulse described by a vector of samples
+with time step `rf.Δt`.
+The method used here treats each sample
+as free precession for Δt/2,
+followed by instantaneous RF,
+followed by another free precession for Δt/2,
+todo [cite?]
+The accuracy of this method depends on Δt.
+"""
 function excite!(
     A::Union{<:BlochMatrix,<:BlochMcConnellMatrix},
     B::Union{<:Magnetization,<:MagnetizationMC},
@@ -326,6 +359,7 @@ function excite!(
     end
 
 end
+
 
 """
     excite!(spin, ...)
