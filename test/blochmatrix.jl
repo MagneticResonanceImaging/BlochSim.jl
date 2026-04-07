@@ -1,11 +1,15 @@
+# blochmatrix.jl
+
 using BlochSim
 using LinearAlgebra: I, norm
-using Test: @inferred, @test, @testset
+using Test: @inferred, @test, @testset, @test_throws
 
 function blochmatrix1()
 
     A = @inferred BlochMatrix()
     B = @inferred BlochMatrix(0.0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+    @test_throws MethodError BlochMatrix(1, 2, 3) # need 9 scalars
 
     show(devnull, "text/plain", A)
     @test eltype(A) == eltype(B)
@@ -39,6 +43,10 @@ end
 function make_identity1()
 
     A = BlochMatrix(1, 2, 3, 4, 5, 6, 7, 8, 9)
+    @test A == BlochMatrix((1:9)...) # construct from NTuple
+    M = Matrix(A)
+    @test A == BlochMatrix(M) # construct from Matrix
+
     BlochSim.make_identity!(A)
     @test Matrix(A) == I(3)
 
