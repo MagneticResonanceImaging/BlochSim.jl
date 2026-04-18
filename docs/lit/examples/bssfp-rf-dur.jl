@@ -9,7 +9,7 @@ balanced steady-state free precession
 [(bSSFP)](https://en.wikipedia.org/wiki/Steady-state_free_precession_imaging)
 pulse sequences.
 
-Specifically it examines the effects of finite RF duration.
+Specifically it examines the effects of finite RF pulse duration.
 
 
 ### References
