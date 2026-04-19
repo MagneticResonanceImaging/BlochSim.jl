@@ -88,5 +88,9 @@ b3 = @benchmark f3($x) # 1.3 μs (22 allocations: 1.20 KiB)
 fv(x) = expv(t, matrix_bloch3(x...), I(3)) # ExponentialAction
 bv = @benchmark fv($x) # 3.8 μs (147 allocations: 10.4 KiB)
 
+# it is more fair to precompute matrices:
+I3 = I(3)
+fp(t) = expv(t, A, I3) # ExponentialAction
+bp = @benchmark fp($t) # 3.4 μs (128 allocations: 9.9 KiB)
 
 include("../../../inc/reproduce.jl")
