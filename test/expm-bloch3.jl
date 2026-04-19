@@ -69,9 +69,12 @@ compare_eigs(eig_la::Vector{<:Complex}, eig_b3) =
         ComplexF64[0, 0, 0], ComplexF64[0, 0, 0], ComplexF64[1, 0, 0])
     @test 0 == @allocated eigvec_3x3!(v, row1, row2, row3)
 
-    @inferred eigvec_bloch3!(v, row1, row2, row3, 2, 1//1, 0, 0, 0, Complex(0))
-    eigvec_bloch3!(v, row1, row2, row3, x1..., Complex(0)) # warm-up
-    @test 0 == @allocated eigvec_bloch3!(v, row1, row2, row3, 2, 1, 1, 0, 0, Complex(0))
+    λ0 = Complex(0f0)
+    @inferred eigvec_bloch3!(v, row1, row2, row3, 2, 1//1, 0, 0, 0, λ0)
+    eigvec_bloch3!(v, row1, row2, row3, x1..., λ0) # warm-up
+    @test 0 == @allocated eigvec_bloch3!(v, row1, row2, row3, 2, 1, 1, 0, 0, λ0)
+    @inferred eigvec_bloch3!(v, row1, row2, row3, r1, r2, w, s, c, λ0) # warm up
+    @test 0 == @allocated eigvec_bloch3!(v, row1, row2, row3, r1, r2, w, s, c, λ0)
 
 
     # check eigendecomposition
@@ -93,7 +96,7 @@ compare_eigs(eig_la::Vector{<:Complex}, eig_b3) =
     # check exp
     expAt = Matrix{T}(undef, 3, 3)
     @inferred expm_bloch3!(expAt, work, xp..., t) # warm up
-    @test 100 ≥ @allocated expm_bloch3!(expAt, work, xp..., t)
+    @test 80 ≥ @allocated expm_bloch3!(expAt, work, xp..., t)
 
     E0 = exp(A * t)
     @test expAt ≈ E0
@@ -103,6 +106,15 @@ compare_eigs(eig_la::Vector{<:Complex}, eig_b3) =
 
     Ev = expv(t, A, I(3))
     @test Ev ≈ E0
+
+
+    # 2 repeated roots
+    xr2 = (2, 1, 0, 0, 0)
+    @test exp(matrix_bloch3(xr2...)) ≈ expm_bloch3(xr2..., 1)
+    # 3 repeated roots
+    xr3 = (3, 3, 0, 0, 0)
+    @test exp(matrix_bloch3(xr3...)) ≈ expm_bloch3(xr3..., 1)
+
 
     # autodiff
     f3(x) = expm_bloch3(x..., t)
