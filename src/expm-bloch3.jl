@@ -260,6 +260,14 @@ function eigen_bloch3!(
     r1::T, r2::T, w::T, s::T, c::T;
 ) where {Tw <: Breal, T <: Breal}
 
+    # handle special case of a diagonal Bloch matrix
+    if iszero(w) && iszero(s) && iszero(c)
+        λ[1], λ[2], λ[3] = -r2, -r2, -r1
+        fill!(V, zero(Tw))
+        V[1,1] = V[2,2] = V[3,3] = one(Tw) # V = I(3)
+        return λ, V
+    end
+
     λ[1], λ[2], λ[3] = eigvals_bloch3(r1, r2, w, s, c)
 
     eigvec_bloch3!((@view V[:,1]), row1, row2, row3, r1, r2, w, s, c, λ[1])
@@ -297,6 +305,13 @@ function expm_bloch3!(
     r1::T, r2::T, w::T, s::T, c::T, t::Tt;
 ) where {Te <: Breal, Tw <: Breal, T <: Breal, Tt <: Breal}
 
+    # handle special case of a diagonal Bloch matrix
+    if iszero(w) && iszero(s) && iszero(c)
+        fill!(expAt, zero(Te))
+        expAt[1,1], expAt[2,2], expAt[3,3] = exp(-r2*t), exp(-r2*t), exp(-r1*t)
+        return expAt
+    end
+
     eigen_bloch3!(work.λ, work.V, work.row1, work.row2, work.row3,
         r1, r2, w, s, c) # eigendecomposition of A
 
@@ -308,7 +323,7 @@ function expm_bloch3!(
         A = [-r2  w  s;
              -w -r2  c;
              -s -c  -r1]
-        return exp(t*A)  # Julia's matrix exponential
+        return exp(t*A) # Julia's matrix exponential
     end
 =#
 
@@ -318,7 +333,14 @@ function expm_bloch3!(
     @. tmp1 = exp(t * work.λ)
     Dexp = Diagonal(tmp1)
     mul!(work.VD, work.V, Dexp)
-    rdiv!(work.VD, lu!(work.V)) # V * D * V^-1
+#   try
+        F = lu!(work.V)
+        rdiv!(work.VD, F) # V * D * V^-1
+#   catch # no longer needed because diagonal case handled separately
+#       @warn "Problem with lu!"
+#       display(work.V)
+#       copyto!(work.VD, work.VD * inv(work.V))
+#   end
 
     # inputs are real, so result should be real up to numerical roundoff
     @. expAt = real(work.VD)
@@ -337,7 +359,7 @@ based on analytical roots of cubic characteristic polynomial.
 function expm_bloch3(
     r1::T1, r2::T2, w::Tw, s::Ts, c::Tc, t::Tt;
 ) where {T1 <: Breal, T2 <: Breal, Tw <: Breal, Ts <: Breal, Tc <: Breal, Tt <: Breal}
-    T = promote_type(T1, T2, Tw, Ts, Tc, Tt)
+    T = promote_type(T1, T2, Tw, Ts, Tc, Tt, Float32)
     expAt = Matrix{T}(undef, 3, 3)
     work = Bloch3ExpmWorkspace{T}()
     expm_bloch3!(expAt, work, r1, r2, w, s, c, t)
