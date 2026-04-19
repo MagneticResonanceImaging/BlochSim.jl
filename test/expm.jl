@@ -1,11 +1,15 @@
+# expm.jl
+
 using BlochSim: BlochMcConnellMatrix, InstantaneousRF
 using BlochSim: ExcitationMatrix, FreePrecessionMatrix
 using BlochSim: Magnetization, MagnetizationMC, Spin, SpinMC
 using BlochSim: applydynamics!, excite!, freeprecess!, signal
-import BlochSim # BlochMcConnellDynamicsMatrix, expm! (etc)
+import BlochSim # BlochMcConnellDynamicsMatrix, expm!, expm (etc)
+using BlochSim: MatrixExponentialWorkspace
 using ForwardDiff: ForwardDiff
 import ForwardDiff: derivative, gradient
 using Test: @inferred, @test, @testset
+
 
 function expm1()
 
@@ -16,7 +20,6 @@ function expm1()
     τ12 = 0.05
     τ21 = 0.1
 
-    expA = BlochMcConnellMatrix(2)
     A = BlochSim.BlochMcConnellDynamicsMatrix(2)
     A.A[1].R2 = -1 / T21 - 1 / τ12
     A.A[1].Δω = 2π
@@ -28,11 +31,22 @@ function expm1()
     A.E[2].r = 1 / τ21
 
     correct = exp(Matrix(A))
+
+    Acopy = deepcopy(A)
+    expA = BlochMcConnellMatrix(2)
     BlochSim.expm!(expA, A)
+    @test Matrix(expA) ≈ correct
+    @test Acopy == A # ensure A was not mutated
 
-    return Matrix(expA) ≈ correct
+    work = MatrixExponentialWorkspace{Float64}(2) # todo: fails @inferred
+    expB = BlochMcConnellMatrix(2)
+    BlochSim.expm!(expB, A, work)
+    @test Matrix(expB) ≈ correct
 
+    expC = BlochSim.expm(A)
+    @test Matrix(expC) ≈ correct
 end
+
 
 function dfrexp1()
 
@@ -46,6 +60,7 @@ function dfrexp1()
 
 end
 
+
 function dfrexp2()
 
     f = x -> 2x * @inferred BlochSim.frexp2(x)
@@ -57,6 +72,7 @@ function dfrexp2()
     return df_forwarddiff ≈ df_correct
 
 end
+
 
 function autodiff1()
 
@@ -81,6 +97,7 @@ function autodiff1()
 
 end
 
+
 function autodiff2()
 
     Ae = ExcitationMatrix()
@@ -103,6 +120,7 @@ function autodiff2()
     return grad ≈ correct
 
 end
+
 
 function autodiff3()
 
@@ -127,6 +145,7 @@ function autodiff3()
 
 end
 
+
 function autodiff4()
 
     Ae = ExcitationMatrix()
@@ -149,6 +168,7 @@ function autodiff4()
     return grad ≈ correct
 
 end
+
 
 function autodiff5()
 
@@ -173,6 +193,7 @@ function autodiff5()
 
 end
 
+
 function autodiff6()
 
     Ae = ExcitationMatrix()
@@ -196,11 +217,12 @@ function autodiff6()
 
 end
 
+
 @testset "Matrix Exponential" begin
 
     @testset "expm Accuracy" begin
 
-        @test expm1()
+        expm1()
 
     end
 
