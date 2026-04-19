@@ -83,9 +83,9 @@ x = [r1, r2, w, s, c]
 f3(x) = expm_bloch3(x..., t)
 fv(x) = expv(t, matrix_bloch3(x...), I(3))
 
-@benchmark f3($x) # 1.5 μs (52 allocations: 5.95 KiB)
+b3 = @benchmark f3($x) # 1.3 μs (22 allocations: 1.20 KiB)
 
-@benchmark fv($x) # 3.2 μs (117 allocations: 8.25 KiB)
+bv = @benchmark fv($x) # 3.8 μs (147 allocations: 10.4 KiB)
 
 
 include("../../../inc/reproduce.jl")
