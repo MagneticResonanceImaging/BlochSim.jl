@@ -1,7 +1,7 @@
 # expm-bloch3.jl
 
 using BlochSim: expm_bloch3, expm_bloch3!
-using BlochSim: matrix_bloch3, eigvals_bloch3
+using BlochSim: matrix_bloch3, eigvals_bloch3, eigvec_3x3!
 using BlochSim: Bloch3ExpmWorkspace, cross!, eigvec_bloch3!, eigen_bloch3!
 using ExponentialAction: expv
 import ForwardDiff
@@ -61,6 +61,14 @@ compare_eigs(eig_la::Vector{<:Complex}, eig_b3) =
     row2 = Vector{ComplexF64}(undef, 3)
     row3 = Vector{ComplexF64}(undef, 3)
     v = Vector{ComplexF64}(undef, 3)
+
+    @inferred eigvec_3x3!(v, row1, row2, row3)
+    @test [0, 0, 1] == eigvec_3x3!(v, # code cover case 2
+        ComplexF64[1, 0, 0], ComplexF64[1, 0, 0], ComplexF64[0, 1, 0])
+    @test [0, 0, 0] == eigvec_3x3!(v, # code cover case 3
+        ComplexF64[0, 0, 0], ComplexF64[0, 0, 0], ComplexF64[1, 0, 0])
+    @test 0 == @allocated eigvec_3x3!(v, row1, row2, row3)
+
     @inferred eigvec_bloch3!(v, row1, row2, row3, 2, 1//1, 0, 0, 0, Complex(0))
     eigvec_bloch3!(v, row1, row2, row3, x1..., Complex(0)) # warm-up
     @test 0 == @allocated eigvec_bloch3!(v, row1, row2, row3, 2, 1, 1, 0, 0, Complex(0))

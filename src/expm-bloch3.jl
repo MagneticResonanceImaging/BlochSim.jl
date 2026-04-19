@@ -159,6 +159,33 @@ end
 
 
 """
+    eigvec_3x3!(v, row1, row2, row3, [rtol = 1e-12])
+Compute eigenvector `v` by crossing two rows;
+switch row pairs if needed.
+Mutates `v` and workspace `row1` `row2` `row3`
+"""
+function eigvec_3x3!(
+    v::AbstractVector{Complex{T}},
+    row1::Vector{Complex{T}},
+    row2::Vector{Complex{T}},
+    row3::Vector{Complex{T}},
+    rtol::Real = 1e-12,
+) where {T <: Breal}
+
+    rmax = max(norm(row1), norm(row2), norm(row3))
+
+    cross!(v, row1, row2)
+    if norm(v) < rtol * rmax
+        cross!(v, row1, row3)
+    end
+    if norm(v) < rtol * rmax # should never happen
+        cross!(v, row2, row3)
+    end
+    return v
+end
+
+
+"""
     eigvec_bloch3!(v, row1, row2, row3, r1, r2, w, s, c, λ)
 Compute eigenvector `v` for eigenvalue λ by crossing two rows;
 switch row pairs if needed.
@@ -176,15 +203,7 @@ function eigvec_bloch3!(
     fill3!(row1, -r2-λ, w,     s)
     fill3!(row2, -w,   -r2-λ,  c)
     fill3!(row3, -s,   -c,   -r1-λ)
-    rmax = max(norm(row1), norm(row2), norm(row3))
-
-    cross!(v, row1, row2)
-    if norm(v) < rtol * rmax
-        cross!(v, row1, row3)
-    end
-    if norm(v) < rtol * rmax
-        cross!(v, row2, row3)
-    end
+    eigvec_3x3!(v, row1, row2, row3, rtol)
     return v
 end
 
