@@ -47,11 +47,8 @@ end
 # Run `Pkg.add()` in the preceding code block first, if needed.
 
 using BlochSim: Spin, SpinMC, InstantaneousRF, RF, excite
-#src using BlochSim: bSSFPellipse
 using BlochSim: bssfp, GAMMA
-#src import ForwardDiff
-#src using LaTeXStrings: latexstring
-#src using LinearAlgebra: Diagonal, I, cond, diag, norm
+#src import ForwardDiff # todo: later
 using MIRTjim: prompt
 using Plots: gui, plot, plot!, default
 default(titlefontsize = 10, markerstrokecolor = :auto, label="", width = 1.5)
@@ -80,16 +77,18 @@ _bssfp(Δϕ, rf) = bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, Δϕ, rf)
 _bssfp(rf) = map(Δϕ -> _bssfp(Δϕ, rf), Δϕ_rad) # helper
 
 rf0 = InstantaneousRF(α_rad)
-signal0 = _bssfp(rf0) # InstantaneousRF signal
+signal0 = _bssfp(rf0) # signal for InstantaneousRF
 
 
-#=
-Specify finite-duration (rectangular) RF pulse
+"""
+    b1_gauss(α_rad, tRF_ms)
+
+Return finite-duration (rectangular) RF pulse amplitude
 - `GAMMA` has units rad/s/G
 - Tip angle for constant pulse:
   `α_rad = GAMMA * b1_gauss * tRF_s`
 - so `b1_gauss = α_rad / GAMMA / tRF_s`
-=#
+"""
 b1_gauss(α_rad, tRF_ms) = α_rad / GAMMA / (tRF_ms / 1000)
 
 
@@ -97,50 +96,47 @@ b1_gauss(α_rad, tRF_ms) = α_rad / GAMMA / (tRF_ms / 1000)
 ### Test "nearly instantaneous" RF pulse
 =#
 tRF_ms = 1e-12 # super-short for first test
-waveform1 = [1] * b1_gauss(α_rad, tRF_ms) # single sample i.e. instant!
+waveform1 = [1] * b1_gauss(α_rad, tRF_ms) # single sample, i.e., "instant"
 rf1 = RF(waveform1, tRF_ms)
-#=
 signal1 = _bssfp(rf1)
 @assert signal0 ≈ signal1 # should be essentially identical
 @assert α_rad == rf0.α ≈ only(rf1.α)
-=#
 
 
 #=
 ### Test 2ms RF pulse
 Somewhat unexpectedly (to JF),
-the signal matches the instantaneous RF case,
+the signal matches the `InstantaneousRF` case,
 because `excite!` for a `RF` type uses `freeprecess!`
 for each sample and here there is just a single sample.
 =#
 tRF_ms = 2
-waveform2 = [1] * b1_gauss(α_rad, tRF_ms) # single sample i.e. instant!
+waveform2 = [1] * b1_gauss(α_rad, tRF_ms) # single sample, i.e., "instant!?"
 rf2 = RF(waveform2, tRF_ms)
-#=
 signal2 = _bssfp(rf2)
-@assert signal0 ≈ signal2 # matches!?
+@assert signal0 ≈ signal2 # todo: matches!?
 @assert α_rad == rf0.α ≈ only(rf2.α)
-=#
 
 
 #=
 Examine excitation matrices
+for different RF types.
 =#
 A0, B0 = excite(spin, rf0)
 A1, B1 = excite(spin, rf1)
 @assert B0 === nothing
 @assert maximum(abs, Vector(B1)) ≤ 3e-15 # 15*eps()
-@assert Matrix(A0) ≈ Matrix(A1)
+@assert Matrix(A0) ≈ Matrix(A1) # similar as expected for super-short RF
 
 A2, B2 = excite(spin, rf2)
 @assert !(Matrix(A1) ≈ Matrix(A2)) # huh!?
 Matrix(A1) - Matrix(A2)
 
-@which excite(spin, rf2)
-throw()
+#src todo: study more
+#src @which excite(spin, rf2) see excite!(A, ...) with "todo" in excite.jl
 
 #=
-A1 and A2 differ, so why are is signal0 ≈ signal2
+todo: A1 and A2 differ, so why are is signal0 ≈ signal2
 =#
 
 
@@ -167,5 +163,4 @@ end;
 prf = plot(prfm, prfa, layout=(2,1),
  plot_title = "RF pulse duration effect, T2=$T2_ms (ms)")
 
-
-# todo include("../../../inc/reproduce.jl")
+#src todo include("../../../inc/reproduce.jl")
