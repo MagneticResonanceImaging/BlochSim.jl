@@ -3,7 +3,7 @@
 
 This page illustrates using the Julia package
 [`BlochSim`](https://github.com/StevenWhitaker/BlochSim.jl)
-to matrix exponentials,
+to compute matrix exponentials,
 i.e., `expm`,
 that are needed for Bloch simulations.
 =#
@@ -39,15 +39,16 @@ end
 # Tell this Julia session to use the following packages for this example.
 # Run `Pkg.add()` in the preceding code block first, if needed.
 
-using BenchmarkTools: @btime
+using BenchmarkTools: @benchmark
 using BlochSim: expm_bloch3, matrix_bloch3
 using ExponentialAction: expv
 using LinearAlgebra: I
 using MIRTjim: prompt
 using Plots: gui, plot, plot!, default
 using Random: seed!
-default(titlefontsize = 10, markerstrokecolor = :auto, label="", width = 1.5)
+
 seed!(0)
+default(titlefontsize = 10, markerstrokecolor = :auto, label="", width = 1.5)
 
 
 # The following line is helpful when running this file as a script;
@@ -82,9 +83,9 @@ x = [r1, r2, w, s, c]
 f3(x) = expm_bloch3(x..., t)
 fv(x) = expv(t, matrix_bloch3(x...), I(3))
 
-@btime f3($x) # 1.5 μs (52 allocations: 5.95 KiB)
+@benchmark f3($x) # 1.5 μs (52 allocations: 5.95 KiB)
 
-@btime fv($x) # 3.2 μs (117 allocations: 8.25 KiB)
+@benchmark fv($x) # 3.2 μs (117 allocations: 8.25 KiB)
 
 
 include("../../../inc/reproduce.jl")
