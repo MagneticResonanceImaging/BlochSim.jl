@@ -302,67 +302,6 @@ crb_std = sqrt.(diag(crb))
 cov1 = round.(crb_std ./ x ; digits=3) # coefficient of variation
 
 
-
-#=
-## RF pulse duration
-The preceding calculations were all
-for hypothetical instantaneous" RF pulses.
-
-Examine effects of finite RF pulse duration
-for a spin with a relatively short T2.
-=#
-
-Mz0, T1_ms, T2_ms, Δf_Hz = 1, 400, 40, 0 # tissue parameters
-TR_ms, TE_ms, α_rad = 8, 4, deg2rad(50) # scan parameters
-
-Δϕ_rad = range(-1,1,101) * π
-rf0 = InstantaneousRF(α_rad)
-_bssfp(Δϕ_rad, rf) = bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, Δϕ_rad, rf);
-
-#=
-Specify finite-duration hard (rectangular) RF pulse
-- `GAMMA` has units rad/s/G
-- Tip angle for constant pulse:
-  `α_rad = GAMMA * b1_gauss * tRF_s`
-- so `b1_gauss = α_rad / GAMMA / tRF_s`
-=#
-#src tRF_ms = 1e-12 # super-short for first test
-tRF_ms = 1
-waveform1 = [1] * α_rad / (tRF_ms / 1000) / GAMMA # single sample i.e. instant!
-rf1 = RF(waveform1, tRF_ms)
-signal0 = map(Δϕ -> _bssfp(Δϕ, rf0), Δϕ_rad)
-signal1 = map(Δϕ -> _bssfp(Δϕ, rf1), Δϕ_rad)
-@assert signal0 ≈ signal1
-@assert α_rad == rf0.α ≈ only(rf1.α)
-
-# Plot
-prfm = plot(
- xlabel = "phase cycling increment Δϕ (rad)",
- ylabel = "bSSFP signal mag",
-)
-prfa = plot(
- xlabel = "phase cycling increment Δϕ (rad)",
- ylabel = "bSSFP signal phase",
-)
-plot!(prfm, Δϕ_rad, abs.(signal0), label="Instantaneous")
-plot!(prfa, Δϕ_rad, angle.(signal0), label="Instantaneous")
-#src plot!(Δϕ_rad, abs.(signal1), label="tRF = $tRF_ms")
-nw = 1000 # approximately 1μs dwell time
-for tRF_ms in [1e-2 1 2]
-    waveform2 = ones(nw) * α_rad / (tRF_ms / 1000) / GAMMA
-    rf2 = RF(waveform2, tRF_ms/nw)
-    @assert rf0.α ≈ sum(rf2.α)
-    signal2 = map(Δϕ -> _bssfp(Δϕ, rf2), Δϕ_rad)
-    local label = "tRF = $tRF_ms ms, nw=$nw"
-    plot!(prfm, Δϕ_rad, abs.(signal2); label)
-    plot!(prfa, Δϕ_rad, angle.(signal2); label)
-end;
-
-prf = plot(prfm, prfa, layout=(2,1),
- plot_title="RF pulse duration effect, T2=$T2_ms (ms)")
-
-
-
 #=
 ## Multi-compartment spins and myelin water exchange
 
@@ -639,7 +578,7 @@ p_m = plot(title="Signal Magnitude vs. Scan Index", ylabel = "Signal Magnitude")
 p_p = plot(title="Signal Phase vs. Scan Index", ylabel = "Signal Phase")
 for j = 1:length(signal) # iterate over exchange values
     markershape = tau_arr_marker[j]
-    local label = latexstring("\$τ_{\\mathrm{fs}}\$ = $τ_fs ms")
+    local label = latexstring("\$τ_{\\mathrm{fs}}\$ = $(tau_arr_ms[j]) ms")
     plot!(p_m, scan_idx, abs.(signal[j]), linewidth=0; markershape, label)
     plot!(p_p, scan_idx, angle.(signal[j]), linewidth=0; markershape, label)
 end

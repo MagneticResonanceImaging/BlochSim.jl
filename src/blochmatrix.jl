@@ -1,9 +1,10 @@
 abstract type AbstractBlochMatrix{T<:Real} end
 
 """
-    BlochMatrix(a11, a21, a31, a12, a22, a32, a13, a23, a33)
-    BlochMatrix{T}()
-    BlochMatrix()
+    BlochMatrix(a11, a21, a31, a12, a22, a32, a13, a23, a33) # from scalars
+    BlochMatrix(A::AbstractMatrix) # construct from 3×3 matrix
+    BlochMatrix{T}() # zeros of type `T`
+    BlochMatrix() # zeros of type `Float64`
 
 Create a mutable `BlochMatrix` object representing a fixed-size 3×3 matrix.
 
@@ -22,10 +23,25 @@ mutable struct BlochMatrix{T<:Real} <: AbstractBlochMatrix{T}
     a33::T
 end
 
-BlochMatrix(a...) = BlochMatrix(promote(a...)...)
+
+# Constructors
+
+BlochMatrix(A::AbstractMatrix) = BlochMatrix(vec(A)...)
+
+BlochMatrix(t::NTuple{9}) = BlochMatrix(t...)
+
+# caution: the following would stack overflow for BlochMatrix(1, 2, 3)
+# BlochMatrix(a...) = BlochMatrix(promote(a...)...)
+BlochMatrix(a, b, c, d, e, f, g, h, i) =
+    BlochMatrix(promote(a, b, c, d, e, f, g, h, i))
+
 BlochMatrix{T}() where {T} = BlochMatrix(zero(T), zero(T), zero(T), zero(T),
                                     zero(T), zero(T), zero(T), zero(T), zero(T))
+
 BlochMatrix() = BlochMatrix{Float64}()
+
+
+# Helpers
 
 function Base.show(io::IO, ::MIME"text/plain", A::BlochMatrix{T}) where {T}
 
@@ -81,6 +97,7 @@ function Base.copyto!(dst::BlochMatrix, src::BlochMatrix)
 
 end
 
+
 function Base.Matrix(A::BlochMatrix{T}) where {T}
 
     mat = Matrix{T}(undef, 3, 3)
@@ -97,6 +114,7 @@ function Base.Matrix(A::BlochMatrix{T}) where {T}
     return mat
 
 end
+
 
 """
     BlochDynamicsMatrix(R1, R2, Δω)
@@ -139,6 +157,7 @@ function Base.Matrix(A::BlochDynamicsMatrix{T}) where {T}
     return mat
 
 end
+
 
 """
     FreePrecessionMatrix(E1, E2, θ)
