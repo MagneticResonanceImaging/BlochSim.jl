@@ -13,6 +13,7 @@ end
     include("spin.jl")
     include("spoiling.jl")
     include("expm.jl")
+    include("expm-bloch3.jl")
     include("freeprecess.jl")
     include("excite.jl")
     include("bssfp.jl")
