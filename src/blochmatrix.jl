@@ -244,6 +244,7 @@ function Base.copyto!(dst::FreePrecessionMatrix, src::FreePrecessionMatrix)
 
 end
 
+
 """
     ExchangeDynamicsMatrix(r)
     ExchangeDynamicsMatrix{T}()
@@ -978,11 +979,23 @@ function LinearAlgebra.mul!(A::BlochDynamicsMatrix, t::Real)
 
 end
 
+function LinearAlgebra.mul!(C::BlochDynamicsMatrix, A::BlochDynamicsMatrix, t::Real)
+    C.R1 = A.R1 * t
+    C.R2 = A.R2 * t
+    C.Δω = A.Δω * t
+    return nothing
+end
+
 function LinearAlgebra.mul!(E::ExchangeDynamicsMatrix, t::Real)
 
     E.r *= t
     return nothing
 
+end
+
+function LinearAlgebra.mul!(C::ExchangeDynamicsMatrix, A::ExchangeDynamicsMatrix, t::Real)
+    C.r = A.r * t
+    return nothing
 end
 
 function LinearAlgebra.mul!(A::BlochMcConnellDynamicsMatrix, t::Real)
@@ -995,6 +1008,21 @@ function LinearAlgebra.mul!(A::BlochMcConnellDynamicsMatrix, t::Real)
     end
 
 end
+
+# used in expm!()
+# should work when B is Real or a dual Number
+function LinearAlgebra.mul!(
+    C::BlochMcConnellDynamicsMatrix{T1,N}, A::BlochMcConnellDynamicsMatrix{T2,N}, B,
+) where {T1, T2, N}
+
+    for (C, A) in zip(C.A, A.A)
+        mul!(C, A, B)
+    end
+    for (C, A) in zip(C.E, A.E)
+        mul!(C, A, B)
+    end
+end
+
 
 """
     mul!(C, A, B)
