@@ -28,6 +28,7 @@ function expmchk()
     return m_vals, theta
 end
 
+
 function getPadeCoefficients(m)
 # GETPADECOEFFICIENTS Coefficients of numerator P of Pade approximant
 #    C = GETPADECOEFFICIENTS returns coefficients of numerator
@@ -51,7 +52,9 @@ function getPadeCoefficients(m)
     return c
 end
 
+
 struct MatrixExponentialWorkspace{T<:Real,N}
+    Ascaled::BlochMcConnellDynamicsMatrix{T,N} # A / 2^s
     expA2::BlochMcConnellMatrix{T,N}
     A2::BlochMcConnellMatrix{T,N}
     A4::BlochMcConnellMatrix{T,N}
@@ -65,18 +68,15 @@ struct MatrixExponentialWorkspace{T<:Real,N}
     mat2::Matrix{T}
 end
 
-MatrixExponentialWorkspace{T}(N) where {T} =
-    MatrixExponentialWorkspace(BlochMcConnellMatrix{T}(N),
-                               BlochMcConnellMatrix{T}(N),
-                               BlochMcConnellMatrix{T}(N),
-                               BlochMcConnellMatrix{T}(N),
-                               BlochMcConnellMatrix{T}(N),
-                               BlochMcConnellMatrix{T}(N),
-                               BlochMcConnellMatrix{T}(N),
-                               BlochMcConnellMatrix{T}(N),
-                               BlochMcConnellMatrix{T}(N),
-                               Matrix{T}(undef, 3N, 3N),
-                               Matrix{T}(undef, 3N, 3N))
+
+# constructor
+MatrixExponentialWorkspace{T}(N) where {T} = MatrixExponentialWorkspace(
+    BlochMcConnellDynamicsMatrix{T}(N),
+    ntuple(_ -> BlochMcConnellMatrix{T}(N), 9)...,
+    Matrix{T}(undef, 3N, 3N),
+    Matrix{T}(undef, 3N, 3N),
+)
+
 
 """
     expm!(expA, A, [workspace])
@@ -101,10 +101,10 @@ function expm!(
 
     normA = absolutesum(A)
 
-    if normA <= theta[end]
+    if normA ≤ theta[end]
         # no scaling and squaring is required
-        for i = 1:length(m_vals)
-            if normA <= theta[i]
+        for i in 1:length(m_vals)
+            if normA ≤ theta[i]
                 PadeApproximantOfDegree!(expA, A, workspace, m_vals[i])
                 break
             end
@@ -114,28 +114,35 @@ function expm!(
         t = frexp1(tmp)
         s = frexp2(tmp)
         s = s - (t == 0.5) # adjust s if normA / theta[end] is a power of 2
-        mul!(A, 1 / 2^s) # Scaling
-        PadeApproximantOfDegree!(expA, A, workspace, m_vals[end])
+        mul!(workspace.Ascaled, A, 1 / 2^s) # scaling
+        PadeApproximantOfDegree!(expA, workspace.Ascaled, workspace, m_vals[end])
 
-        for i = 1:s
-            mul!(workspace.expA2, expA, expA) # Squaring
+        for i in 1:s
+            mul!(workspace.expA2, expA, expA) # squaring
             copyto!(expA, workspace.expA2)
         end
     end
 
 end
 
+
+"""
+    PadeApproximantOfDegree!(expA, A, workspace, m)
+
+Pade approximant to exponential.
+
+Based on `PADEAPPROXIMANTOFDEGREE`
+`F = PADEAPPROXIMANTOFDEGREE(M)` is the degree M diagonal
+Pade approximant to EXP(A), where M = 3, 5, 7, 9 or 13.
+Series are evaluated in decreasing order of powers,
+which is in approx. increasing order of maximum norms of the terms.
+"""
 function PadeApproximantOfDegree!(
     expA::BlochMcConnellMatrix{T1,N},
     A::BlochMcConnellDynamicsMatrix{T2,N,M},
     workspace::MatrixExponentialWorkspace{T3,N},
     m::Integer
 ) where {T1,T2,T3,N,M}
-#PADEAPPROXIMANTOFDEGREE  Pade approximant to exponential.
-#   F = PADEAPPROXIMANTOFDEGREE(M) is the degree M diagonal
-#   Pade approximant to EXP(A), where M = 3, 5, 7, 9 or 13.
-#   Series are evaluated in decreasing order of powers, which is
-#   in approx. increasing order of maximum norms of the terms.
 
     n = 3N
     c = getPadeCoefficients(m)
@@ -146,7 +153,7 @@ function PadeApproximantOfDegree!(
 
     # Evaluate Pade approximant
     if m == 13
-        # For optimal evaluation need different formula for m >= 12
+        # For optimal evaluation need different formula for m ≥ 12
         mul!(workspace.tmp1, workspace.A6, c[14])
         muladd!(workspace.tmp1, workspace.A4, c[12])
         muladd!(workspace.tmp1, workspace.A2, c[10])
@@ -169,16 +176,16 @@ function PadeApproximantOfDegree!(
         fill!(workspace.tmp1, zero(T3))
         fill!(workspace.V, zero(T3))
 
-        if m >= 9
+        if m ≥ 9
             mul!(workspace.A8, workspace.A2, workspace.A6)
             muladd!(workspace.tmp1, workspace.A8, c[10])
             muladd!(workspace.V, workspace.A8, c[9])
         end
-        if m >= 7
+        if m ≥ 7
             muladd!(workspace.tmp1, workspace.A6, c[8])
             muladd!(workspace.V, workspace.A6, c[7])
         end
-        if m >= 5
+        if m ≥ 5
             muladd!(workspace.tmp1, workspace.A4, c[6])
             muladd!(workspace.V, workspace.A4, c[5])
         end
@@ -197,6 +204,25 @@ function PadeApproximantOfDegree!(
 
 end
 
+
+"""
+    expA = expm(A, [workspace])
+
+Return the matrix exponential of `BlochMcConnellDynamicsMatrix` `A`,
+where
+`workspace isa MatrixExponentialWorkspace`.
+"""
+function expm(
+    A::BlochMcConnellDynamicsMatrix{Ta,N},
+    workspace::MatrixExponentialWorkspace{Tw,N} = MatrixExponentialWorkspace{Ta}(N)
+) where {Ta,Tw,N}
+    expA = BlochMcConnellMatrix{Tw}(N)
+    expm!(expA, A, workspace)
+    return expA
+end
+
+
+# helpers
 frexp1(x) = frexp(x)[1]
 frexp2(x) = frexp(x)[2]
 dfrexp1(x) = 2.0^(-floor(log2(abs(x))) - 1)
