@@ -508,7 +508,7 @@ but with three different RF phase cycling factor values:
 
 For this example, choose one exchange rate:
 =#
-τ_fs = 50.0 # this will be varied in the next plot
+τ_fs = 100.0 # this will be varied in the next plot
 
 flip_ang_arr_deg = [10, 40] # flip angles
 
@@ -602,7 +602,7 @@ signal_ri(x) = real_imag(signal_c(x));
 #src tmp = signal_ri(x) # test run
 
 # Noise level
-dB = 40 # SNR
+dB = 50 # SNR
 σ = snr2sigma(dB, signal_c(x))
 
 # Jacobian
@@ -621,9 +621,14 @@ crb_std = sqrt.(diag(crb))
 [collect(keys(xt)) collect(xt) crb_std]
 
 # Coefficient of variation
-round2(x) = round(x; digits=2)
+round2(x) = round(x; sigdigits=2)
 crb_cv2 = round2.(crb_std ./ x)
-[:param :value :std :crb_cv;
- collect(keys(xt)) collect(xt) round2.(crb_std) crb_cv2]
+tab2 = [ # table of results
+:dB dB :σ round2(σ);
+:TR_ms TR_ms :TE_ms TE_ms;
+:num_scans num_scans "" "";
+:param :value :std :crb_cv;
+collect(keys(xt)) collect(xt) round2.(crb_std) crb_cv2;
+]
 
 include("../../../inc/reproduce.jl")
