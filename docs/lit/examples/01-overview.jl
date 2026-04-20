@@ -299,7 +299,7 @@ cond(fish) # 9e8
 # CRB and standard deviation:
 crb = inv(fish)
 crb_std = sqrt.(diag(crb))
-cov1 = round.(crb_std ./ x ; digits=3) # coefficient of variation
+crb_cv1 = round.(crb_std ./ x ; digits=3) # coefficient of variation
 
 
 #=
@@ -594,7 +594,9 @@ for the designed scan
 =#
 kappa = 1 # also estimate the B1+ factor
 M0_phase = π/3 # just to make it non-trivial
-x = [M0_phase, Mz0, f_f, T1_f_ms, T1_s_ms, T2_f_ms, T2_s_ms, τ_fs, Δf_myelin_Hz, kappa] # unknowns
+xt = (; M0_phase, Mz0, f_f, T1_f_ms, T1_s_ms, T2_f_ms, T2_s_ms, τ_fs, Δf_myelin_Hz, kappa) # unknowns in tuple
+x = collect(Float64, xt) # unknowns in vector
+xtest = [M0_phase, Mz0, f_f, T1_f_ms, T1_s_ms, T2_f_ms, T2_s_ms, τ_fs, Δf_myelin_Hz, kappa] # unknowns
 signal_c = (x) -> bssfp.(x[1:end-1]..., Δf_Hz, x[end]*design.α_deg, TR_ms, TE_ms, design.Δϕ_deg)
 signal_ri(x) = real_imag(signal_c(x));
 #src tmp = signal_ri(x) # test run
@@ -616,9 +618,12 @@ cond(tmp) # 1e6
 # CRB and standard deviation:
 crb = inv(fish)
 crb_std = sqrt.(diag(crb))
+[collect(keys(xt)) collect(xt) crb_std]
 
 # Coefficient of variation
-round.(crb_std ./ x ; digits=2)
-
+round2(x) = round(x; digits=2)
+crb_cv2 = round2.(crb_std ./ x)
+[:param :value :std :crb_cv;
+ collect(keys(xt)) collect(xt) round2.(crb_std) crb_cv2]
 
 include("../../../inc/reproduce.jl")
