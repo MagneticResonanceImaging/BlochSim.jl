@@ -487,6 +487,7 @@ Values taken from [2] and [4].
 =#
 
 Mz0 = 0.77 # initial condition for longitudinal magnetization (constant)
+#src Mz0 = 2.69 # amaya
 Δf_myelin_Hz = 5.0 # frequency shift of myelin water
 f_f = 0.15; # myelin water fraction (MWF), fast fraction
 
@@ -508,6 +509,7 @@ but with three different RF phase cycling factor values:
 For this example, choose one exchange rate:
 =#
 τ_fs = 100.0 # this will be varied in the next plot
+#src τ_fs = 70.0 # amaya
 
 flip_ang_arr_deg = [10, 40] # flip angles
 
@@ -593,16 +595,22 @@ for the designed scan
 =#
 kappa = 1 # also estimate the B1+ factor
 M0_phase = π/3 # just to make it non-trivial
-xt = (; M0_phase, Mz0, f_f, T1_f_ms, T1_s_ms, T2_f_ms, T2_s_ms, τ_fs, Δf_myelin_Hz, kappa) # unknowns in tuple
+xt = (; M0_phase, Mz0, f_f, T1_f_ms, T1_s_ms, T2_f_ms, T2_s_ms, τ_fs, Δf_myelin_Hz,
+    Δf_Hz, kappa) # unknowns in tuple, including both ΔB0 and B1 effects
 x = collect(Float64, xt) # unknowns in vector
-xtest = [M0_phase, Mz0, f_f, T1_f_ms, T1_s_ms, T2_f_ms, T2_s_ms, τ_fs, Δf_myelin_Hz, kappa] # unknowns
-signal_c = (x) -> bssfp.(x[1:end-1]..., Δf_Hz, x[end]*design.α_deg, TR_ms, TE_ms, design.Δϕ_deg)
+signal_c = (x) -> bssfp.(x[1:10]..., # Δf_Hz,
+    deg2rad.(design.Δϕ_deg), TR_ms, TE_ms, #= kappa: =# x[end]*deg2rad.(design.α_deg))
 signal_ri(x) = real_imag(signal_c(x));
 #src tmp = signal_ri(x) # test run
 
 # Noise level
 dB = 50 # SNR
 σ = snr2sigma(dB, signal_c(x))
+#src σ = sqrt(0.0014) # amaya
+
+#
+snr_check = 20*log10(norm(signal_c(x) / σ / sqrt(length(signal_c(x)))))
+
 
 # Jacobian
 jac = ForwardDiff.jacobian(signal_ri, x)
@@ -612,14 +620,14 @@ cond(fish) # 5e10
 # The condition number depends on units, so remove units:
 D = Diagonal(1 ./ sqrt.(diag(fish)))
 tmp = D * fish * D
-cond(tmp) # 1e6
+cond(tmp) # 1e5
 
 # CRB and standard deviation:
 crb = inv(fish)
 crb_std = sqrt.(diag(crb))
 [collect(keys(xt)) collect(xt) crb_std]
 
-# Coefficient of variation
+# Coefficient of variation via CRB
 round2(x) = round(x; sigdigits=2)
 crb_cv2 = round2.(crb_std ./ x)
 tab2 = [ # table of results
@@ -629,5 +637,7 @@ tab2 = [ # table of results
 :param :value :std :crb_cv;
 collect(keys(xt)) collect(xt) round2.(crb_std) crb_cv2;
 ]
+
+#src todo: simulation to compare to CRB
 
 include("../../../inc/reproduce.jl")
