@@ -102,6 +102,7 @@ signal1 = _bssfp(rf1)
 @assert signal0 ≈ signal1 # should be essentially identical
 @assert α_rad == rf0.α ≈ only(rf1.α)
 
+#throw()
 
 #=
 ### Test 2ms RF pulse
