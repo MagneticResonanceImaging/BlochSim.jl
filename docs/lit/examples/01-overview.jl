@@ -434,7 +434,6 @@ function bssfp2(
 
     ## create spin (with and without RF phase-cycling factor)
     spin = SpinMC(Mz0, frac, T1_ms, T2_ms, Δf_Hz, τ_ms)
-global spin1 = spin
     spin_no_rf_phase = SpinMC(Mz0, frac, T1_ms, T2_ms, Δf_no_rf_phase_Hz, τ_ms)
 
     return bssfp2(α_deg, TR_ms, TE_ms, spin, spin_no_rf_phase)

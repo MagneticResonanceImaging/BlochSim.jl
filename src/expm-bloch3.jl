@@ -362,6 +362,6 @@ function expm_bloch3(
     T = promote_type(T1, T2, Tw, Ts, Tc, Tt, Float32)
     expAt = Matrix{T}(undef, 3, 3)
     work = Bloch3ExpmWorkspace{T}()
-    expm_bloch3!(expAt, work, r1, r2, w, s, c, t)
+    expm_bloch3!(expAt, work, T(r1), T(r2), T(w), T(s), T(c), T(t))
     return expAt
 end
