@@ -116,6 +116,19 @@ compare_eigs(eig_la::Vector{<:Complex}, eig_b3) =
     @test exp(matrix_bloch3(xr3...)) ≈ expm_bloch3(xr3..., 1)
 
 
+    # analytical solution: relaxation
+    @test expm_bloch3(r1, r2, 0, 0, 0, t) ≈
+        Diagonal([exp(-r2*t), exp(-r2*t), exp(-r1*t)])
+
+    # analytical solution: precession
+    @test expm_bloch3(r1, r2, (π/2)/t, 0, 0, t) ≈
+        [0 exp(-r2*t) 0; -exp(-r2*t) 0 0; 0 0 exp(-r1*t)]
+
+    # analytical solution: tip
+    expm_bloch3(0, 0, 0, π/2, 0, 1) ≈ [0 0 1; 0 1 0; -1 0 0]
+    expm_bloch3(0, 0, 0, 0, π/2, 1) ≈ [1 0 0; 0 0 1; 0 -1 0]
+
+
     # autodiff
     f3(x) = expm_bloch3(x..., t)
     @test f3(xp) == E1
