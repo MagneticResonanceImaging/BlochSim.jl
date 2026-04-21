@@ -151,20 +151,20 @@ end
 
 """
     function bssfp(spin, TR_ms, TE_ms, Δϕ_rad, rf::AbstractRF)
-Signal accounting for  phase cycling increment `Δϕ_rad`,
+Signal accounting for phase cycling increment `Δϕ_rad`,
 allowing for finite duration `rf` pulse.
 """
 function bssfp(spin,
     TR_ms::Number, TE_ms::Number, Δϕ_rad::Number, rf::AbstractRF,
 )
 
-    (A0, d0) = excite(spin, rf) # matrix for spin excitation
+    (A1, b1) = excite(spin, rf) # matrix for spin excitation
 
     tRF_ms = duration(rf)
-    (A1, d1) = freeprecess(spin, TR_ms - tRF_ms)
+    (A0, d0) = freeprecess(spin, TR_ms - tRF_ms)
     Rz = FreePrecessionMatrix(1, 1, -Δϕ_rad) # phase cycling
-    b = isnothing(d0) ? Vector(A0 * d1) : Vector(A0 * d1 + d0)
-    A = Matrix(A0 * A1 * Rz)
+    b = isnothing(b1) ? Vector(A1 * d0) : Vector(A1 * d0 + b1)
+    A = Matrix(A1 * A0 * Rz)
     Mss = (I - A) \ b # steady-state magnetization immediately after RF
 
     # account for free precession from end of RF to TE:
