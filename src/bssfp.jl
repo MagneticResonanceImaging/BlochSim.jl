@@ -65,12 +65,13 @@ end
 
 Return steady-state magnetization signal value
 at the echo time
+for a single-pool tissue
 for a bSSFP sequence
 using `BlochSim`.
 
 This generalizes
 [Hargreaves et al., MRM 2001](https://doi.org/10.1002/mrm.1170)
-by accounting for finite RF duration.
+by accounting for possibly finite RF duration.
 
 # In (tissue parameters):
 - `Mz0` initial condition for magnetization in the z-direction (constant)
@@ -328,7 +329,29 @@ end
 
 """
     bssfp(...)
-Version with scalar arguments (convenient for autodiff)
+
+Compute bSSFP 2-pool signal value.
+Version with scalar arguments (convenient for autodiff).
+
+# In tissue:
+- `M0_phase` # radians
+- `Mz0`
+- `f_f`
+- `T1_f_ms`
+- `T1_s_ms`
+- `T2_f_ms`
+- `T2_s_ms`
+- `τ_fs_ms`
+- `Δff_Hz` fast component frequency shift
+
+# In: system parameters (sometimes known):
+- `Δf0_Hz` # B0 off resonance
+
+# In: scan parameters (always known):
+- `Δϕ_rad` # RF phase cycling value (radians)
+- `TR_ms`
+- `args..` remaining scan arguments, e.g., TE_ms...
+
 """
 function bssfp(
     M0_phase::Number, # radians
