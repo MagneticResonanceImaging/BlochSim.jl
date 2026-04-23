@@ -67,7 +67,7 @@ Examine effects of finite RF pulse duration
 for a single spin with a relatively short T2.
 =#
 
-Mz0, T1_ms, T2_ms, Δf_Hz = 1, 400, 40, 0 # tissue parameters
+Mz0, T1_ms, T2_ms, Δf_Hz = 1, 400, 10, 0 # tissue parameters
 α_deg = 50 # flip angle
 TR_ms, TE_ms, α_rad = 8, 4, deg2rad(α_deg) # scan parameters
 spin = Spin(Mz0, T1_ms, T2_ms, Δf_Hz)
@@ -132,6 +132,7 @@ A1, B1 = excite(spin, rf1)
 A2, B2 = excite(spin, rf2)
 @assert !(Matrix(A1) ≈ Matrix(A2)) # huh!?
 Matrix(A1) - Matrix(A2)
+
 
 #src todo: study more
 #src @which excite(spin, rf2) see excite!(A, ...) with "todo" in excite.jl
