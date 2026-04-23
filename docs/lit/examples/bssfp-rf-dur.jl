@@ -133,12 +133,26 @@ A2, B2 = excite(spin, rf2)
 @assert !(Matrix(A1) ≈ Matrix(A2)) # huh!?
 Matrix(A1) - Matrix(A2)
 
+using BlochSim: duration, freeprecess
+using LinearAlgebra: I
+(Afp0, dfp0) = freeprecess(spin, TR_ms - duration(rf0))
+(Afp2, dfp2) = freeprecess(spin, TR_ms - duration(rf2))
+At0 = Matrix(A0 * Afp0)
+At2 = Matrix(A2 * Afp2)
+Mss0 = (I - At0) \ Vector(A0 * dfp0)
+Mss2 = (I - At2) \ Vector(A2 * dfp2 + B2)
+
+bs0 = bssfp(spin, TR_ms, duration(rf0)/2, 0, rf0) # signal right after RF
+bs2 = bssfp(spin, TR_ms, duration(rf2)/2, 0, rf2)
+@assert bs0 ≈ complex(Mss0[1], Mss0[2])
+@assert bs2 ≈ complex(Mss2[1], Mss2[2])
+@assert !(bs0 ≈ bs2) # these differ, as expected
 
 #src todo: study more
 #src @which excite(spin, rf2) see excite!(A, ...) with "todo" in excite.jl
 
 #=
-todo: A1 and A2 differ, so why are is signal0 ≈ signal2
+todo: A1 and A2 differ, so why is signal0 ≈ signal2
 =#
 
 
