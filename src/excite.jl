@@ -76,12 +76,14 @@ struct RF{T<:Real, G<:Union{<:Gradient,<:AbstractVector{<:Gradient}}} <: Abstrac
     end
 end
 
+
 # waveform in Gauss, Δt in ms
 RF(waveform, Δt, Δθ, grad) =
     RF(GAMMA .* abs.(waveform) .* (Δt / 1000), angle.(waveform), Δt, Δθ, grad)
 RF(waveform, Δt, Δθ::Real) = RF(waveform, Δt, Δθ, Gradient(0, 0, 0))
 RF(waveform, Δt, grad) = RF(waveform, Δt, 0, grad)
 RF(waveform, Δt) = RF(waveform, Δt, 0, Gradient(0, 0, 0))
+
 
 Base.show(io::IO, rf::RF) = print(io, "RF(", rf.α, ", ", rf.θ, ", ", rf.Δt, ", ", rf.Δθ_initial, ", ", rf.grad, ")")
 
@@ -111,7 +113,7 @@ duration(rf::RF) = length(rf) * rf.Δt
 
 """
     ExcitationWorkspace
-Struct for in-place operations.
+Struct for in-place excitation operations.
 """
 struct ExcitationWorkspace{T1,T2,T3,T4,T5}
     Af::T1
@@ -319,12 +321,16 @@ end
 Mutate `A` and `B`
 for an RF pulse described by a vector of samples
 with time step `rf.Δt`.
+
 The method used here treats each sample
-as free precession for Δt/2,
-followed by instantaneous RF,
-followed by another free precession for Δt/2,
-todo [cite?]
-The accuracy of this method depends on Δt.
+using a "cascade" of three simpler steps:
+- free precession for Δt/2
+- instantaneous RF rotation
+- free precession for Δt/2
+todo [cite?].
+The accuracy of this "cascade" approximation
+depends on Δt,
+as explored in one of the repo demos.
 """
 function excite!(
     A::Union{<:BlochMatrix,<:BlochMcConnellMatrix},
@@ -334,27 +340,29 @@ function excite!(
     workspace::ExcitationWorkspace = ExcitationWorkspace(spin)
 ) where {T,G}
 
+    w = workspace # shorthand
     Δtby2 = rf.Δt / 2
+    # precompute free precession term for Δt / 2, i.e., F₁^½
     if G <: AbstractVector
-        freeprecess!(workspace.Af, workspace.Bf, spin, Δtby2, rf.grad[1], workspace.bm_workspace)
+        freeprecess!(w.Af, w.Bf, spin, Δtby2, rf.grad[1], w.bm_workspace)
     else
-        freeprecess!(workspace.Af, workspace.Bf, spin, Δtby2, rf.grad, workspace.bm_workspace)
+        freeprecess!(w.Af, w.Bf, spin, Δtby2, rf.grad, w.bm_workspace)
     end
-    excite!(workspace.Ae, spin, InstantaneousRF(rf.α[1], rf.θ[1] + rf.Δθ[]))
+    excite!(w.Ae, spin, InstantaneousRF(rf.α[1], rf.θ[1] + rf.Δθ[])) # R₁
 
-    combine!(workspace.tmpA1, workspace.tmpB1, workspace.Af, workspace.Bf, workspace.Ae, nothing)
-    combine!(A, B, workspace.tmpA1, workspace.tmpB1, workspace.Af, workspace.Bf)
+    combine!(w.tmpA1, w.tmpB1, w.Af, w.Bf, w.Ae, nothing) # F₁^½ R₁
+    combine!(A, B, w.tmpA1, w.tmpB1, w.Af, w.Bf) # F₁^½ R₁ F₁^½
 
-    for t = 2:length(rf)
+    for t in 2:length(rf)
 
-        if G <: AbstractVector
-            freeprecess!(workspace.Af, workspace.Bf, spin, Δtby2, rf.grad[t], workspace.bm_workspace)
+        if G <: AbstractVector # new Fₜ^½ for vector of RF samples
+            freeprecess!(w.Af, w.Bf, spin, Δtby2, rf.grad[t], w.bm_workspace)
         end
-        excite!(workspace.Ae, spin, InstantaneousRF(rf.α[t], rf.θ[t] + rf.Δθ[]))
+        excite!(w.Ae, spin, InstantaneousRF(rf.α[t], rf.θ[t] + rf.Δθ[])) # Rₜ
 
-        combine!(workspace.tmpA1, workspace.tmpB1, A, B, workspace.Af, workspace.Bf)
-        combine!(workspace.tmpA2, workspace.tmpB2, workspace.tmpA1, workspace.tmpB1, workspace.Ae, nothing)
-        combine!(A, B, workspace.tmpA2, workspace.tmpB2, workspace.Af, workspace.Bf)
+        combine!(w.tmpA1, w.tmpB1, A, B, w.Af, w.Bf) # Fₜ^½ effect
+        combine!(w.tmpA2, w.tmpB2, w.tmpA1, w.tmpB1, w.Ae, nothing) # Rₜ effect
+        combine!(A, B, w.tmpA2, w.tmpB2, w.Af, w.Bf) # Fₜ^½ effect
 
     end
 
