@@ -1,7 +1,8 @@
 # expm-bloch3.jl
 
 using BlochSim: expm_bloch3, expm_bloch3!
-using BlochSim: matrix_bloch3, eigvals_bloch3, eigvec_3x3!
+using BlochSim: excite_bloch3, excite_bloch3!
+using BlochSim: matrix_bloch3, matrix_bloch3!, eigvals_bloch3, eigvec_3by3!
 using BlochSim: Bloch3ExpmWorkspace, cross!, eigvec_bloch3!, eigen_bloch3!
 using ExponentialAction: expv
 import ForwardDiff
@@ -33,8 +34,13 @@ compare_eigs(eig_la::Vector{<:Complex}, eig_b3) =
     # helper
     A = @inferred matrix_bloch3(xp...)
 
+    A! = similar(A)
+    @inferred matrix_bloch3!(A!, xp...) # warm-up
+    @test A! == A
+    @test 0 == @allocated matrix_bloch3!(A!, xp...)
 
-    # check eigenvalues
+
+    # eigenvalues
     x1 = (2, 1, 1, 0, 0) # Δ > 0
     x2 = (3, 1, 0, 0, 0.8) # Δ < 0
     @test 0 == @allocated eigvals_bloch3(x1...) # Δ > 0
@@ -47,7 +53,7 @@ compare_eigs(eig_la::Vector{<:Complex}, eig_b3) =
     @test compare_eigs(eig.values, lam3)
 
 
-    # check cross!
+    # cross!
     v = Vector{ComplexF64}(undef, 3)
     a = [0, 1//2, 4f0]
     b = [1.0, 2, complex(3,4)]
@@ -56,18 +62,18 @@ compare_eigs(eig_la::Vector{<:Complex}, eig_b3) =
     @test v ≈ cross(a, b)
 
 
-    # check eigvecs
+    # eigvecs
     row1 = Vector{ComplexF64}(undef, 3)
     row2 = Vector{ComplexF64}(undef, 3)
     row3 = Vector{ComplexF64}(undef, 3)
     v = Vector{ComplexF64}(undef, 3)
 
-    @inferred eigvec_3x3!(v, row1, row2, row3)
-    @test [0, 0, 1] == eigvec_3x3!(v, # code cover case 2
+    @inferred eigvec_3by3!(v, row1, row2, row3)
+    @test [0, 0, 1] == eigvec_3by3!(v, # code cover case 2
         ComplexF64[1, 0, 0], ComplexF64[1, 0, 0], ComplexF64[0, 1, 0])
-    @test [0, 0, 0] == eigvec_3x3!(v, # code cover case 3
+    @test [0, 0, 0] == eigvec_3by3!(v, # code cover case 3
         ComplexF64[0, 0, 0], ComplexF64[0, 0, 0], ComplexF64[1, 0, 0])
-    @test 0 == @allocated eigvec_3x3!(v, row1, row2, row3)
+    @test 0 == @allocated eigvec_3by3!(v, row1, row2, row3)
 
     λ0 = Complex(0f0)
     @inferred eigvec_bloch3!(v, row1, row2, row3, 2, 1//1, 0, 0, 0, λ0)
@@ -77,7 +83,7 @@ compare_eigs(eig_la::Vector{<:Complex}, eig_b3) =
     @test 0 == @allocated eigvec_bloch3!(v, row1, row2, row3, r1, r2, w, s, c, λ0)
 
 
-    # check eigendecomposition
+    # eigendecomposition
     T = Float64
     C = Complex{T}
     work = Bloch3ExpmWorkspace{T}()
@@ -93,7 +99,7 @@ compare_eigs(eig_la::Vector{<:Complex}, eig_b3) =
     @test A ≈ V3 * Diagonal(λ3) * inv(V3)
 
 
-    # check exp
+    # exp
     expAt = Matrix{T}(undef, 3, 3)
     @inferred expm_bloch3!(expAt, work, xp..., t) # warm up
     @test 80 ≥ @allocated expm_bloch3!(expAt, work, xp..., t)
@@ -107,6 +113,11 @@ compare_eigs(eig_la::Vector{<:Complex}, eig_b3) =
     Ev = expv(t, A, I(3))
     @test Ev ≈ E0
 
+
+    # excite
+    b1 = Vector{T}(undef, 3)
+    @inferred excite_bloch3!(expAt, b1, work, xp..., t) # warm up
+    @test 160 ≥ @allocated excite_bloch3!(expAt, b1, work, xp..., t)
 
     # 2 repeated roots
     xr2 = (2, 1, 0, 0, 0)
