@@ -5,12 +5,13 @@ where A is the 3×3 Bloch matrix (for a constant RF and gradient amplitude),
 using an explicit eigendecomposition
 based on analytical roots of cubic characteristic polynomial.
 
-This code was developed with the help of GPT 5.2.
+The analytical eigendecomposition part of this code
+was developed with the help of GPT 5.2.
 =#
 
-using LinearAlgebra: cond, norm, Diagonal, lu!, mul!, rdiv!
+using LinearAlgebra: cond, norm, Diagonal, lu!, mul!, ldiv!, rdiv!
 
-export expm_bloch3, expm_bloch3!
+export expm_bloch3, expm_bloch3!, excite_bloch3, excite_bloch3!
 
 const Breal = Number # Real or ForwardDiff.Dual
 
@@ -44,12 +45,16 @@ struct Bloch3ExpmWorkspace{T <: Breal}
     λ::Vector{Complex{T}}
     V::Matrix{Complex{T}} # eigenvectors of A
     VD::Matrix{Complex{T}} # V * Diagonal(exp.(λ * t))
+    A::Matrix{T} # for excite
+    d::Vector{T} # for excite
 end
 
 # constructor
 Bloch3ExpmWorkspace{T}() where {T <: Breal} = Bloch3ExpmWorkspace(
     ntuple(_ -> Vector{Complex{T}}(undef, 3), 4)...,
     ntuple(_ -> Matrix{Complex{T}}(undef, 3, 3), 2)...,
+    Matrix{T}(undef, 3, 3),
+    Vector{T}(undef, 3),
 )
 
 
@@ -71,6 +76,21 @@ end
 
 
 """
+    matrix_bloch3!(mat, r1, r2, w, s, c)
+
+Mutating version of `matrix_bloch3()`
+"""
+function matrix_bloch3!(mat::Matrix{T},
+     r1::T, r2::T, w::T, s::T, c::T,
+) where {T <: Breal}
+    mat[1,1], mat[1,2], mat[1,3] = -r2,  w,  s
+    mat[2,1], mat[2,2], mat[2,3] = -w, -r2,  c
+    mat[3,1], mat[3,2], mat[3,3] = -s, -c, -r1
+    return mat
+end
+
+
+"""
     matrix_bloch3(r1, r2, w, s, c)
 
 Return 3×3 Bloch matrix
@@ -78,10 +98,11 @@ Return 3×3 Bloch matrix
       -w  -r2  c;
       -s  -c  -r1]`
 """
-matrix_bloch3(r1::T, r2::T, w::T, s::T, c::T) where {T <: Breal} = [
-    -r2  w   s;
-    -w  -r2  c;
-    -s  -c  -r1]
+function matrix_bloch3(r1::T, r2::T, w::T, s::T, c::T) where {T <: Breal}
+    mat = Matrix{T}(undef, 3, 3)
+    matrix_bloch3!(mat, r1, r2, w, s, c)
+    return mat
+end
 
 
 """
@@ -159,12 +180,12 @@ end
 
 
 """
-    eigvec_3x3!(v, row1, row2, row3, [rtol = 1e-12])
+    eigvec_3by3!(v, row1, row2, row3, [rtol = 1e-12])
 Compute eigenvector `v` by crossing two rows;
 switch row pairs if needed.
 Mutates `v` and workspace `row1` `row2` `row3`
 """
-function eigvec_3x3!(
+function eigvec_3by3!(
     v::AbstractVector{Complex{T}},
     row1::Vector{Complex{T}},
     row2::Vector{Complex{T}},
@@ -203,7 +224,7 @@ function eigvec_bloch3!(
     fill3!(row1, -r2-λ, w,     s)
     fill3!(row2, -w,   -r2-λ,  c)
     fill3!(row3, -s,   -c,   -r1-λ)
-    eigvec_3x3!(v, row1, row2, row3, rtol)
+    eigvec_3by3!(v, row1, row2, row3, rtol)
     return v
 end
 
@@ -298,6 +319,11 @@ Uses explicit eigendecomposition
 based on analytical roots of cubic characteristic polynomial.
 Mutates `expAt` and `work::Bloch3ExpmWorkspace`.
 Allocates very little memory; just some `lu!` overhead.
+
+Caution.
+There is a π/2 difference
+between this code and `excite!`
+as seen in one of the demos.
 """
 function expm_bloch3!(
     expAt::Matrix{Te},
@@ -364,4 +390,52 @@ function expm_bloch3(
     work = Bloch3ExpmWorkspace{T}()
     expm_bloch3!(expAt, work, T(r1), T(r2), T(w), T(s), T(c), T(t))
     return expAt
+end
+
+
+"""
+    excite_bloch3!(...)
+Mutating version of `excite_bloch3`
+"""
+function excite_bloch3!(
+    expAt::Matrix{Te},
+    b1::AbstractVector{Te},
+    work::Bloch3ExpmWorkspace{Tw},
+    r1::T, r2::T, w::T, s::T, c::T, t::Tt;
+) where {Te <: Breal, Tw <: Breal, T <: Breal, Tt <: Breal}
+
+    expm_bloch3!(expAt, work, r1, r2, w, s, c, t)
+    A = work.A
+    d = work.d
+    d[1], d[2], d[3] = 0, 0, r1
+    matrix_bloch3!(A, r1, r2, w, s, c)
+    F = lu!(A)
+    ldiv!(F, d) # d → A^-1 * d
+    mul!(b1, expAt, d) # exp(A*t) * A^-1 * d
+    b1 .-= d
+    return expAt, b1
+end
+
+
+"""
+    (A1, b1) = excite_bloch3(
+Return solution to Bloch equation
+`A1 = exp(A*t)`
+and
+`b1 = (A1 - I) * (A^{-1} * d)`
+for the 3×3 Bloch matrix
+`A = [-r2 w s; -w -r2 c; -s -c -r1]`
+and
+`d = [0, 0, r1]`
+(i.e., for `M₀ = 1`).
+"""
+function excite_bloch3(
+    r1::T1, r2::T2, w::Tw, s::Ts, c::Tc, t::Tt;
+) where {T1 <: Breal, T2 <: Breal, Tw <: Breal, Ts <: Breal, Tc <: Breal, Tt <: Breal}
+    T = promote_type(T1, T2, Tw, Ts, Tc, Tt, Float32)
+    expAt = Matrix{T}(undef, 3, 3)
+    work = Bloch3ExpmWorkspace{T}()
+    b1 = Vector{T}(undef, 3)
+    excite_bloch3!(expAt, b1, work, T(r1), T(r2), T(w), T(s), T(c), T(t))
+    return (expAt, b1)
 end
