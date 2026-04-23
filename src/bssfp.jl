@@ -62,6 +62,8 @@ end
     bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, Δϕ_rad, α_rad, θ_rf_rad=0)
     bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, Δϕ_rad, rf, [pos])
     bssfp(spin, Δf_Hz, TR_ms, TE_ms, Δϕ_rad, rf)
+    bssfp(spin, Δf_Hz, TR_ms, Val(:midTR) or Val(:postRF), Δϕ_rad, rf)
+    `Val(:midTR)` for TE = TR/2;  Val(:postRF) for TE = tRF/2
 
 Return steady-state magnetization signal value
 at the echo time
@@ -121,9 +123,9 @@ end
 """
     function bssfp(spin, TR_ms, TE_ms, rf::AbstractRF)
 Classic version with no phase cycling increment,
-for InstantaneousRF only.
+for `InstantaneousRF` only.
 """
-function bssfp(spin, TR_ms::Number, TE_ms::Number, rf::AbstractRF)
+function bssfp(spin::Spin, TR_ms::Number, TE_ms::Number, rf::AbstractRF)
 
     (R,) = excite(spin, rf) # matrix for spin excitation
     rf isa InstantaneousRF || throw("unsupported")
@@ -154,7 +156,7 @@ end
 Signal accounting for phase cycling increment `Δϕ_rad`,
 allowing for finite duration `rf` pulse.
 """
-function bssfp(spin,
+function bssfp(spin::Spin,
     TR_ms::Number, TE_ms::Number, Δϕ_rad::Number, rf::AbstractRF,
 )
 
@@ -174,6 +176,14 @@ function bssfp(spin,
         exp(-t_free_ms / spin.T2) * # T2 decay
         cis(-2π/1000*spin.Δf*t_free_ms) # off resonance
 end
+
+
+# helpers for special TE values (TR/2 or right after RF)
+bssfp(spin::Spin, TR_ms::Number, ::Val{:midTR}, Δϕ_rad::Number, rf::AbstractRF) =
+    bssfp(spin, TR_ms, TR_ms/2, Δϕ_rad, rf)
+
+bssfp(spin::Spin, TR_ms::Number, ::Val{:postRF}, Δϕ_rad::Number, rf::AbstractRF) =
+    bssfp(spin, TR_ms, duration(rf)/2, Δϕ_rad, rf)
 
 
 bSSFPtuple1 = (:Mz0, :T1_ms, :T2_ms, :Δf_Hz)
