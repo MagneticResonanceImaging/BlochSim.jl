@@ -2,13 +2,11 @@
 test/bssfp.jl
 =#
 
-using BlochSim: bssfp, Spin, InstantaneousRF, duration
-using BlochSim: bSSFPbloch, bSSFPellipse
+using BlochSim: bssfp, Spin, InstantaneousRF, duration, real_imag
+using BlochSim: bSSFPbloch, bSSFPbloch3, bSSFPellipse
 using ForwardDiff: ForwardDiff
 import ForwardDiff: derivative, gradient
 using Test: @inferred, @test, @testset
-
-real_imag(z) = [real(z); imag(z)] # stacker
 
 
 """
@@ -92,6 +90,10 @@ end
 
     sig6 = @inferred bssfp(bSSFPbloch, xt, xs...)
     @test sig4 ≈ sig6
+
+    tRF_ms = 1e-3 # super-short RF pulse
+    sig7 = @inferred bssfp(bSSFPbloch3, tRF_ms, xt..., xs...)
+    @test isapprox(sig4, sig7, atol = 1e-5)
 end
 
 
