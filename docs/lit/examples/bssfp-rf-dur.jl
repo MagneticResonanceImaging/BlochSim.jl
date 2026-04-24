@@ -52,7 +52,7 @@ using BlochSim: crb, real_imag, snr2sigma
 #src import ForwardDiff # todo: later
 using LinearAlgebra: diag
 using MIRTjim: prompt
-using Plots: gui, plot, plot!, default
+using Plots: default, gui, plot, plot!, scatter!
 default(titlefontsize = 10, markerstrokecolor = :auto, label="", width = 1.5,
     linewidth=2)
 
@@ -188,7 +188,7 @@ r2_kHz = 1 / spin.T2
 
 tRF_list = range(0.02, 5, 250)
 errora = similar(tRF_list)
-errorb = similar(tRF_list)
+errorb = similar(errora)
 for (i, tRF) in enumerate(tRF_list)
     rf = RF1(α_rad, tRF) # single sample RF waveform
     (E3, b3) = excite_bloch3(r1_kHz, r2_kHz, w0,
@@ -197,19 +197,48 @@ for (i, tRF) in enumerate(tRF_list)
     errora[i] = maximum(abs, Matrix(Ae) - E3)
     errorb[i] = maximum(abs, Vector(Be) - b3)
 end
-plot(title =
+perr = plot(title =
  "Cascade approximation vs expm for M₀=$Mz0 T₁=$T1_ms T₂=$T2_ms Δf=$Δf_Hz Hz",
     xaxis = ("RF duration [ms]", (0,5), ),
     yaxis = ("Max-norm error", ),
 )
-plot!(tRF_list, errora, label = "Excitation matrix 'A' error")
-plot!(tRF_list, 10errorb, label = "'b' vector error × 10")
+plot!(tRF_list, errora, color=:red, label = "Excitation matrix 'A' error")
+plot!(tRF_list, 10errorb, color=:blue, label = "'b' vector error × 10");
+
+
+# ## Examine over-sampling
+
+nw_list = [1, 4,]
+tRF_ms = 2
+erroroa = similar(errora, length(nw_list))
+errorob = similar(erroroa)
+for (i, nw) in enumerate(nw_list)
+    waveform = ones(nw) * b1_gauss(α_rad, tRF_ms)
+    rf = RF(waveform, tRF_ms / nw) # multi-sample RF waveform
+    @assert rf0.α ≈ sum(rf.α)
+    (E3, b3) = excite_bloch3(r1_kHz, r2_kHz, w0,
+      α_rad/tRF_ms * sin(Δϕ_rad0+π/2), α_rad/tRF_ms * cos(Δϕ_rad0+π/2), tRF_ms)
+    Ae, Be = excite(spin, rf)
+    signal4te = _bssfp(TE_ms, rf)
+    erroroa[i] = maximum(abs, Matrix(Ae) - E3)
+    errorob[i] = maximum(abs, Vector(Be) - b3)
+    scatter!([tRF_ms], erroroa[i:i]; color=:red,
+        marker = nw > 1 ? :square : :circle,
+        label = nw > 1 ? "'A' nw=$nw error" : "", )
+    scatter!([tRF_ms], 10errorob[i:i]; color=:blue,
+        marker = nw > 1 ? :square : :circle,
+        label = nw > 1 ? "'b' nw=$nw error ×10" : "", )
+end;
 
 #
 prompt()
 
+#src todo: examine bSSFP signal model error
+
+#src bssfp(bSSFPbloch3, ... todo
+
 #=
-WIP
+WIP - ignore
 
 using BlochSim: duration, freeprecess
 using LinearAlgebra: I
