@@ -25,12 +25,28 @@ const bSSFPbloch = bSSFPmode{:Bloch}()
 const bSSFPellipse = bSSFPmode{:Ellipse}()
 
 
+TE_ms_type = Any # Union{Number, Val{:midTR}, Val{:postRF}}
+
+"""
+    _TE_ms(TE_ms, TR_ms, [rf])
+
+Helper to convert TE symbols to a number
+- `Val{:midTR}` for the usual TR/2 choice
+- `Val{:postRF}` immediately after RF pulse ends
+"""
+_TE_ms(TE_ms::Number, TR_ms::Number, args...) = TE_ms
+_TE_ms(::Val{:midTR}, TR_ms::Number, args...) = TR_ms / 2
+_TE_ms(::Val{:postRF}, TR_ms::Number, args...) = 0 # COV_EXCL_LINE
+_TE_ms(::Val{:postRF}, TR_ms::Number, rf::AbstractRF) = duration(rf) / 2
+
+
 """
     bssfp(bSSFPellipse, Mz0, T1_ms, T2_ms, Δf_Hz,
        TR_ms, TE_ms, Δϕ_rad, α_rad, θ_rf_rad=0)
 
 Elliptical signal model for bSSFP.
-This is the analytical solution to the 1-pool bSSFP signal.
+This is the analytical solution to the 1-pool bSSFP signal
+with instantaneous RF.
 
 Xiang et al. MRM 2014;
 https://doi.org/10.1002/mrm.25098
@@ -40,9 +56,10 @@ https://doi.org/10.1109/TMI.2021.3102852
 """
 function bssfp(::bSSFPmode{:Ellipse},
     Mz0::Number, T1_ms::Number, T2_ms::Number, Δf_Hz::Number,
-    TR_ms::Number, TE_ms::Number, Δϕ_rad::Number,
+    TR_ms::Number, TE_ms::TE_ms_type, Δϕ_rad::Number,
     α_rad::Number, θ_rf_rad::Number = 0,
 )
+    TE_ms = _TE_ms(TE_ms, TR_ms) # handle Val
     s, c = sincos(α_rad)
     E1 = exp(-TR_ms / T1_ms)
     E2 = exp(-TR_ms / T2_ms)
@@ -62,6 +79,8 @@ end
     bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, Δϕ_rad, α_rad, θ_rf_rad=0)
     bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, Δϕ_rad, rf, [pos])
     bssfp(spin, Δf_Hz, TR_ms, TE_ms, Δϕ_rad, rf)
+    bssfp(spin, Δf_Hz, TR_ms, Val(:midTR) or Val(:postRF), Δϕ_rad, rf)
+    `Val(:midTR)` for TE = TR/2;  Val(:postRF) for TE = tRF/2
 
 Return steady-state magnetization signal value
 at the echo time
@@ -97,7 +116,7 @@ bssfp(::bSSFPmode{:Bloch}, args...) = bssfp(args...)
 
 function bssfp(
     Mz0::Number, T1_ms::Number, T2_ms::Number, Δf_Hz::Number,
-    TR_ms::Number, TE_ms::Number, Δϕ_rad::Number,
+    TR_ms::Number, TE_ms::TE_ms_type, Δϕ_rad::Number,
     α_rad::Number, θ_rf_rad::Number = 0,
 )
     rf = InstantaneousRF(α_rad, θ_rf_rad)
@@ -106,12 +125,13 @@ end
 
 function bssfp(
     Mz0::Number, T1_ms::Number, T2_ms::Number, Δf_Hz::Number,
-    TR_ms::Number, TE_ms::Number, Δϕ_rad::Number,
+    TR_ms::Number, TE_ms::TE_ms_type, Δϕ_rad::Number,
     rf::AbstractRF,
     pos::Position = Position(0.0, 0.0, 0.0),
 )
+    TE_ms = _TE_ms(TE_ms, TR_ms, rf) # handle Val
     tRF_ms = duration(rf)
-    tRF_ms/2 < TE_ms < TR_ms - tRF_ms/2 ||
+    tRF_ms/2 ≤ TE_ms < TR_ms - tRF_ms/2 ||
         throw("bad TE=$TE_ms for TR=$TR_ms and tRF=$tRF_ms")
     spin = Spin(Mz0, T1_ms, T2_ms, Δf_Hz, pos)
     return bssfp(spin, TR_ms, TE_ms, Δϕ_rad, rf)
@@ -121,10 +141,11 @@ end
 """
     function bssfp(spin, TR_ms, TE_ms, rf::AbstractRF)
 Classic version with no phase cycling increment,
-for InstantaneousRF only.
+for `InstantaneousRF` only.
 """
-function bssfp(spin, TR_ms::Number, TE_ms::Number, rf::AbstractRF)
+function bssfp(spin::Spin, TR_ms::Number, TE_ms::TE_ms_type, rf::AbstractRF)
 
+    TE_ms = _TE_ms(TE_ms, TR_ms, rf) # handle Val
     (R,) = excite(spin, rf) # matrix for spin excitation
     rf isa InstantaneousRF || throw("unsupported")
 
@@ -151,20 +172,21 @@ end
 
 """
     function bssfp(spin, TR_ms, TE_ms, Δϕ_rad, rf::AbstractRF)
-Signal accounting for  phase cycling increment `Δϕ_rad`,
+Signal accounting for phase cycling increment `Δϕ_rad`,
 allowing for finite duration `rf` pulse.
 """
-function bssfp(spin,
-    TR_ms::Number, TE_ms::Number, Δϕ_rad::Number, rf::AbstractRF,
+function bssfp(spin::Spin,
+    TR_ms::Number, TE_ms::TE_ms_type, Δϕ_rad::Number, rf::AbstractRF,
 )
 
-    (A0, d0) = excite(spin, rf) # matrix for spin excitation
+    TE_ms = _TE_ms(TE_ms, TR_ms, rf) # handle Val
+    (A1, b1) = excite(spin, rf) # matrix for spin excitation
 
     tRF_ms = duration(rf)
-    (A1, d1) = freeprecess(spin, TR_ms - tRF_ms)
+    (A0, d0) = freeprecess(spin, TR_ms - tRF_ms)
     Rz = FreePrecessionMatrix(1, 1, -Δϕ_rad) # phase cycling
-    b = isnothing(d0) ? Vector(A0 * d1) : Vector(A0 * d1 + d0)
-    A = Matrix(A0 * A1 * Rz)
+    b = isnothing(b1) ? Vector(A1 * d0) : Vector(A1 * d0 + b1)
+    A = Matrix(A1 * A0 * Rz)
     Mss = (I - A) \ b # steady-state magnetization immediately after RF
 
     # account for free precession from end of RF to TE:
@@ -176,8 +198,14 @@ function bssfp(spin,
 end
 
 
+"""
+    bSSFPtuple1
+Named tuple tissue parameter keys:
+`(:Mz0, :T1_ms, :T2_ms, :Δf_Hz)`
+"""
 bSSFPtuple1 = (:Mz0, :T1_ms, :T2_ms, :Δf_Hz)
 
+# helpers
 bssfp(xt::NamedTuple{bSSFPtuple1}, args...) = bssfp(xt..., args...)
 bssfp(::bSSFPmode{:Ellipse}, xt::NamedTuple{bSSFPtuple1}, args...) =
     bssfp(bSSFPellipse, xt..., args...)

@@ -2,7 +2,7 @@
 test/bssfp.jl
 =#
 
-using BlochSim: bssfp, Spin, InstantaneousRF
+using BlochSim: bssfp, Spin, InstantaneousRF, duration
 using BlochSim: bSSFPbloch, bSSFPellipse
 using ForwardDiff: ForwardDiff
 import ForwardDiff: derivative, gradient
@@ -69,6 +69,12 @@ end
     rf = InstantaneousRF(α_rad, θ_rf_rad)
     sig3 = @inferred bssfp(spin, TR_ms, TE_ms, Δϕ_rad, rf)
     @test sig1 == sig3
+
+    # helpers
+    bpost = bssfp(spin, TR_ms, duration(rf)/2, 0, rf) # signal right after RF
+    @test bpost == bssfp(spin, TR_ms, Val(:postRF), 0, rf)
+    bmid = bssfp(spin, TR_ms, TR_ms/2, 0, rf)
+    @test bmid == bssfp(spin, TR_ms, Val(:midTR), 0, rf)
 
 end
 
