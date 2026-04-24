@@ -5,7 +5,7 @@ for an isochromat (1-pool) and for a 2-pool model with exchange.
 =#
 
 export bssfp, bSSFPtuple1
-export bSSFPbloch, bSSFPellipse
+export bSSFPbloch, bSSFPbloch3, bSSFPellipse
 
 using BlochSim: Position, Spin, SpinMC, excite, freeprecess, duration
 using BlochSim: AbstractRF, InstantaneousRF
@@ -18,10 +18,12 @@ using LinearAlgebra: I
 
 A type used to control how bSSFP signal is calculated.
 - `bSSFPbloch` use `BlochSim` matrix computations (default)
+- `bSSFPbloch3` use analytical 3×3 matrix computations
 - `bSSFPellipse` use ellipse model for 1-pool
 """
 struct bSSFPmode{T} end
 const bSSFPbloch = bSSFPmode{:Bloch}()
+const bSSFPbloch3 = bSSFPmode{:Bloch3}()
 const bSSFPellipse = bSSFPmode{:Ellipse}()
 
 
@@ -209,6 +211,32 @@ bSSFPtuple1 = (:Mz0, :T1_ms, :T2_ms, :Δf_Hz)
 bssfp(xt::NamedTuple{bSSFPtuple1}, args...) = bssfp(xt..., args...)
 bssfp(::bSSFPmode{:Ellipse}, xt::NamedTuple{bSSFPtuple1}, args...) =
     bssfp(bSSFPellipse, xt..., args...)
+
+
+"""
+     bssfp(bSSFPbloch3, tRF_ms, args...)
+
+1-pool version for a constant RF of duration `tRF_ms`
+(no gradient).
+todo: extend to include constant gradient too.
+"""
+function bssfp(::bSSFPmode{:Bloch3},
+    tRF_ms::Number, # rectangular waveform only for now
+    Mz0::Number, T1_ms::Number, T2_ms::Number, Δf_Hz::Number,
+    TR_ms::Number, TE_ms::TE_ms_type, Δϕ_rad::Number,
+    α_rad::Number, θ_rf_rad::Number = 0,
+)
+
+    Δω0_rad_ms = 2π * (Δf_Hz/1000) # rad/ms
+    (A1, b1) = excite_bloch3(1/T1_ms, 1/T2_ms, Δω0_rad_ms,
+      α_rad/tRF_ms * sin(Δϕ_rad+π/2), α_rad/tRF_ms * cos(Δϕ_rad+π/2), tRF_ms)
+
+    spin = Spin(Mz0, T1_ms, T2_ms, Δf_Hz)
+    (A0, d0) = freeprecess(spin, TR_ms - tRF_ms)
+    mss = (I - A1) \ (Vector(A0 * d0) + b1)
+    return complex(mss[1], mss[2])
+end
+
 
 
 #=
