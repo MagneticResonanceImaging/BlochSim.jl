@@ -1,7 +1,7 @@
 # expm-bloch3.jl
 
 using BlochSim: expm_bloch3, expm_bloch3!
-using BlochSim: excite_bloch3, excite_bloch3!
+using BlochSim: excite_bloch3, excite_bloch3!, _TE_ms
 using BlochSim: matrix_bloch3, matrix_bloch3!, eigvals_bloch3, eigvec_3by3!
 using BlochSim: Bloch3ExpmWorkspace, cross!, eigvec_bloch3!, eigen_bloch3!
 using ExponentialAction: expv
@@ -119,6 +119,7 @@ compare_eigs(eig_la::Vector{<:Complex}, eig_b3) =
     @inferred excite_bloch3!(expAt, b1, work, xp..., t) # warm up
     @test 160 ≥ @allocated excite_bloch3!(expAt, b1, work, xp..., t)
     @test (expAt, b1) == excite_bloch3(xp..., t)
+    @test 0 == @inferred _TE_ms(Val(:postRF), Inf)
 
     # 2 repeated roots
     xr2 = (2, 1, 0, 0, 0)
