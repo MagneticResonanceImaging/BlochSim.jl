@@ -38,7 +38,7 @@ Helper to convert TE symbols to a number
 """
 _TE_ms(TE_ms::Number, TR_ms::Number, args...) = TE_ms
 _TE_ms(::Val{:midTR}, TR_ms::Number, args...) = TR_ms / 2
-_TE_ms(::Val{:postRF}, TR_ms::Number, tRF_ms::Number) = tRF_ms / 2
+_TE_ms(::Val{:postRF}, TR_ms::Number, tRF_ms::Number) = tRF_ms / 2 # COV_EXCL_LINE
 _TE_ms(::Val{:postRF}, TR_ms::Number, rf::AbstractRF) = duration(rf) / 2
 _TE_ms(::Val{:postRF}, TR_ms::Number, args...) = 0 # COV_EXCL_LINE
 
