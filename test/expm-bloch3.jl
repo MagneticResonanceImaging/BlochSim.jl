@@ -118,6 +118,7 @@ compare_eigs(eig_la::Vector{<:Complex}, eig_b3) =
     b1 = Vector{T}(undef, 3)
     @inferred excite_bloch3!(expAt, b1, work, xp..., t) # warm up
     @test 160 ≥ @allocated excite_bloch3!(expAt, b1, work, xp..., t)
+    @test (expAt, b1) == excite_bloch3(xp..., t)
 
     # 2 repeated roots
     xr2 = (2, 1, 0, 0, 0)
