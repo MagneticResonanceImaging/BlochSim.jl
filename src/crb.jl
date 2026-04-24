@@ -13,10 +13,10 @@ so we include these helper functions.
 
 export crb
 
-import ForwardDiff # jacobian
-
 public snr2sigma
 public real_imag
+
+import ForwardDiff # jacobian
 
 
 # helper functions for CRB
