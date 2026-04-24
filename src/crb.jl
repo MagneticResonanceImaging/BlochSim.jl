@@ -28,7 +28,7 @@ that is needed for CRB
 because `ForwardDiff`
 cannot handle complex signal values.
 """
-real_imag(y) = [real(y); imag(y)]
+real_imag(y) = [real(y); imag(y)] # COV_EXCL_LINE
 
 
 """
