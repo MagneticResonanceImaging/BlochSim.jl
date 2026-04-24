@@ -38,8 +38,9 @@ Helper to convert TE symbols to a number
 """
 _TE_ms(TE_ms::Number, TR_ms::Number, args...) = TE_ms
 _TE_ms(::Val{:midTR}, TR_ms::Number, args...) = TR_ms / 2
-_TE_ms(::Val{:postRF}, TR_ms::Number, args...) = 0 # COV_EXCL_LINE
+_TE_ms(::Val{:postRF}, TR_ms::Number, tRF_ms::Number) = tRF_ms / 2
 _TE_ms(::Val{:postRF}, TR_ms::Number, rf::AbstractRF) = duration(rf) / 2
+_TE_ms(::Val{:postRF}, TR_ms::Number, args...) = 0 # COV_EXCL_LINE
 
 
 """
@@ -227,14 +228,25 @@ function bssfp(::bSSFPmode{:Bloch3},
     α_rad::Number, θ_rf_rad::Number = 0,
 )
 
+    TE_ms = _TE_ms(TE_ms, TR_ms, tRF_ms) # handle Val
     Δω0_rad_ms = 2π * (Δf_Hz/1000) # rad/ms
     (A1, b1) = excite_bloch3(1/T1_ms, 1/T2_ms, Δω0_rad_ms,
       α_rad/tRF_ms * sin(Δϕ_rad+π/2), α_rad/tRF_ms * cos(Δϕ_rad+π/2), tRF_ms)
 
     spin = Spin(Mz0, T1_ms, T2_ms, Δf_Hz)
     (A0, d0) = freeprecess(spin, TR_ms - tRF_ms)
-    mss = (I - A1) \ (Vector(A0 * d0) + b1)
-    return complex(mss[1], mss[2])
+
+    Rz = FreePrecessionMatrix(1, 1, -Δϕ_rad) # phase cycling
+    b = A1 * Vector(d0) + b1
+    A = A1 * Matrix(A0) * Matrix(Rz)
+    Mss = (I - A) \ b # steady-state magnetization immediately after RF
+
+    # account for free precession from end of RF to TE:
+    t_free_ms = TE_ms - tRF_ms / 2
+#todo: why -
+    return complex(-Mss[1], Mss[2]) * # complex signal
+        exp(-t_free_ms / T2_ms) * # T2 decay
+        cis(-2π/1000*Δf_Hz*t_free_ms) # off resonance
 end
 
 
