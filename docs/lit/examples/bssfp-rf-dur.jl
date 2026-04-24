@@ -48,7 +48,9 @@ end
 
 using BlochSim: Spin, SpinMC, InstantaneousRF, RF, excite
 using BlochSim: bssfp, GAMMA, expm_bloch3, excite_bloch3
+using BlochSim: crb, real_imag, snr2sigma
 #src import ForwardDiff # todo: later
+using LinearAlgebra: diag
 using MIRTjim: prompt
 using Plots: gui, plot, plot!, default
 default(titlefontsize = 10, markerstrokecolor = :auto, label="", width = 1.5,
@@ -69,6 +71,9 @@ for a single spin with a relatively short T2.
 =#
 
 Mz0, T1_ms, T2_ms, Δf_Hz = 1, 400, 10, 9 # tissue parameters
+kappa = 1 # also estimate the B1+ factor
+xt = (; Mz0, T1_ms, T2_ms, Δf_Hz, kappa) # tuple
+x = collect(Float64, xt) # unknowns in vector
 α_deg = 50 # flip angle °
 TR_ms, TE_ms, α_rad = 8, 4, deg2rad(α_deg) # scan parameters
 spin = Spin(Mz0, T1_ms, T2_ms, Δf_Hz)
@@ -255,5 +260,41 @@ prompt()
 ### Effect on qMRI
 todo
 =#
+
+# scan "design"
+Δϕ_rads = (1:8)/8 * 2π # phase-cycling factors
+α_degs = [10, 30, 50] # flip angles
+α_rads = deg2rad.(α_degs)
+design = (; α_rads, Δϕ_rads)
+design = Iterators.product(Δϕ_rads, α_rads)
+num_scans = length(design) # number of different scans
+
+
+function signal_c0(x)
+    kappa = x[5]
+    _bssfp(Δϕ_rad, α_rad) = bssfp(x[1:4]..., TR_ms, TE_ms, Δϕ_rad,
+        InstantaneousRF(kappa * α_rad))
+    tmp = map(splat(_bssfp), design)
+    return vec(tmp)
+end
+#src tmp = signal_c0(x)
+signal_ri0(x) = real_imag(signal_c0(x))
+#src signal_ri0(x)
+
+snr_db = 40
+σ = snr2sigma(snr_db, signal_c0(x))
+crb_ri0 = crb(signal_ri0, x, σ)
+crb_std0 = sqrt.(diag(crb_ri0))
+round2(x) = round(x; sigdigits=2)
+crb_cv0 = round2.(crb_std0 ./ x)
+tab2 = [ # table of results
+ :dB snr_db :σ round2(σ);
+ :TR_ms TR_ms :TE_ms TE_ms;
+ :num_scans num_scans "" "";
+ :param :value :std :crb_cv;
+ collect(keys(xt)) collect(xt) round2.(crb_std0) crb_cv0;
+]
+
+#src y = signal_c1(x)
 
 #src include("../../../inc/reproduce.jl")
