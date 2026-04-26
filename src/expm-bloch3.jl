@@ -448,8 +448,8 @@ end
 Caution: used only for testing.
 """
 function excite_bloch3(spin::Spin, rf::InstantaneousRF;
-    tiny_r1 = 1e-11,
-    tiny_r2 = 1e-10,
+    r1_tiny = 1e-11,
+    r2_tiny = 1e-10,
     warn::Bool = true,
 )
     warn && @warn("use only for testing!")
