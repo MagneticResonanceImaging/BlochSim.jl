@@ -77,7 +77,6 @@ function plot_tip(θ; α=π/2, color=:blue, excite=excite)
      framestyle = :origin,
      size = (400, 400),
      camera = (139, 30),
-     # thickness_scaling = 2,
      title = "θ = $(round2(rad2deg(θ)))°",
     )
     plot!([0, -sin(θ)], [0, -cos(θ)], [0, 0], lw=3, color=:black) # B1
