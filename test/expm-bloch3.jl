@@ -1,5 +1,6 @@
 # expm-bloch3.jl
 
+using BlochSim: Spin, excite, InstantaneousRF
 using BlochSim: expm_bloch3, expm_bloch3!
 using BlochSim: excite_bloch3, excite_bloch3!, _TE_ms
 using BlochSim: matrix_bloch3, matrix_bloch3!, eigvals_bloch3, eigvec_3by3!
@@ -114,13 +115,6 @@ compare_eigs(eig_la::Vector{<:Complex}, eig_b3) =
     @test Ev ≈ E0
 
 
-    # excite
-    b1 = Vector{T}(undef, 3)
-    @inferred excite_bloch3!(expAt, b1, work, xp..., t) # warm up
-    @test 160 ≥ @allocated excite_bloch3!(expAt, b1, work, xp..., t)
-    @test (expAt, b1) == excite_bloch3(xp..., t)
-    @test 0 == @inferred _TE_ms(Val(:postRF), Inf)
-
     # 2 repeated roots
     xr2 = (2, 1, 0, 0, 0)
     @test exp(matrix_bloch3(xr2...)) ≈ expm_bloch3(xr2..., 1)
@@ -140,6 +134,24 @@ compare_eigs(eig_la::Vector{<:Complex}, eig_b3) =
     # analytical solution: tip
     expm_bloch3(0, 0, 0, π/2, 0, 1) ≈ [0 0 1; 0 1 0; -1 0 0]
     expm_bloch3(0, 0, 0, 0, π/2, 1) ≈ [1 0 0; 0 0 1; 0 -1 0]
+
+
+    # excite
+    # todo excite_bloch3!(expAt, b1, work, 0., 0., 0., 1., 0., 1.)
+
+    b1 = Vector{T}(undef, 3)
+    @inferred excite_bloch3!(expAt, b1, work, xp..., t) # warm up
+    @test 160 ≥ @allocated excite_bloch3!(expAt, b1, work, xp..., t)
+    @test (expAt, b1) == excite_bloch3(xp..., t)
+    @test 0 == @inferred _TE_ms(Val(:postRF), Inf)
+
+    # w0 = 2π * (Δf_Hz/1000) # rad/ms
+    Δf_Hz = w * 1000 / 2π
+    spin = Spin(1, 1000/r1, 1000/r2, Δf_Hz)
+    rf = InstantaneousRF(π/4, π/3)
+    expA3, b3 = @inferred excite_bloch3(spin, rf)
+    expAe, be = excite(spin, rf)
+    @test maximum(abs, b3) < 1e-11 # todo: refine when r1=r2=0
 
 
     # autodiff
