@@ -83,12 +83,13 @@ function plot_tip(θ; # phase angle
 
     plot!([0, -sin(θ)], [0, -cos(θ)], [0, 0], lw=3, color=:black) # B₁
 
-    for α in range(0, α, 11)
+    for (i, α) in enumerate(range(0, α, 11))
         rf = InstantaneousRF(α, θ)
         A, _ = excite(spin, rf)
         v = Matrix(A) * [0, 0, 1]
-        plot!([0, v[1]], [0, v[2]], [0, v[3]], lw=2; color)
-        scatter3d!([v[1]], [v[2]], [v[3]],
+        alpha = i/11 # transparency
+        plot!([0, v[1]], [0, v[2]], [0, v[3]], lw=2; color, alpha,)
+        scatter3d!([v[1]], [v[2]], [v[3]]; alpha,
             markercolor = color,
             markershape = :utriangle, # lazy arrow tip
         )
