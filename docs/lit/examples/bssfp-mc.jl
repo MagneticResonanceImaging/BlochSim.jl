@@ -1,5 +1,5 @@
 #=
-# [bSSFP](@id 01-bssfp)
+# [bSSFP multi-pool](@id 01-bssfp)
 
 This page illustrates using the Julia package
 [`BlochSim`](https://github.com/StevenWhitaker/BlochSim.jl)
@@ -617,4 +617,4 @@ tab2 = [ # table of results
 
 #src todo: simulation to compare to CRB using Optim
 
-include("../../../inc/reproduce.jl")
+#src include("../../../inc/reproduce.jl")
