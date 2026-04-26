@@ -137,8 +137,6 @@ compare_eigs(eig_la::Vector{<:Complex}, eig_b3) =
 
 
     # excite
-    # todo excite_bloch3!(expAt, b1, work, 0., 0., 0., 1., 0., 1.)
-
     b1 = Vector{T}(undef, 3)
     @inferred excite_bloch3!(expAt, b1, work, xp..., t) # warm up
     @test 160 ≥ @allocated excite_bloch3!(expAt, b1, work, xp..., t)
@@ -149,9 +147,9 @@ compare_eigs(eig_la::Vector{<:Complex}, eig_b3) =
     Δf_Hz = w * 1000 / 2π
     spin = Spin(1, 1000/r1, 1000/r2, Δf_Hz)
     rf = InstantaneousRF(π/4, π/3)
-    expA3, b3 = @inferred excite_bloch3(spin, rf)
+    expA3, b3 = @inferred excite_bloch3(spin, rf; warn = false)
     expAe, be = excite(spin, rf)
-    @test maximum(abs, b3) < 1e-11 # todo: refine when r1=r2=0
+    @test maximum(abs, b3) < 1e-11 # because of r1_tiny
 
 
     # autodiff
