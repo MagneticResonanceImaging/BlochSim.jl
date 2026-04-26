@@ -1,8 +1,8 @@
 """
     Gradient(x, y, z)
 
-Create a `Gradient` object representing x, y, and z B0 gradients. Units are
-G/cm.
+Create a `Gradient` object representing x, y, and z B0 gradients.
+Units are G/cm.
 
 # Properties
 - `x::Real`: x gradient
@@ -20,6 +20,10 @@ Gradient(x, y, z) = Gradient(promote(x, y, z)...)
 Base.show(io::IO, grad::Gradient) = print(io, "Gradient(", grad.x, ", ", grad.y, ", ", grad.z, ")")
 Base.show(io::IO, ::MIME"text/plain", grad::Gradient{T}) where {T} =
     print(io, "Gradient{$T}:\n Gx = ", grad.x, " G/cm\n Gy = ", grad.y, " G/cm\n Gz = ", grad.z, " G/cm")
+
+
+Base.Vector(g::Gradient) = [g.x, g.y, g.z]
+
 
 """
     gradient_frequency(grad, pos)
