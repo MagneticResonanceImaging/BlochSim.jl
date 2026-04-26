@@ -66,7 +66,7 @@ spin = Spin(Mz0, T1_ms, T2_ms, Δf_Hz)
 
 
 # helper
-function plot_tip(θ; α=π/2, color=:blue)
+function plot_tip(θ; α=π/2, color=:blue, excite=excite)
     v = nothing
     tmp = [1, 1, 1]
     p = plot(
@@ -101,13 +101,16 @@ function plot_tip(θ; α=π/2, color=:blue)
     return p
 end;
 
-ptip = plot(
- plot_tip(  0, color=:blue),
- plot_tip(π/4, color=:magenta),
- plot_tip(π/2, color=:red),
- layout = (1,3),
- size = (900, 300),
-)
+function plot_tip3( ; excite=excite)
+    return plot(
+     plot_tip(  0, color=:blue; excite),
+     plot_tip(π/4, color=:magenta; excite),
+     plot_tip(π/2, color=:red; excite),
+     layout = (1,3),
+     size = (900, 300),
+    )
+end
+ptip1 = plot_tip3( ; excite=excite)
 
 #
 prompt()
@@ -156,5 +159,9 @@ round2.(Matrix(A2))
 
 #
 round2.(Matrix(A2) * [0, 0, 1])
+
+# todo: more discussion
+ptip3 = plot_tip3( ; excite=excite_bloch3)
+prompt()
 
 #src include("../../../inc/reproduce.jl")
