@@ -409,7 +409,7 @@ function excite_bloch3!(
     d = work.d
     d[1], d[2], d[3] = 0, 0, r1
     matrix_bloch3!(A, r1, r2, w, s, c)
-    iszero(r1) && iszero(r2) && throw("r1=r2=0 todo")
+    iszero(r1) && iszero(r2) && throw("r1=r2=0 unsupported") # i.e., InstantaneousRF
     F = lu!(A)
     ldiv!(F, d) # d → A^-1 * d
     mul!(b1, expAt, d) # exp(A*t) * A^-1 * d
@@ -420,7 +420,6 @@ end
 
 """
     (A1, b1) = excite_bloch3(r1, r2, w, s, c, t)
-    excite_bloch3(spin::Spin, rf::InstantaneousRF)
 
 Return solution to Bloch equation
 `A1 = exp(A*t)`
@@ -443,12 +442,22 @@ function excite_bloch3(
     return (expAt, b1)
 end
 
-function excite_bloch3(spin::Spin, rf::InstantaneousRF)
+
+"""
+    (A1, b1) = excite_bloch3(spin::Spin, rf::InstantaneousRF)
+Caution: used only for testing.
+"""
+function excite_bloch3(spin::Spin, rf::InstantaneousRF;
+    tiny_r1 = 1e-11,
+    tiny_r2 = 1e-10,
+    warn::Bool = true,
+)
+    warn && @warn("use only for testing!")
     Δf_Hz = spin.Δf
     α_rad = rf.α
-    ϕ = rf.θ + π/2 # todo
+    ϕ = rf.θ + π/2 # need to make rotation convention in rotatetheta!()
     expA, b1 = excite_bloch3(
-        1e-11, 1e-10, # r1, r2 irrelevant for instantaneous RF
+        r1_tiny, r2_tiny, # r1, r2 irrelevant for instantaneous RF
         2π * (Δf_Hz/1000), # w0 in rad/ms (also irrelevant "")
         α_rad/1 * sin(ϕ), α_rad/1 * cos(ϕ), 1, # tRF_ms arbitrary
     )
