@@ -9,14 +9,16 @@ balanced steady-state free precession
 [(bSSFP)](https://en.wikipedia.org/wiki/Steady-state_free_precession_imaging)
 pulse sequences.
 
-Specifically it examines the effects of finite RF pulse duration.
+Specifically it examines the effects of finite RF pulse duration
+for a single isochromat (1-pool model).
 
 
 ### References
 
-- todo
-
+- Bieri & Scheffler, MRM 62(5):1232-41, Nov 2009:
+  [SSFP signal with finite RF pulses](https://doi.org/10.1002/mrm.22116).
 =#
+#src bieri:09:ssw
 
 #srcURL
 
@@ -32,13 +34,16 @@ if you are using any of the following packages for the first time.
 if false
     import Pkg
     Pkg.add([
+        "ADTypes"
         "BlochSim"
         "ForwardDiff"
         "InteractiveUtils"
         "LaTeXStrings"
         "LinearAlgebra"
         "MIRTjim"
+        "Optim"
         "Plots"
+        "Random"
     ])
 end
 
@@ -46,15 +51,19 @@ end
 # Tell this Julia session to use the following packages for this example.
 # Run `Pkg.add()` in the preceding code block first, if needed.
 
-using BlochSim: Spin, SpinMC, InstantaneousRF, RF, excite
+using ADTypes: AutoForwardDiff
+using BlochSim: Spin, InstantaneousRF, RF, RectRF, excite
 using BlochSim: bssfp, GAMMA, expm_bloch3, excite_bloch3, RF1, b1_gauss
 using BlochSim: crb, real_imag, snr2sigma
-#src import ForwardDiff # todo: later
-using LinearAlgebra: diag
+using LinearAlgebra: diag, norm
 using MIRTjim: prompt
+using Optim: optimize
 using Plots: default, gui, plot, plot!, scatter!
+using Random: seed!
+
 default(titlefontsize = 10, markerstrokecolor = :auto, label="", width = 1.5,
     linewidth=2)
+seed!(0)
 
 
 # The following line is helpful when running this file as a script;
@@ -70,7 +79,7 @@ Examine effects of finite RF pulse duration
 for a single spin with a relatively short T2.
 =#
 
-Mz0, T1_ms, T2_ms, Δf_Hz = 1, 400, 10, 9 # tissue parameters
+Mz0, T1_ms, T2_ms, Δf_Hz = 2, 400, 10, 9 # tissue parameters
 kappa = 1 # also estimate the B1+ factor
 xt = (; Mz0, T1_ms, T2_ms, Δf_Hz, kappa) # tuple
 x = collect(Float64, xt) # unknowns in vector
@@ -95,9 +104,13 @@ signal1te = _bssfp(TE_ms, rf1)
 @assert signal0te ≈ signal1te # should be essentially identical
 @assert α_rad == rf0.α ≈ only(rf1.α)
 
+# RectRF version with very short duration
+rf30 = RectRF(1e-7, α_rad) # super-short for first test
+signal30te = _bssfp(TE_ms, rf30)
+@assert maximum(abs, signal30te - signal0te) ≤ 1e-8
 
 #=
-### Test 2ms RF pulse
+### Test 2ms `RF` pulse
 Somewhat unexpectedly (to JF),
 the bSSFP signal matches the `InstantaneousRF` case.
 
@@ -112,12 +125,17 @@ By the time we reach TE = TR/2,
 apparently this approximation
 yields the same transverse magnetization
 as an instantaneous RF pulse!
+But it differs from the exact solution
+provided by `RectRF`.
 =#
-rf2 = RF1(α_rad, 2) # 2 ms tRF_ms
+tRF_ms = 2 # 2 ms tRF_ms
+rf2 = RF1(α_rad, tRF_ms)
+rf3 = RectRF(tRF_ms, α_rad)
 signal2te = _bssfp(TE_ms, rf2)
+signal3te = _bssfp(TE_ms, rf3)
 @assert signal0te ≈ signal2te # matches!?
 @assert α_rad == rf0.α ≈ only(rf2.α)
-
+@assert signal2te ≉ signal3te
 
 #=
 In contrast,
@@ -128,8 +146,10 @@ differs from that of the instantaneous RF.
 signal0rf = _bssfp(Val(:postRF), 0, rf0)
 signal1rf = _bssfp(Val(:postRF), 0, rf1)
 signal2rf = _bssfp(Val(:postRF), 0, rf2)
+signal3rf = _bssfp(Val(:postRF), 0, rf3)
 @assert signal0rf ≈ signal1rf
 @assert !(signal0rf ≈ signal2rf)
+@assert !(signal2rf ≈ signal3rf)
 
 
 #=
@@ -145,6 +165,12 @@ A1, B1 = excite(spin, rf1)
 A2, B2 = excite(spin, rf2)
 @assert Matrix(A1) ≉ Matrix(A2) # differ, as expected
 @assert Vector(B1) ≉ Vector(B2)
+
+A3, B3 = excite(spin, rf3)
+@assert Matrix(A1) ≉ Matrix(A3) # differ, as expected
+@assert Vector(B1) ≉ Vector(B3)
+#src @show maximum(abs, Vector(B1) - Vector(B3))
+#src @show maximum(abs, Matrix(A1) - Matrix(A3))
 
 
 #=
@@ -172,10 +198,14 @@ errora = similar(tRF_list)
 errorb = similar(errora)
 for (i, tRF) in enumerate(tRF_list)
     rf = RF1(α_rad, tRF) # single sample RF waveform
-    (E3, b3) = excite_bloch3(spin, rf) # "exact"
+#src (E3old, b3old) = excite_bloch3(spin, rf) # "exact"
+    rfr = RectRF(tRF, α_rad)
+    (E3, b3) = excite(spin, rfr) # "exact"
+#src @assert Matrix(E3) ≈ Matrix(E3old)
+#src @assert Vector(b3) ≈ Vector(b3old)
     Ae, Be = excite(spin, rf) # approximate
-    errora[i] = maximum(abs, Matrix(Ae) - E3)
-    errorb[i] = maximum(abs, Vector(Be) - b3)
+    errora[i] = maximum(abs, Matrix(Ae) - Matrix(E3))
+    errorb[i] = maximum(abs, Vector(Be) - Vector(b3))
 end
 perr = plot(title =
  "Cascade approximation vs expm for M₀=$Mz0 T₁=$T1_ms T₂=$T2_ms Δf=$Δf_Hz Hz",
@@ -198,12 +228,14 @@ for (i, nw) in enumerate(nw_list)
     waveform = ones(nw) * b1_gauss(α_rad, tRF_ms)
     rf = RF(waveform, tRF_ms / nw) # multi-sample RF waveform
     @assert rf0.α ≈ sum(rf.α)
-    (E3, b3) = excite_bloch3(spin, # "exact"
-        RF1(α_rad, tRF_ms), # single sample RF waveform
-    )
+#src   (E3, b3) = excite_bloch3(spin, # "exact"
+#src       RF1(α_rad, tRF_ms), # single sample RF waveform
+#src   )
+    rfr = RectRF(tRF_ms, α_rad)
+    (E3, b3) = excite(spin, rfr) # "exact"
     Ae, Be = excite(spin, rf) # approximate
-    erroroa[i] = maximum(abs, Matrix(Ae) - E3)
-    errorob[i] = maximum(abs, Vector(Be) - b3)
+    erroroa[i] = maximum(abs, Matrix(Ae) - Matrix(E3))
+    errorob[i] = maximum(abs, Vector(Be) - Vector(b3))
     scatter!([tRF_ms], erroroa[i:i]; color=:red,
         marker = nw > 1 ? :square : :circle,
         label = nw > 1 ? "'A' nw=$nw error" : "", )
@@ -215,13 +247,6 @@ end;
 #
 prompt()
 
-#=
-## bSSFP signal model error
-todo
-throw()
-=#
-
-#src bssfp(bSSFPbloch3, ... todo
 
 #=
 WIP - ignore
@@ -245,21 +270,33 @@ bs2 = bssfp(spin, TR_ms, duration(rf2)/2, 0, rf2)
 =#
 
 
+#=
+## bSSFP signal model error
+=#
+
+rf0 = InstantaneousRF(α_rad)
+signal0te = _bssfp(TE_ms, rf0);
+
 # Plot
 xaxis = ("phase cycling increment Δϕ (rad)", (-π, π), ((-1:1).*π, ["-π", "0", "π"]))
 prfm = plot( ; xaxis, ylabel = "bSSFP signal mag", legend=:top)
 prfa = plot( ; xaxis, ylabel = "bSSFP signal phase",);
 
-#src plot!(Δϕ_rad, abs.(signal1), label="tRF = $tRF_ms")
-nw = 1000 # approximately 1μs dwell time
 for tRF_ms in [2 1 1e-2]
-    waveform = ones(nw) * b1_gauss(α_rad, tRF_ms)
-    rf = RF(waveform, tRF_ms / nw)
+    n1 = Int(tRF_ms / 2e-3) # approximately 2μs dwell time
+    waveform = ones(n1) * b1_gauss(α_rad, tRF_ms)
+    rf = RF(waveform, tRF_ms / n1)
     @assert rf0.α ≈ sum(rf.α)
+    rfr = RectRF(tRF_ms, α_rad)
     signal4te = _bssfp(TE_ms, rf)
-    label = "tRF = $tRF_ms ms, nw=$nw"
-    plot!(prfm, Δϕ_rad, abs.(signal4te); label)
-    plot!(prfa, Δϕ_rad, angle.(signal4te); label)
+    signal5te = _bssfp(TE_ms, rfr)
+    @assert maximum(abs, signal4te - signal5te) ≤ 1e-5
+    label = "tRF = $tRF_ms ms, RectRF"
+    plot!(prfm, Δϕ_rad, abs.(signal5te); label)
+    plot!(prfa, Δϕ_rad, angle.(signal5te); label)
+    label = "tRF = $tRF_ms ms, n=$n1"
+    plot!(prfm, Δϕ_rad, abs.(signal4te); label, line=:dash)
+    plot!(prfa, Δϕ_rad, angle.(signal4te); label, line=:dash)
 end;
 
 plot!(prfm, Δϕ_rad, abs.(signal0te), label="Instantaneous", line=:dash)
@@ -271,36 +308,54 @@ prf = plot(prfm, prfa, layout=(2,1),
 #
 prompt()
 
+
 #=
 ### Effect on qMRI
-todo
+
+Here we simulate data
+for a finite-duration RF pulse,
+and then fit it with two models:
+one with and instantaneous RF pulse
+(hence model mismatch)
+and on with the finite-duration pulse.
 =#
 
 # scan "design"
-Δϕ_rads = (1:8)/8 * 2π # phase-cycling factors
-α_degs = [10, 30, 50] # flip angles
+tRF_ms = 1
+Δϕ_rads = (1:8)/8 * 2π .- π # phase-cycling factors
+α_degs = [10, 30, 50, 70] # flip angles
 α_rads = deg2rad.(α_degs)
 design = (; α_rads, Δϕ_rads)
 design = Iterators.product(Δϕ_rads, α_rads)
 num_scans = length(design) # number of different scans
 
 
-function signal_c0(x)
-    kappa = x[5]
-    _bssfp(Δϕ_rad, α_rad) = bssfp(x[1:4]..., TR_ms, TE_ms, Δϕ_rad,
-        InstantaneousRF(kappa * α_rad))
-    tmp = map(splat(_bssfp), design)
-    return vec(tmp)
-end
-#src tmp = signal_c0(x)
-signal_ri0(x) = real_imag(signal_c0(x))
-#src signal_ri0(x)
+# Helpers for InstantaneousRF and RectRF bSSFP signal models
+_bssfp0(x, Δϕ_rad, α_rad) =
+    bssfp(x[1:4]..., TR_ms, TE_ms, Δϕ_rad, InstantaneousRF(x[5] * α_rad))
+_bssfp3(x, Δϕ_rad, α_rad) =
+    bssfp(x[1:4]..., TR_ms, TE_ms, Δϕ_rad, RectRF(tRF_ms, kappa * α_rad))
 
-snr_db = 40
+function signal_c0(x)
+    _bssfp(Δϕ_rad, α_rad) = _bssfp0(x, Δϕ_rad, α_rad)
+    return map(splat(_bssfp), design)
+end
+signal_ri0(x) = real_imag(vec(signal_c0(x)))
+
+function signal_c3(x; Δϕ_rad = Δϕ_rad)
+    kappa = x[5]
+    _bssfp(Δϕ_rad, α_rad) = _bssfp3(x, Δϕ_rad, α_rad)
+    return map(splat(_bssfp), design)
+end
+signal_ri3(x) = real_imag(vec(signal_c3(x)))
+
+#src signal_ri0(x), signal_ri3(x)
+
+snr_db = 50
 σ = snr2sigma(snr_db, signal_c0(x))
 crb_ri0 = crb(signal_ri0, x, σ)
 crb_std0 = sqrt.(diag(crb_ri0))
-round2(x) = round(x; sigdigits=2)
+round2(x) = round(x; sigdigits=3)
 crb_cv0 = round2.(crb_std0 ./ x)
 tab2 = [ # table of results
  :dB snr_db :σ round2(σ);
@@ -310,6 +365,36 @@ tab2 = [ # table of results
  collect(keys(xt)) collect(xt) round2.(crb_std0) crb_cv0;
 ]
 
+# simulate data using the "exact" finite RF model
+yb = signal_c3(x)
+y = signal_c3(x) + 1σ * randn(ComplexF64, size(yb));
+#src @show 20*log10(norm(yb) / norm(y - yb))
+
+plot( ; xaxis, widen = true)
+scatter!(Δϕ_rads, abs.(y), label="noisy data", color=:blue)
+tmp = Base.Fix{1}(_bssfp3, x).(Δϕ_rad, α_rads')
+plot!(Δϕ_rad, abs.(tmp), label="3", color=:blue)
+tmp = Base.Fix{1}(_bssfp0, x).(Δϕ_rad, α_rads')
+plot!(Δϕ_rad, abs.(tmp), label="0", line=:dash, color=:red)
+
+# Nonlinear LS fitting cost functions
+cost0(x) = abs2(norm(signal_ri0(x) - real_imag(vec(y))))
+cost3(x) = abs2(norm(signal_ri3(x) - real_imag(vec(y))))
+
+# Nonlinear LS fitting
+opt0 = optimize(cost0, x; autodiff = AutoForwardDiff())
+opt3 = optimize(cost3, x; autodiff = AutoForwardDiff())
+xh0 = opt0.minimizer
+xh3 = opt3.minimizer
+tabe = [ # estimation results table
+ "" :true :rf0 :rf3;
+ collect(keys(xt)) collect(xt) round2.([xh0 xh3]);
+]
+
+tmp = Base.Fix{1}(_bssfp0, xh0).(Δϕ_rads, α_rads')
+scatter!(Δϕ_rads, abs.(tmp), label="fit0", marker=:square, color=:cyan)
+
 #src y = signal_c1(x)
+#throw()
 
 #src include("../../../inc/reproduce.jl")
