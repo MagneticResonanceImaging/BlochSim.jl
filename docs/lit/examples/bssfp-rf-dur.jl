@@ -47,7 +47,7 @@ end
 # Run `Pkg.add()` in the preceding code block first, if needed.
 
 using BlochSim: Spin, SpinMC, InstantaneousRF, RF, excite
-using BlochSim: bssfp, GAMMA, expm_bloch3, excite_bloch3
+using BlochSim: bssfp, GAMMA, expm_bloch3, excite_bloch3, RF1, b1_gauss
 using BlochSim: crb, real_imag, snr2sigma
 #src import ForwardDiff # todo: later
 using LinearAlgebra: diag
@@ -85,23 +85,6 @@ _bssfp(TE_ms, rf) = map(Δϕ -> _bssfp(TE_ms, Δϕ, rf), Δϕ_rad) # helper
 rf0 = InstantaneousRF(α_rad)
 signal0te = _bssfp(TE_ms, rf0); # signal for InstantaneousRF at TE
 
-
-"""
-    b1_gauss(α_rad, tRF_ms)
-
-Return finite-duration (rectangular) RF pulse amplitude
-- `GAMMA` has units rad/s/G
-- Tip angle for constant pulse:
-  `α_rad = GAMMA * b1_gauss * tRF_s`
-- so `b1_gauss = α_rad / GAMMA / tRF_s`
-"""
-b1_gauss(α_rad, tRF_ms) = α_rad / GAMMA / (tRF_ms / 1000);
-
-# helper to make 1-sample RF "waveforms"
-function RF1(α_rad, tRF_ms)
-    waveform = [1] * b1_gauss(α_rad, tRF_ms) # single sample "waveform"
-    return RF(waveform, tRF_ms)
-end;
 
 
 #=
@@ -183,17 +166,14 @@ E0 = expm_bloch3(0, 0, 0*w0, # must ignore Δf₀ for this test
     α_rad * sin(Δϕ_rad0+π/2), α_rad * cos(Δϕ_rad0+π/2), 1)
 @assert E0 ≈ Matrix(A0)
 
-r1_kHz = 1 / spin.T1
-r2_kHz = 1 / spin.T2
-
+# Rectangular RF case:
 tRF_list = range(0.02, 5, 250)
 errora = similar(tRF_list)
 errorb = similar(errora)
 for (i, tRF) in enumerate(tRF_list)
     rf = RF1(α_rad, tRF) # single sample RF waveform
-    (E3, b3) = excite_bloch3(r1_kHz, r2_kHz, w0,
-        α_rad/tRF * sin(Δϕ_rad0+π/2), α_rad/tRF * cos(Δϕ_rad0+π/2), tRF)
-    Ae, Be = excite(spin, rf)
+    (E3, b3) = excite_bloch3(spin, rf) # "exact"
+    Ae, Be = excite(spin, rf) # approximate
     errora[i] = maximum(abs, Matrix(Ae) - E3)
     errorb[i] = maximum(abs, Vector(Be) - b3)
 end
@@ -203,8 +183,10 @@ perr = plot(title =
     yaxis = ("Max-norm error", ),
 )
 plot!(tRF_list, errora, color=:red, label = "Excitation matrix 'A' error")
-plot!(tRF_list, 10errorb, color=:blue, label = "'b' vector error × 10");
+plot!(tRF_list, 10*errorb, color=:blue, label = "'b' vector error × 10");
 
+#
+prompt()
 
 # ## Examine over-sampling
 
@@ -216,16 +198,16 @@ for (i, nw) in enumerate(nw_list)
     waveform = ones(nw) * b1_gauss(α_rad, tRF_ms)
     rf = RF(waveform, tRF_ms / nw) # multi-sample RF waveform
     @assert rf0.α ≈ sum(rf.α)
-    (E3, b3) = excite_bloch3(r1_kHz, r2_kHz, w0,
-      α_rad/tRF_ms * sin(Δϕ_rad0+π/2), α_rad/tRF_ms * cos(Δϕ_rad0+π/2), tRF_ms)
-    Ae, Be = excite(spin, rf)
-    signal4te = _bssfp(TE_ms, rf)
+    (E3, b3) = excite_bloch3(spin, # "exact"
+        RF1(α_rad, tRF_ms), # single sample RF waveform
+    )
+    Ae, Be = excite(spin, rf) # approximate
     erroroa[i] = maximum(abs, Matrix(Ae) - E3)
     errorob[i] = maximum(abs, Vector(Be) - b3)
     scatter!([tRF_ms], erroroa[i:i]; color=:red,
         marker = nw > 1 ? :square : :circle,
         label = nw > 1 ? "'A' nw=$nw error" : "", )
-    scatter!([tRF_ms], 10errorob[i:i]; color=:blue,
+    scatter!([tRF_ms], 10*errorob[i:i]; color=:blue,
         marker = nw > 1 ? :square : :circle,
         label = nw > 1 ? "'b' nw=$nw error ×10" : "", )
 end;
@@ -233,7 +215,11 @@ end;
 #
 prompt()
 
-#src todo: examine bSSFP signal model error
+#=
+## bSSFP signal model error
+todo
+throw()
+=#
 
 #src bssfp(bSSFPbloch3, ... todo
 
