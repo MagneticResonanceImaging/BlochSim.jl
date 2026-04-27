@@ -1,6 +1,7 @@
 # expm-bloch3.jl
 
-using BlochSim: expm_bloch3, expm_bloch3!
+using BlochSim: Spin, excite, GAMMA, InstantaneousRF, RF
+using BlochSim: expm_bloch3, expm_bloch3!, b1_gauss, RF1
 using BlochSim: excite_bloch3, excite_bloch3!, _TE_ms
 using BlochSim: matrix_bloch3, matrix_bloch3!, eigvals_bloch3, eigvec_3by3!
 using BlochSim: Bloch3ExpmWorkspace, cross!, eigvec_bloch3!, eigen_bloch3!
@@ -114,13 +115,6 @@ compare_eigs(eig_la::Vector{<:Complex}, eig_b3) =
     @test Ev ≈ E0
 
 
-    # excite
-    b1 = Vector{T}(undef, 3)
-    @inferred excite_bloch3!(expAt, b1, work, xp..., t) # warm up
-    @test 160 ≥ @allocated excite_bloch3!(expAt, b1, work, xp..., t)
-    @test (expAt, b1) == excite_bloch3(xp..., t)
-    @test 0 == @inferred _TE_ms(Val(:postRF), Inf)
-
     # 2 repeated roots
     xr2 = (2, 1, 0, 0, 0)
     @test exp(matrix_bloch3(xr2...)) ≈ expm_bloch3(xr2..., 1)
@@ -140,6 +134,43 @@ compare_eigs(eig_la::Vector{<:Complex}, eig_b3) =
     # analytical solution: tip
     expm_bloch3(0, 0, 0, π/2, 0, 1) ≈ [0 0 1; 0 1 0; -1 0 0]
     expm_bloch3(0, 0, 0, 0, π/2, 1) ≈ [1 0 0; 0 0 1; 0 -1 0]
+
+
+    # excite
+    b1 = Vector{T}(undef, 3)
+    @inferred excite_bloch3!(expAt, b1, work, xp..., t) # warm up
+    @test 160 ≥ @allocated excite_bloch3!(expAt, b1, work, xp..., t)
+    @test (expAt, b1) == excite_bloch3(xp..., t)
+    @test 0 == @inferred _TE_ms(Val(:postRF), Inf)
+
+    Δf_Hz = w * 1000 / 2π # w0 = 2π * (Δf_Hz/1000) # rad/ms
+    α_rad = π/3
+    θ = π/5
+    begin
+        spin0 = Spin(1, 1e9, 1e8, 1e-8*Δf_Hz)
+        rf0 = InstantaneousRF(α_rad, θ)
+        expA3, b3 = @inferred excite_bloch3(spin0, rf0; warn = false)
+        expAe, be = excite(spin0, rf0)
+        expAe = Matrix(expAe)
+        @test maximum(abs, b3) < 1e-11
+        @test maximum(abs, expAe - expA3) < 2e-8
+    end
+
+    spin = Spin(1, 1000/r1, 1000/r2, Δf_Hz)
+    tRF_ms = 2
+    rf1 = RF1(α_rad, tRF_ms, θ)
+
+    # test single-sample bloch3 vs many-sample BlochSim
+    nw = 2000
+    waveform = fill(cis(θ), nw) * b1_gauss(α_rad, tRF_ms)
+    rf2 = RF(waveform, tRF_ms / nw) # multi-sample RF waveform
+
+    A3, b3 = @inferred excite_bloch3(spin, rf1)
+    A1, b1 = @inferred excite(spin, rf2)
+    A1 = Matrix(A1)
+    b1 = Vector(b1)
+    @test maximum(abs, b1 - b3) < 1e-9
+    @test maximum(abs, A1 - A3) < 1e-7
 
 
     # autodiff

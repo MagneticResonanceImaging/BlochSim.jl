@@ -409,6 +409,7 @@ function excite_bloch3!(
     d = work.d
     d[1], d[2], d[3] = 0, 0, r1
     matrix_bloch3!(A, r1, r2, w, s, c)
+    iszero(r1) && iszero(r2) && throw("r1=r2=0 unsupported") # i.e., InstantaneousRF
     F = lu!(A)
     ldiv!(F, d) # d → A^-1 * d
     mul!(b1, expAt, d) # exp(A*t) * A^-1 * d
@@ -418,7 +419,8 @@ end
 
 
 """
-    (A1, b1) = excite_bloch3(
+    (A1, b1) = excite_bloch3(r1, r2, w, s, c, t)
+
 Return solution to Bloch equation
 `A1 = exp(A*t)`
 and
@@ -438,4 +440,83 @@ function excite_bloch3(
     b1 = Vector{T}(undef, 3)
     excite_bloch3!(expAt, b1, work, T(r1), T(r2), T(w), T(s), T(c), T(t))
     return (expAt, b1)
+end
+
+
+"""
+    (A1, b1) = excite_bloch3(spin::Spin, rf::InstantaneousRF)
+Caution: used only for testing.
+"""
+function excite_bloch3(spin::Spin, rf::InstantaneousRF;
+    r1_tiny = 1e-11,
+    r2_tiny = 1e-10,
+    warn::Bool = true,
+)
+    warn && @warn("use only for testing!")
+    Δf_Hz = spin.Δf
+    α_rad = rf.α
+    ϕ = rf.θ + π/2 # need to make rotation convention in rotatetheta!()
+    expA, b1 = excite_bloch3(
+        r1_tiny, r2_tiny, # r1, r2 irrelevant for instantaneous RF
+        2π * (Δf_Hz/1000), # w0 in rad/ms (also irrelevant "")
+        α_rad/1 * sin(ϕ), α_rad/1 * cos(ϕ), 1, # tRF_ms arbitrary
+    )
+    return (expA, spin.M0 * b1)
+end
+
+
+
+"""
+    (A1, b1) = excite_bloch3(spin::Spin, rf::RF)
+Version for a constant (rect) RF pulse of duration `rf.Δt`,
+currently represented by a single sample (often complex) RF waveform.
+"""
+function excite_bloch3(spin::Spin, rf::RF{T,G}) where {T <: Real, G <: Gradient}
+
+    0 == gradient_frequency(rf.grad, spin.pos) || throw("gradient unsupported")
+    1 == length(rf) || throw("only single-sample RF waveform supported")
+    r1_kHz = 1 / spin.T1
+    r2_kHz = 1 / spin.T2
+    s, c = sincos(only(rf.θ) + π/2) # match convention in rotatetheta!()
+    tRF_ms = rf.Δt
+    α_rad = only(rf.α)
+    expA, b1 = excite_bloch3(
+        r1_kHz, r2_kHz,
+        2π * (spin.Δf/1000), # w0 in rad/ms
+        α_rad / tRF_ms * s, α_rad / tRF_ms * c, tRF_ms,
+    )
+    return (expA, spin.M0 * b1)
+end
+
+
+# Helpers for making rectangular RF pulses for use with analytical Bloch solvers
+
+"""
+    b1 = b1_gauss(α_rad, tRF_ms)
+
+Return finite-duration (rectangular) RF pulse amplitude
+# In
+- `α_rad` tip angle (radians)
+- `tRF_ms` pulse length (ms)
+
+# Notes:
+- `GAMMA` has units rad/s/G
+- Tip angle for constant pulse:
+  `α_rad = GAMMA * b1_gauss * tRF_s`
+- so `b1_gauss = α_rad / GAMMA / tRF_s`
+"""
+b1_gauss(α_rad, tRF_ms) = α_rad / GAMMA / (tRF_ms / 1000)
+
+
+"""
+    rf = RF1(α_rad, tRF_ms, θ = 0)
+RF "rectangular" pulse
+of duration `tRF_ms`
+for flip angle `α_rad`
+and phase `θ` (in radians),
+represented by a single-sample "waveform".
+"""
+function RF1(α_rad, tRF_ms, θ_rad = 0, args...; kwargs...)
+    waveform = [cis(θ_rad)] * b1_gauss(α_rad, tRF_ms) # single sample "waveform"
+    return RF(waveform, tRF_ms, args...; kwargs...)
 end

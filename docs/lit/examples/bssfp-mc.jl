@@ -1,5 +1,5 @@
 #=
-# [bSSFP](@id 01-bssfp)
+# [bSSFP multi-pool](@id 01-bssfp)
 
 This page illustrates using the Julia package
 [`BlochSim`](https://github.com/StevenWhitaker/BlochSim.jl)
@@ -53,7 +53,6 @@ if false
     import Pkg
     Pkg.add([
         "BlochSim"
-        "ForwardDiff"
         "LaTeXStrings"
         "LinearAlgebra"
         "MIRTjim"
@@ -66,8 +65,7 @@ end
 # Run `Pkg.add()` in the preceding code block first, if needed.
 
 using BlochSim: Spin, SpinMC, InstantaneousRF, RF, excite, freeprecess
-using BlochSim: bssfp, bSSFPellipse, GAMMA
-import ForwardDiff
+using BlochSim: bssfp, bSSFPellipse, GAMMA, crb, real_imag, snr2sigma
 using InteractiveUtils: versioninfo
 using LaTeXStrings: latexstring
 using LinearAlgebra: Diagonal, I, cond, diag, norm
@@ -259,10 +257,6 @@ pt1 = plot(pt1_m, pt1_p, layout=(2,1), plot_title = "bSSFP single pool for T1",
 #
 prompt()
 
-# helper functions for CRB
-real_imag(x) = [real(x); imag(x)] # stacker
-snr2sigma(db::Real, yb::AbstractArray{<:Complex}) =
-    10^(-db/20) * norm(yb) / sqrt(length(yb));
 
 #=
 ## CRB for 1-pool bSSFP
@@ -291,15 +285,10 @@ signal_ri(x) = real_imag(signal_c(x))
 dB = 40 # SNR
 σ = snr2sigma(dB, signal_c(x)) # noise level
 
-# Jacobian
-jac = ForwardDiff.jacobian(signal_ri, x)
-fish = jac' * jac / σ^2
-cond(fish) # 9e8
-
-# CRB and standard deviation:
-crb = inv(fish)
-crb_std = sqrt.(diag(crb))
-crb_cv1 = round.(crb_std ./ x ; digits=3) # coefficient of variation
+# CRB, standard deviation, and coefficient of variation
+crb_ri = crb(signal_ri, x, σ)
+crb_std = sqrt.(diag(crb_ri))
+crb_cv1 = round.(crb_std ./ x ; digits=3)
 
 
 #=
@@ -610,34 +599,22 @@ dB = 50 # SNR
 
 #
 snr_check = 20*log10(norm(signal_c(x) / σ / sqrt(length(signal_c(x)))))
+@assert snr_check ≈ dB
 
 
-# Jacobian
-jac = ForwardDiff.jacobian(signal_ri, x)
-fish = jac' * jac / σ^2
-cond(fish) # 5e10
-
-# The condition number depends on units, so remove units:
-D = Diagonal(1 ./ sqrt.(diag(fish)))
-tmp = D * fish * D
-cond(tmp) # 1e5
-
-# CRB and standard deviation:
-crb = inv(fish)
-crb_std = sqrt.(diag(crb))
-[collect(keys(xt)) collect(xt) crb_std]
-
-# Coefficient of variation via CRB
+# CRB, standard deviation, and coefficient of variation
+crb_ri = crb(signal_ri, x, σ)
+crb_std = sqrt.(diag(crb_ri))
 round2(x) = round(x; sigdigits=2)
 crb_cv2 = round2.(crb_std ./ x)
 tab2 = [ # table of results
-:dB dB :σ round2(σ);
-:TR_ms TR_ms :TE_ms TE_ms;
-:num_scans num_scans "" "";
-:param :value :std :crb_cv;
-collect(keys(xt)) collect(xt) round2.(crb_std) crb_cv2;
+ :dB dB :σ round2(σ);
+ :TR_ms TR_ms :TE_ms TE_ms;
+ :num_scans num_scans "" "";
+ :param :value :std :crb_cv;
+ collect(keys(xt)) collect(xt) round2.(crb_std) crb_cv2;
 ]
 
-#src todo: simulation to compare to CRB
+#src todo: simulation to compare to CRB using Optim
 
-include("../../../inc/reproduce.jl")
+#src include("../../../inc/reproduce.jl")

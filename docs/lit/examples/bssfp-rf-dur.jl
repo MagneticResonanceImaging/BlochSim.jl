@@ -47,10 +47,12 @@ end
 # Run `Pkg.add()` in the preceding code block first, if needed.
 
 using BlochSim: Spin, SpinMC, InstantaneousRF, RF, excite
-using BlochSim: bssfp, GAMMA, expm_bloch3, excite_bloch3
+using BlochSim: bssfp, GAMMA, expm_bloch3, excite_bloch3, RF1, b1_gauss
+using BlochSim: crb, real_imag, snr2sigma
 #src import ForwardDiff # todo: later
+using LinearAlgebra: diag
 using MIRTjim: prompt
-using Plots: gui, plot, plot!, default
+using Plots: default, gui, plot, plot!, scatter!
 default(titlefontsize = 10, markerstrokecolor = :auto, label="", width = 1.5,
     linewidth=2)
 
@@ -69,6 +71,9 @@ for a single spin with a relatively short T2.
 =#
 
 Mz0, T1_ms, T2_ms, Δf_Hz = 1, 400, 10, 9 # tissue parameters
+kappa = 1 # also estimate the B1+ factor
+xt = (; Mz0, T1_ms, T2_ms, Δf_Hz, kappa) # tuple
+x = collect(Float64, xt) # unknowns in vector
 α_deg = 50 # flip angle °
 TR_ms, TE_ms, α_rad = 8, 4, deg2rad(α_deg) # scan parameters
 spin = Spin(Mz0, T1_ms, T2_ms, Δf_Hz)
@@ -80,23 +85,6 @@ _bssfp(TE_ms, rf) = map(Δϕ -> _bssfp(TE_ms, Δϕ, rf), Δϕ_rad) # helper
 rf0 = InstantaneousRF(α_rad)
 signal0te = _bssfp(TE_ms, rf0); # signal for InstantaneousRF at TE
 
-
-"""
-    b1_gauss(α_rad, tRF_ms)
-
-Return finite-duration (rectangular) RF pulse amplitude
-- `GAMMA` has units rad/s/G
-- Tip angle for constant pulse:
-  `α_rad = GAMMA * b1_gauss * tRF_s`
-- so `b1_gauss = α_rad / GAMMA / tRF_s`
-"""
-b1_gauss(α_rad, tRF_ms) = α_rad / GAMMA / (tRF_ms / 1000);
-
-# helper to make 1-sample RF "waveforms"
-function RF1(α_rad, tRF_ms)
-    waveform = [1] * b1_gauss(α_rad, tRF_ms) # single sample "waveform"
-    return RF(waveform, tRF_ms)
-end;
 
 
 #=
@@ -178,33 +166,65 @@ E0 = expm_bloch3(0, 0, 0*w0, # must ignore Δf₀ for this test
     α_rad * sin(Δϕ_rad0+π/2), α_rad * cos(Δϕ_rad0+π/2), 1)
 @assert E0 ≈ Matrix(A0)
 
-r1_kHz = 1 / spin.T1
-r2_kHz = 1 / spin.T2
-
+# Rectangular RF case:
 tRF_list = range(0.02, 5, 250)
 errora = similar(tRF_list)
-errorb = similar(tRF_list)
+errorb = similar(errora)
 for (i, tRF) in enumerate(tRF_list)
     rf = RF1(α_rad, tRF) # single sample RF waveform
-    (E3, b3) = excite_bloch3(r1_kHz, r2_kHz, w0,
-        α_rad/tRF * sin(Δϕ_rad0+π/2), α_rad/tRF * cos(Δϕ_rad0+π/2), tRF)
-    Ae, Be = excite(spin, rf)
+    (E3, b3) = excite_bloch3(spin, rf) # "exact"
+    Ae, Be = excite(spin, rf) # approximate
     errora[i] = maximum(abs, Matrix(Ae) - E3)
     errorb[i] = maximum(abs, Vector(Be) - b3)
 end
-plot(title =
+perr = plot(title =
  "Cascade approximation vs expm for M₀=$Mz0 T₁=$T1_ms T₂=$T2_ms Δf=$Δf_Hz Hz",
     xaxis = ("RF duration [ms]", (0,5), ),
     yaxis = ("Max-norm error", ),
 )
-plot!(tRF_list, errora, label = "Excitation matrix 'A' error")
-plot!(tRF_list, 10errorb, label = "'b' vector error × 10")
+plot!(tRF_list, errora, color=:red, label = "Excitation matrix 'A' error")
+plot!(tRF_list, 10*errorb, color=:blue, label = "'b' vector error × 10");
+
+#
+prompt()
+
+# ## Examine over-sampling
+
+nw_list = [1, 4,]
+tRF_ms = 2
+erroroa = similar(errora, length(nw_list))
+errorob = similar(erroroa)
+for (i, nw) in enumerate(nw_list)
+    waveform = ones(nw) * b1_gauss(α_rad, tRF_ms)
+    rf = RF(waveform, tRF_ms / nw) # multi-sample RF waveform
+    @assert rf0.α ≈ sum(rf.α)
+    (E3, b3) = excite_bloch3(spin, # "exact"
+        RF1(α_rad, tRF_ms), # single sample RF waveform
+    )
+    Ae, Be = excite(spin, rf) # approximate
+    erroroa[i] = maximum(abs, Matrix(Ae) - E3)
+    errorob[i] = maximum(abs, Vector(Be) - b3)
+    scatter!([tRF_ms], erroroa[i:i]; color=:red,
+        marker = nw > 1 ? :square : :circle,
+        label = nw > 1 ? "'A' nw=$nw error" : "", )
+    scatter!([tRF_ms], 10*errorob[i:i]; color=:blue,
+        marker = nw > 1 ? :square : :circle,
+        label = nw > 1 ? "'b' nw=$nw error ×10" : "", )
+end;
 
 #
 prompt()
 
 #=
-WIP
+## bSSFP signal model error
+todo
+throw()
+=#
+
+#src bssfp(bSSFPbloch3, ... todo
+
+#=
+WIP - ignore
 
 using BlochSim: duration, freeprecess
 using LinearAlgebra: I
@@ -255,5 +275,41 @@ prompt()
 ### Effect on qMRI
 todo
 =#
+
+# scan "design"
+Δϕ_rads = (1:8)/8 * 2π # phase-cycling factors
+α_degs = [10, 30, 50] # flip angles
+α_rads = deg2rad.(α_degs)
+design = (; α_rads, Δϕ_rads)
+design = Iterators.product(Δϕ_rads, α_rads)
+num_scans = length(design) # number of different scans
+
+
+function signal_c0(x)
+    kappa = x[5]
+    _bssfp(Δϕ_rad, α_rad) = bssfp(x[1:4]..., TR_ms, TE_ms, Δϕ_rad,
+        InstantaneousRF(kappa * α_rad))
+    tmp = map(splat(_bssfp), design)
+    return vec(tmp)
+end
+#src tmp = signal_c0(x)
+signal_ri0(x) = real_imag(signal_c0(x))
+#src signal_ri0(x)
+
+snr_db = 40
+σ = snr2sigma(snr_db, signal_c0(x))
+crb_ri0 = crb(signal_ri0, x, σ)
+crb_std0 = sqrt.(diag(crb_ri0))
+round2(x) = round(x; sigdigits=2)
+crb_cv0 = round2.(crb_std0 ./ x)
+tab2 = [ # table of results
+ :dB snr_db :σ round2(σ);
+ :TR_ms TR_ms :TE_ms TE_ms;
+ :num_scans num_scans "" "";
+ :param :value :std :crb_cv;
+ collect(keys(xt)) collect(xt) round2.(crb_std0) crb_cv0;
+]
+
+#src y = signal_c1(x)
 
 #src include("../../../inc/reproduce.jl")

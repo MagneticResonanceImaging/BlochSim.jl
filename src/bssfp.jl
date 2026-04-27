@@ -5,10 +5,10 @@ for an isochromat (1-pool) and for a 2-pool model with exchange.
 =#
 
 export bssfp, bSSFPtuple1
-export bSSFPbloch, bSSFPellipse
+export bSSFPbloch, bSSFPbloch3, bSSFPellipse
 
 using BlochSim: Position, Spin, SpinMC, excite, freeprecess, duration
-using BlochSim: AbstractRF, InstantaneousRF
+using BlochSim: AbstractRF, InstantaneousRF, RF1
 using LinearAlgebra: I
 
 
@@ -18,10 +18,12 @@ using LinearAlgebra: I
 
 A type used to control how bSSFP signal is calculated.
 - `bSSFPbloch` use `BlochSim` matrix computations (default)
+- `bSSFPbloch3` use analytical 3×3 matrix computations
 - `bSSFPellipse` use ellipse model for 1-pool
 """
 struct bSSFPmode{T} end
 const bSSFPbloch = bSSFPmode{:Bloch}()
+const bSSFPbloch3 = bSSFPmode{:Bloch3}()
 const bSSFPellipse = bSSFPmode{:Ellipse}()
 
 
@@ -36,8 +38,9 @@ Helper to convert TE symbols to a number
 """
 _TE_ms(TE_ms::Number, TR_ms::Number, args...) = TE_ms
 _TE_ms(::Val{:midTR}, TR_ms::Number, args...) = TR_ms / 2
-_TE_ms(::Val{:postRF}, TR_ms::Number, args...) = 0 # COV_EXCL_LINE
+_TE_ms(::Val{:postRF}, TR_ms::Number, tRF_ms::Number) = tRF_ms / 2 # COV_EXCL_LINE
 _TE_ms(::Val{:postRF}, TR_ms::Number, rf::AbstractRF) = duration(rf) / 2
+_TE_ms(::Val{:postRF}, TR_ms::Number, args...) = 0 # COV_EXCL_LINE
 
 
 """
@@ -209,6 +212,40 @@ bSSFPtuple1 = (:Mz0, :T1_ms, :T2_ms, :Δf_Hz)
 bssfp(xt::NamedTuple{bSSFPtuple1}, args...) = bssfp(xt..., args...)
 bssfp(::bSSFPmode{:Ellipse}, xt::NamedTuple{bSSFPtuple1}, args...) =
     bssfp(bSSFPellipse, xt..., args...)
+
+
+"""
+     bssfp(bSSFPbloch3, tRF_ms, args...)
+
+1-pool version for a constant RF of duration `tRF_ms`
+(no gradient).
+todo: extend to include constant gradient too.
+"""
+function bssfp(::bSSFPmode{:Bloch3},
+    tRF_ms::Number, # rectangular waveform only for now
+    Mz0::Number, T1_ms::Number, T2_ms::Number, Δf_Hz::Number,
+    TR_ms::Number, TE_ms::TE_ms_type, Δϕ_rad::Number,
+    α_rad::Number, θ_rf_rad::Number = 0,
+)
+
+    TE_ms = _TE_ms(TE_ms, TR_ms, tRF_ms) # handle Val
+    spin = Spin(Mz0, T1_ms, T2_ms, Δf_Hz)
+    rf = RF1(α_rad, tRF_ms, θ_rf_rad)
+    (A1, b1) = excite_bloch3(spin, rf)
+    (A0, d0) = freeprecess(spin, TR_ms - tRF_ms)
+
+    Rz = FreePrecessionMatrix(1, 1, -Δϕ_rad) # phase cycling
+    b = A1 * Vector(d0) + b1
+    A = A1 * Matrix(A0) * Matrix(Rz)
+    Mss = (I - A) \ b # steady-state magnetization immediately after RF
+
+    # account for free precession from end of RF to TE:
+    t_free_ms = TE_ms - tRF_ms / 2
+    return complex(Mss[1], Mss[2]) * # complex signal
+        exp(-t_free_ms / T2_ms) * # T2 decay
+        cis(-2π/1000*Δf_Hz*t_free_ms) # off resonance
+end
+
 
 
 #=
