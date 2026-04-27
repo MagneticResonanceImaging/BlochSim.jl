@@ -1,10 +1,14 @@
-# blochmatrix.jl
+# test/blochmatrix.jl
 
 using BlochSim
 using LinearAlgebra: I, norm
 using Test: @inferred, @test, @testset, @test_throws
 
 function blochmatrix1()
+
+    A = reshape(1:9, 3, 3)
+    B = @inferred BlochMatrix(A)
+    @test Matrix(B) == A
 
     A = @inferred BlochMatrix()
     B = @inferred BlochMatrix(0.0, 0, 0, 0, 0, 0, 0, 0, 0)
@@ -175,6 +179,10 @@ function times5()
 end
 
 function times6()
+
+    A = reshape(1:9, 3, 3)
+    E = @inferred ExcitationMatrix(A)
+    @test A == Matrix(E)
 
     A = @inferred ExcitationMatrix(BlochMatrix(1, 2, 3, 4, 5, 6, 7, 8, 9))
     B = @inferred FreePrecessionMatrix(1, 1, 1)
