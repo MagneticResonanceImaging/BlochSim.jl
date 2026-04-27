@@ -23,6 +23,12 @@ Magnetization vector with eltype Float64:
  Mx = 1.0
  My = 2.0
  Mz = 3.0
+
+julia> Magnetization(1:3)
+Magnetization vector with eltype Int64:
+ Mx = 1
+ My = 2
+ Mz = 3
 ```
 """
 mutable struct Magnetization{T<:Real}
@@ -34,6 +40,11 @@ end
 Magnetization(x, y, z) = Magnetization(promote(x, y, z)...)
 Magnetization{T}() where {T} = Magnetization(zero(T), zero(T), zero(T))
 Magnetization() = Magnetization(0.0, 0.0, 0.0)
+
+function Magnetization(v::AbstractVector)
+   length(v) == 3 || throw("v needs length 3")
+   return Magnetization(v...)
+end
 
 Base.show(io::IO, M::Magnetization) = print(io, "Magnetization(", M.x, ", ", M.y, ", ", M.z, ")")
 Base.show(io::IO, ::MIME"text/plain", M::Magnetization{T}) where {T} =
