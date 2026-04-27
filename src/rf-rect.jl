@@ -87,7 +87,7 @@ function Base.show(io::IO, ::MIME"text/plain", rf::RectRF{Ta,Td,G}) where {Ta,Td
 
 end
 
-Base.length(rf::RectRF) = 1
+Base.length(rf::RectRF) = 1 # COV_EXCL_LINE
 
 
 """
@@ -95,7 +95,7 @@ Base.length(rf::RectRF) = 1
 
 Return the duration (ms) of the RF pulse.
 """
-duration(rf::RectRF) = rf.duration ## COV_EXCL_LINE
+duration(rf::RectRF) = rf.duration # COV_EXCL_LINE
 
 
 #=
