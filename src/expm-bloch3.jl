@@ -463,3 +463,60 @@ function excite_bloch3(spin::Spin, rf::InstantaneousRF;
     )
     return (expA, spin.M0 * b1)
 end
+
+
+
+"""
+    (A1, b1) = excite_bloch3(spin::Spin, rf::RF)
+Version for a constant (rect) RF pulse of duration `rf.Δt`,
+currently represented by a single sample (often complex) RF waveform.
+"""
+function excite_bloch3(spin::Spin, rf::RF{T,G}) where {T <: Real, G <: Gradient}
+
+    0 == gradient_frequency(rf.grad, spin.pos) || throw("gradient unsupported")
+    1 == length(rf) || throw("only single-sample RF waveform supported")
+    r1_kHz = 1 / spin.T1
+    r2_kHz = 1 / spin.T2
+    s, c = sincos(only(rf.θ) + π/2) # match convention in rotatetheta!()
+    tRF_ms = rf.Δt
+    α_rad = only(rf.α)
+    expA, b1 = excite_bloch3(
+        r1_kHz, r2_kHz,
+        2π * (spin.Δf/1000), # w0 in rad/ms
+        α_rad / tRF_ms * s, α_rad / tRF_ms * c, tRF_ms,
+    )
+    return (expA, spin.M0 * b1)
+end
+
+
+# Helpers for making rectangular RF pulses for use with analytical Bloch solvers
+
+"""
+    b1 = b1_gauss(α_rad, tRF_ms)
+
+Return finite-duration (rectangular) RF pulse amplitude
+# In
+- `α_rad` tip angle (radians)
+- `tRF_ms` pulse length (ms)
+
+# Notes:
+- `GAMMA` has units rad/s/G
+- Tip angle for constant pulse:
+  `α_rad = GAMMA * b1_gauss * tRF_s`
+- so `b1_gauss = α_rad / GAMMA / tRF_s`
+"""
+b1_gauss(α_rad, tRF_ms) = α_rad / GAMMA / (tRF_ms / 1000)
+
+
+"""
+    rf = RF1(α_rad, tRF_ms, θ = 0)
+RF "rectangular" pulse
+of duration `tRF_ms`
+for flip angle `α_rad`
+and phase `θ` (in radians),
+represented by a single-sample "waveform".
+"""
+function RF1(α_rad, tRF_ms, θ_rad = 0, args...; kwargs...)
+    waveform = [cis(θ_rad)] * b1_gauss(α_rad, tRF_ms) # single sample "waveform"
+    return RF(waveform, tRF_ms, args...; kwargs...)
+end
