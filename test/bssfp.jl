@@ -93,7 +93,7 @@ end
 
     tRF_ms = 1e-3 # super-short RF pulse
     sig7 = @inferred bssfp(bSSFPbloch3, tRF_ms, xt..., xs...)
-    @test isapprox(sig4, sig7, atol = 1e-5)
+    @test isapprox(sig4, sig7, atol = 2e-6)
 end
 
 
