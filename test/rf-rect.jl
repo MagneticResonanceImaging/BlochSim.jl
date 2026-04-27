@@ -20,6 +20,7 @@ using Test: @inferred, @test, @testset
 
     show(devnull, rf)
     show(devnull, "text/plain", rf)
+    @test 1 == length(rf)
 
     rf0 = InstantaneousRF(α, θ)
     rf1 = RectRF(1e-6, α, θ)
