@@ -1,3 +1,6 @@
+# test/magnetization.jl
+
+using BlochSim: Magnetization, MagnetizationMC, signal
 using Test: @inferred, @test, @testset
 
 function magnetization1()
@@ -5,9 +8,10 @@ function magnetization1()
     M1 = @inferred Magnetization()
     M2 = @inferred Magnetization{Int}()
     M3 = @inferred Magnetization(0, 0, 0.0)
+    M4 = @inferred Magnetization([0, 0, 0.0])
 
     @test eltype(M1) == eltype(M3) != eltype(M2)
-    return M1 == M2 == M3
+    return M1 == M2 == M3 == M4
 
 end
 
