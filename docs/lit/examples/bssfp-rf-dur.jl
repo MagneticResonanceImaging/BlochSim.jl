@@ -386,7 +386,7 @@ opt0 = optimize(cost0, x; autodiff = AutoForwardDiff())
 opt3 = optimize(cost3, x; autodiff = AutoForwardDiff())
 xh0 = opt0.minimizer
 xh3 = opt3.minimizer
-tabe = [ # estimation results table
+tab3 = [ # estimation results table
  "" :true :rf0 :rf3;
  collect(keys(xt)) collect(xt) round2.([xh0 xh3]);
 ]
