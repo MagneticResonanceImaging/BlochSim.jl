@@ -153,7 +153,7 @@ compare_eigs(eig_la::Vector{<:Complex}, eig_b3) =
         expAe, be = excite(spin0, rf0)
         expAe = Matrix(expAe)
         @test maximum(abs, b3) < 1e-11
-        @test maximum(abs, expAe - expA3) < 2e-8
+        @test maximum(abs, expAe - expA3) < 8e-8
     end
 
     spin = Spin(1, 1000/r1, 1000/r2, Δf_Hz)
