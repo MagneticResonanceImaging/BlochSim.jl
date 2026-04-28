@@ -361,25 +361,29 @@ tab2 = [ # table of results
  :dB snr_db :σ round2(σ);
  :TR_ms TR_ms :TE_ms TE_ms;
  :num_scans num_scans "" "";
- :param :value :std :crb_cv;
+ :param :value :crb_std :crb_cv;
  collect(keys(xt)) collect(xt) round2.(crb_std0) crb_cv0;
 ]
 
-# simulate data using the "exact" finite RF model
+# Simulate data using the "exact" finite RF model
 yb = signal_c3(x)
-y = signal_c3(x) + 1σ * randn(ComplexF64, size(yb));
+y = yb + 1σ * randn(ComplexF64, size(yb));
 #src @show 20*log10(norm(yb) / norm(y - yb))
 
 plot( ; xaxis, widen = true)
-scatter!(Δϕ_rads, abs.(y), label="noisy data", color=:blue)
+label = reshape(map(x -> "$(x)° noisy", α_degs), 1, :)
+scatter!(Δϕ_rads, abs.(y); label)
 tmp = Base.Fix{1}(_bssfp3, x).(Δϕ_rad, α_rads')
-plot!(Δϕ_rad, abs.(tmp), label="3", color=:blue)
+color = (1:length(α_degs))'
+plot!(Δϕ_rad, abs.(tmp); label="$tRF_ms ms RF", color)
 tmp = Base.Fix{1}(_bssfp0, x).(Δϕ_rad, α_rads')
-plot!(Δϕ_rad, abs.(tmp), label="0", line=:dash, color=:red)
+plot!(Δϕ_rad, abs.(tmp); label="0 ms RF", line=:dash, color)
+prompt()
+throw()
 
 # Nonlinear LS fitting cost functions
 cost0(x) = abs2(norm(signal_ri0(x) - real_imag(vec(y))))
-cost3(x) = abs2(norm(signal_ri3(x) - real_imag(vec(y))))
+cost3(x) = abs2(norm(signal_ri3(x) - real_imag(vec(y))));
 
 # Nonlinear LS fitting
 opt0 = optimize(cost0, x; autodiff = AutoForwardDiff())
@@ -393,8 +397,5 @@ tab3 = [ # estimation results table
 
 tmp = Base.Fix{1}(_bssfp0, xh0).(Δϕ_rads, α_rads')
 scatter!(Δϕ_rads, abs.(tmp), label="fit0", marker=:square, color=:cyan)
-
-#src y = signal_c1(x)
-#throw()
 
 #src include("../../../inc/reproduce.jl")
