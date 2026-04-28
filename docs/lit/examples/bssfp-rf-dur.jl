@@ -291,10 +291,10 @@ for tRF_ms in [2 1 1e-2]
     signal4te = _bssfp(TE_ms, rf)
     signal5te = _bssfp(TE_ms, rfr)
     @assert maximum(abs, signal4te - signal5te) ≤ 1e-5
-    label = "tRF = $tRF_ms ms, RectRF"
+    local label = "tRF = $tRF_ms ms, RectRF"
     plot!(prfm, Δϕ_rad, abs.(signal5te); label)
     plot!(prfa, Δϕ_rad, angle.(signal5te); label)
-    label = "tRF = $tRF_ms ms, n=$n1"
+    local label = "tRF = $tRF_ms ms, n=$n1"
     plot!(prfm, Δϕ_rad, abs.(signal4te); label, line=:dash)
     plot!(prfa, Δϕ_rad, angle.(signal4te); label, line=:dash)
 end;
@@ -342,7 +342,7 @@ function signal_c0(x)
 end
 signal_ri0(x) = real_imag(vec(signal_c0(x)))
 
-function signal_c3(x; Δϕ_rad = Δϕ_rad)
+function signal_c3(x)
     kappa = x[5]
     _bssfp(Δϕ_rad, α_rad) = _bssfp3(x, Δϕ_rad, α_rad)
     return map(splat(_bssfp), design)
@@ -370,7 +370,9 @@ yb = signal_c3(x)
 y = yb + 1σ * randn(ComplexF64, size(yb));
 #src @show 20*log10(norm(yb) / norm(y - yb))
 
-plot( ; xaxis, widen = true)
+plot( ; xaxis, widen = true,
+ title = "SNR=$snr_db dB",
+)
 label = reshape(map(x -> "$(x)° noisy", α_degs), 1, :)
 scatter!(Δϕ_rads, abs.(y); label)
 tmp = Base.Fix{1}(_bssfp3, x).(Δϕ_rad, α_rads')
@@ -390,7 +392,8 @@ cost3(x) = abs2(norm(signal_ri3(x) - real_imag(vec(y))));
 opt0 = optimize(cost0, x; autodiff = AutoForwardDiff())
 opt3 = optimize(cost3, x; autodiff = AutoForwardDiff())
 xh0 = opt0.minimizer
-xh3 = opt3.minimizer
+xh3 = opt3.minimizer;
+
 tab3 = [ # estimation results table
  "" :true :rf0 :rf3;
  collect(keys(xt)) collect(xt) round2.([xh0 xh3]);
@@ -398,6 +401,33 @@ tab3 = [ # estimation results table
 
 #
 tmp = Base.Fix{1}(_bssfp0, xh0).(Δϕ_rads, α_rads')
-scatter!(Δϕ_rads, abs.(tmp), label="fit0", marker=:square, color=:cyan)
+scatter!(Δϕ_rads, abs.(tmp); label="fit0", marker=:x, color)
+
+#=
+### Multiple realizations
+=#
+function do_fit(signal_ri::Function, x0::Vector)
+    y = yb + 1σ * randn(ComplexF64, size(yb))
+    cost(x) = abs2(norm(signal_ri(x) - real_imag(vec(y))))
+    opt = optimize(cost, x0; autodiff = AutoForwardDiff())
+    return opt.minimizer
+end
+
+seed!(1)
+nrep = 100
+xh0 = stack([do_fit(signal_ri0, x) for _ in 1:nrep])
+seed!(1)
+xh3 = stack([do_fit(signal_ri3, x) for _ in 1:nrep])
+mean2(x) = sum(x, dims=2) / nrep
+std2(x) = sqrt.(sum(abs2, x .- mean2(x), dims=2) / nrep)
+mean0 = mean2(xh0)
+mean3 = mean2(xh3)
+std0 = std2(xh0)
+std3 = std2(xh3)
+
+tab4 = [ # estimation results table
+ "" :true :μ0 :μ3 :σ0 :σ3;
+ collect(keys(xt)) collect(xt) round2.([mean0 mean3]) round2.([std0 std3]);
+]
 
 #src include("../../../inc/reproduce.jl")
