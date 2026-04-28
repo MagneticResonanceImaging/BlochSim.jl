@@ -8,18 +8,18 @@ using Test: @inferred, @test, @testset
 @testset "crb" begin
     seed!(0)
     A = randn(7, 4)
-    signal(x) = A * x
+    fsignal(x) = A * x
     x = 1:4
     σ = 3
-#   bound = @inferred crb(signal, x, σ) # impossible it seems
-    bound1 = crb(signal, x, σ)
+#   bound = @inferred crb(fsignal, x, σ) # impossible it seems
+    bound1 = crb(fsignal, x, σ)
     fisher1 = A'A / σ^2
     @test bound1 ≈ inv(fisher1)
 
     # complex signal, real parameter vector
     A = randn(ComplexF32, 7, 4)
-    signal(x) = real_imag(A * x) # stack [real; imag]
-    bound2 = crb(signal, x, σ)
+    fsignal(x) = real_imag(A * x) # stack [real; imag]
+    bound2 = crb(fsignal, x, σ)
     As = [real(A); imag(A)]
     fisher2 = As'As / σ^2
     @test bound2 ≈ inv(fisher2)
