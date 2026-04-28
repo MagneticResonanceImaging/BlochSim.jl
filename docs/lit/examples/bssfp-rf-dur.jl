@@ -378,8 +378,9 @@ color = (1:length(α_degs))'
 plot!(Δϕ_rad, abs.(tmp); label="$tRF_ms ms RF", color)
 tmp = Base.Fix{1}(_bssfp0, x).(Δϕ_rad, α_rads')
 plot!(Δϕ_rad, abs.(tmp); label="0 ms RF", line=:dash, color)
+
+#
 prompt()
-throw()
 
 # Nonlinear LS fitting cost functions
 cost0(x) = abs2(norm(signal_ri0(x) - real_imag(vec(y))))
@@ -395,6 +396,7 @@ tab3 = [ # estimation results table
  collect(keys(xt)) collect(xt) round2.([xh0 xh3]);
 ]
 
+#
 tmp = Base.Fix{1}(_bssfp0, xh0).(Δϕ_rads, α_rads')
 scatter!(Δϕ_rads, abs.(tmp), label="fit0", marker=:square, color=:cyan)
 
