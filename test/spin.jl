@@ -63,6 +63,9 @@ function Position1()
 
     P1 = @inferred Position(1, 2, 3)
     P2 = @inferred Position(1.0, 2.0, 3.0)
+    z0 = @inferred zero(Position)
+    z1 = @inferred zero(Position{Float16})
+    @test z0 == z1
 
     show(devnull, P1)
     show(devnull, "text/plain", P2)

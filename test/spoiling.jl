@@ -9,7 +9,10 @@ import BlochSim
 
 function GradientSpoiling1()
 
-    grad = @inferred Gradient(0, 0, 0)
+    g0 = @inferred Gradient(0, 0, 0)
+    g1 = @inferred zero(Gradient)
+    g2 = @inferred zero(Gradient{Float16})
+    @test g0 == g1 == g2
 
     g = 1:3
     grad = @inferred Gradient(g...)

@@ -23,6 +23,9 @@ Base.show(io::IO, ::MIME"text/plain", grad::Gradient{T}) where {T} =
 
 
 Base.Vector(g::Gradient) = [g.x, g.y, g.z]
+Base.zero(::Type{Gradient}) = Gradient(0, 0, 0)
+Base.zero(::Type{Gradient{T}}) where {T <: Real} = Gradient(zero(T), zero(T), zero(T))
+Base.:(==)(g1::Gradient, g2::Gradient) = g1.x == g2.x && g1.y == g2.y && g1.z == g2.z
 
 
 """
