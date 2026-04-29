@@ -58,7 +58,7 @@ using BlochSim: crb, real_imag, snr2sigma
 using LinearAlgebra: diag, norm
 using MIRTjim: prompt
 using Optim: optimize
-using Plots: default, gui, plot, plot!, scatter!
+using Plots: default, gui, histogram, histogram!, plot, plot!, scatter!
 using Random: seed!
 
 default(titlefontsize = 10, markerstrokecolor = :auto, label="", width = 1.5,
@@ -317,13 +317,13 @@ for a finite-duration RF pulse,
 and then fit it with two models:
 one with and instantaneous RF pulse
 (hence model mismatch)
-and on with the finite-duration pulse.
+and one with the proper finite-duration pulse.
 =#
 
 # scan "design"
 tRF_ms = 1
 Δϕ_rads = (1:8)/8 * 2π .- π # phase-cycling factors
-α_degs = [10, 30, 50, 70] # flip angles
+α_degs = [10, 30, 50] # flip angles
 α_rads = deg2rad.(α_degs)
 design = (; α_rads, Δϕ_rads)
 design = Iterators.product(Δϕ_rads, α_rads)
@@ -334,7 +334,7 @@ num_scans = length(design) # number of different scans
 _bssfp0(x, Δϕ_rad, α_rad) =
     bssfp(x[1:4]..., TR_ms, TE_ms, Δϕ_rad, InstantaneousRF(x[5] * α_rad))
 _bssfp3(x, Δϕ_rad, α_rad) =
-    bssfp(x[1:4]..., TR_ms, TE_ms, Δϕ_rad, RectRF(tRF_ms, kappa * α_rad))
+    bssfp(x[1:4]..., TR_ms, TE_ms, Δϕ_rad, RectRF(tRF_ms, x[5] * α_rad))
 
 function signal_c0(x)
     _bssfp(Δϕ_rad, α_rad) = _bssfp0(x, Δϕ_rad, α_rad)
@@ -343,7 +343,6 @@ end
 signal_ri0(x) = real_imag(vec(signal_c0(x)))
 
 function signal_c3(x)
-    kappa = x[5]
     _bssfp(Δϕ_rad, α_rad) = _bssfp3(x, Δϕ_rad, α_rad)
     return map(splat(_bssfp), design)
 end
@@ -351,18 +350,20 @@ signal_ri3(x) = real_imag(vec(signal_c3(x)))
 
 #src signal_ri0(x), signal_ri3(x)
 
-snr_db = 50
-σ = snr2sigma(snr_db, signal_c0(x))
+snr_db = 40
+σ = snr2sigma(snr_db, signal_c3(x))
 crb_ri0 = crb(signal_ri0, x, σ)
+crb_ri3 = crb(signal_ri3, x, σ)
 crb_std0 = sqrt.(diag(crb_ri0))
+crb_std3 = sqrt.(diag(crb_ri3))
 round2(x) = round(x; sigdigits=3)
 crb_cv0 = round2.(crb_std0 ./ x)
+crb_cv3 = round2.(crb_std3 ./ x)
 tab2 = [ # table of results
- :dB snr_db :σ round2(σ);
- :TR_ms TR_ms :TE_ms TE_ms;
- :num_scans num_scans "" "";
- :param :value :crb_std :crb_cv;
- collect(keys(xt)) collect(xt) round2.(crb_std0) crb_cv0;
+ :dB snr_db :σ round2(σ) :kappa kappa;
+ :TR_ms TR_ms :TE_ms TE_ms :num_scans num_scans;
+ :param :value :crb0_σ :crb0_cv :crb3_σ :crb3_cv;
+ collect(keys(xt)) collect(xt) round2.([crb_std0 crb_cv0 crb_std3 crb_cv3]);
 ]
 
 # Simulate data using the "exact" finite RF model
@@ -406,28 +407,49 @@ scatter!(Δϕ_rads, abs.(tmp); label="fit0", marker=:x, color)
 #=
 ### Multiple realizations
 =#
-function do_fit(signal_ri::Function, x0::Vector)
+function do_fit(signal_ri::Function, x0::Vector, i::Int)
+    seed!(i)
     y = yb + 1σ * randn(ComplexF64, size(yb))
     cost(x) = abs2(norm(signal_ri(x) - real_imag(vec(y))))
     opt = optimize(cost, x0; autodiff = AutoForwardDiff())
     return opt.minimizer
 end
 
-seed!(1)
-nrep = 100
-xh0 = stack([do_fit(signal_ri0, x) for _ in 1:nrep])
-seed!(1)
-xh3 = stack([do_fit(signal_ri3, x) for _ in 1:nrep])
-mean2(x) = sum(x, dims=2) / nrep
-std2(x) = sqrt.(sum(abs2, x .- mean2(x), dims=2) / nrep)
-mean0 = mean2(xh0)
-mean3 = mean2(xh3)
-std0 = std2(xh0)
-std3 = std2(xh3)
+if !@isdefined(xr3) #|| true
+    nrep = 400
+    xr0 = stack([do_fit(signal_ri0, x, i) for i in 1:nrep])
+    xr3 = stack([do_fit(signal_ri3, x, i) for i in 1:nrep])
+    mean2(x) = sum(x, dims=2) / nrep
+    std2(x) = sqrt.(sum(abs2, x .- mean2(x), dims=2) / nrep)
+    mean0 = mean2(xr0)
+    mean3 = mean2(xr3)
+    std0 = std2(xr0)
+    std3 = std2(xr3)
+end
 
 tab4 = [ # estimation results table
- "" :true :μ0 :μ3 :σ0 :σ3;
- collect(keys(xt)) collect(xt) round2.([mean0 mean3]) round2.([std0 std3]);
+ :param :value :μ0 :μ3 :σ0 :σ3 :crb3_σ;
+ collect(keys(xt)) collect(xt) round2.([mean0 mean3]) round2.([std0 std3 crb_std3]);
 ]
+
+# Helper to plot histograms of qMRI parameters estimates
+function hists(xr, crb_std, plot_title; nbin=30)
+    xtickf(i) = round2.(xt[i] .+ (-1:1) * 2 * crb_std[i]) # ±2σ ticks
+    xlimf(i) = (min(minimum(xr[i,:]), xtickf(i)[1]),
+                max(maximum(xr[i,:]), xtickf(i)[3]),)
+    tmp = map(i -> histogram(xr[i,:]; xticks = xtickf(i),
+        xlims = xlimf(i), nbin, title = "$(keys(xt)[i])"), 1:5)
+    plot( tmp... ; layout = (2,3), plot_title)
+end
+pr3 = hists(xr3, crb_std3, "Correct model: $tRF_ms ms RectRF")
+
+
+#=
+The estimates of M0, T1, T2 and kappa
+are all biased
+when fitting with the incorrect signal model
+that assumes and instantaneous RF pulse.
+=#
+pr0 = hists(xr0, crb_std3, "Incorrect model: Instantaneous RF")
 
 #src include("../../../inc/reproduce.jl")
