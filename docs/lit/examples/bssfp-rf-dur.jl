@@ -10,7 +10,8 @@ balanced steady-state free precession
 pulse sequences.
 
 Specifically it examines the effects of finite RF pulse duration
-for a single isochromat (1-pool model).
+for quantifying the parameters
+of a single isochromat (1-pool model).
 
 
 ### References
@@ -63,7 +64,7 @@ using Random: seed!
 
 default(titlefontsize = 10, markerstrokecolor = :auto, label="", width = 1.5,
     linewidth=2)
-seed!(0)
+seed!(0);
 
 
 # The following line is helpful when running this file as a script;
@@ -87,7 +88,7 @@ x = collect(Float64, xt) # unknowns in vector
 TR_ms, TE_ms, α_rad = 8, 4, deg2rad(α_deg) # scan parameters
 spin = Spin(Mz0, T1_ms, T2_ms, Δf_Hz)
 
-Δϕ_rad = range(-1, 1, 101) * π # phase-cycling factors
+Δϕ_rad = range(-1, 1, 101) * π # phase-cycling factors for plot
 _bssfp(TE_ms, Δϕ, rf) = bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, Δϕ, rf)
 _bssfp(TE_ms, rf) = map(Δϕ -> _bssfp(TE_ms, Δϕ, rf), Δϕ_rad) # helper
 
@@ -104,7 +105,7 @@ signal1te = _bssfp(TE_ms, rf1)
 @assert signal0te ≈ signal1te # should be essentially identical
 @assert α_rad == rf0.α ≈ only(rf1.α)
 
-# RectRF version with very short duration
+# RectRF pulse with very short duration
 rf30 = RectRF(1e-7, α_rad) # super-short for first test
 signal30te = _bssfp(TE_ms, rf30)
 @assert maximum(abs, signal30te - signal0te) ≤ 1e-8
@@ -148,8 +149,8 @@ signal1rf = _bssfp(Val(:postRF), 0, rf1)
 signal2rf = _bssfp(Val(:postRF), 0, rf2)
 signal3rf = _bssfp(Val(:postRF), 0, rf3)
 @assert signal0rf ≈ signal1rf
-@assert !(signal0rf ≈ signal2rf)
-@assert !(signal2rf ≈ signal3rf)
+@assert signal0rf ≉ signal2rf
+@assert signal2rf ≉ signal3rf
 
 
 #=
@@ -189,7 +190,7 @@ of various durations
 w0 = 2π * (Δf_Hz/1000) # rad/ms
 Δϕ_rad0 = 0
 E0 = expm_bloch3(0, 0, 0*w0, # must ignore Δf₀ for this test
-    α_rad * sin(Δϕ_rad0+π/2), α_rad * cos(Δϕ_rad0+π/2), 1)
+    α_rad/1 * sin(Δϕ_rad0+π/2), α_rad/1 * cos(Δϕ_rad0+π/2), 1)
 @assert E0 ≈ Matrix(A0)
 
 # Rectangular RF case:
@@ -218,9 +219,13 @@ plot!(tRF_list, 10*errorb, color=:blue, label = "'b' vector error × 10");
 #
 prompt()
 
-# ## Examine over-sampling
+#=
+## Examine over-sampling
+I.e., subsample the rect RF pulse
+into shorter segments.
+=#
 
-nw_list = [1, 4,]
+nw_list = [1, 4]
 tRF_ms = 2
 erroroa = similar(errora, length(nw_list))
 errorob = similar(erroroa)
@@ -228,9 +233,6 @@ for (i, nw) in enumerate(nw_list)
     waveform = ones(nw) * b1_gauss(α_rad, tRF_ms)
     rf = RF(waveform, tRF_ms / nw) # multi-sample RF waveform
     @assert rf0.α ≈ sum(rf.α)
-#src   (E3, b3) = excite_bloch3(spin, # "exact"
-#src       RF1(α_rad, tRF_ms), # single sample RF waveform
-#src   )
     rfr = RectRF(tRF_ms, α_rad)
     (E3, b3) = excite(spin, rfr) # "exact"
     Ae, Be = excite(spin, rf) # approximate
@@ -242,32 +244,11 @@ for (i, nw) in enumerate(nw_list)
     scatter!([tRF_ms], 10*errorob[i:i]; color=:blue,
         marker = nw > 1 ? :square : :circle,
         label = nw > 1 ? "'b' nw=$nw error ×10" : "", )
-end;
+end
+perr
 
 #
 prompt()
-
-
-#=
-WIP - ignore
-
-using BlochSim: duration, freeprecess
-using LinearAlgebra: I
-(Afp0, dfp0) = freeprecess(spin, TR_ms - duration(rf0))
-(Afp2, dfp2) = freeprecess(spin, TR_ms - duration(rf2))
-At0 = Matrix(A0 * Afp0)
-At2 = Matrix(A2 * Afp2)
-Mss0 = (I - At0) \ Vector(A0 * dfp0)
-Mss2 = (I - At2) \ Vector(A2 * dfp2 + B2)
-
-bs0 = bssfp(spin, TR_ms, duration(rf0)/2, 0, rf0) # signal right after RF
-@assert bs0 == bssfp(spin, TR_ms, Val(:postRF), 0, rf0) # signal right after RF
-bs2 = bssfp(spin, TR_ms, duration(rf2)/2, 0, rf2)
-@assert bs2 == bssfp(spin, TR_ms, Val(:postRF), 0, rf2)
-@assert bs0 ≈ complex(Mss0[1], Mss0[2])
-@assert bs2 ≈ complex(Mss2[1], Mss2[2])
-@assert !(bs0 ≈ bs2) # these differ, as expected
-=#
 
 
 #=
@@ -315,12 +296,13 @@ prompt()
 Here we simulate data
 for a finite-duration RF pulse,
 and then fit it with two models:
-one with and instantaneous RF pulse
+one with an instantaneous RF pulse
 (hence model mismatch)
 and one with the proper finite-duration pulse.
-=#
 
-# scan "design"
+Hand-crafted scan "design"
+with various phase-cycling increments and flip angles:
+=#
 tRF_ms = 1
 Δϕ_rads = (1:8)/8 * 2π .- π # phase-cycling factors
 α_degs = [10, 30, 50] # flip angles
@@ -330,7 +312,7 @@ design = Iterators.product(Δϕ_rads, α_rads)
 num_scans = length(design) # number of different scans
 
 
-# Helpers for InstantaneousRF and RectRF bSSFP signal models
+# Helpers for `InstantaneousRF` and `RectRF` bSSFP signal models
 _bssfp0(x, Δϕ_rad, α_rad) =
     bssfp(x[1:4]..., TR_ms, TE_ms, Δϕ_rad, InstantaneousRF(x[5] * α_rad))
 _bssfp3(x, Δϕ_rad, α_rad) =
@@ -385,11 +367,15 @@ plot!(Δϕ_rad, abs.(tmp); label="0 ms RF", line=:dash, color)
 #
 prompt()
 
-# Nonlinear LS fitting cost functions
+#=
+### Nonlinear LS fitting
+=#
+
+# Nonlinear LS fitting cost functions:
 cost0(x) = abs2(norm(signal_ri0(x) - real_imag(vec(y))))
 cost3(x) = abs2(norm(signal_ri3(x) - real_imag(vec(y))));
 
-# Nonlinear LS fitting
+# Nonlinear LS fits:
 opt0 = optimize(cost0, x; autodiff = AutoForwardDiff())
 opt3 = optimize(cost3, x; autodiff = AutoForwardDiff())
 xh0 = opt0.minimizer
@@ -406,21 +392,46 @@ scatter!(Δϕ_rads, abs.(tmp); label="fit0", marker=:x, color)
 
 #=
 ### Multiple realizations
+The table and plot above
+were for a single noisy realization.
+To make more definitive conclusions,
+repeat the fitting
+with many noisy realizations
+to assess estimator statistics.
+
+For each realization,
+the nonlinear LS estimator
+is the one with the lowest cost
+among multiple random initial guesses.
 =#
-function do_fit(signal_ri::Function, x0::Vector, i::Int)
+rand20(x::Number) = x * (1 + 0.2 * (rand() - 0.5) / 0.5) # ± 20% variability
+ntry = 10
+function try_many_fits(cost, ntry::Int = ntry)
+    min_cost = Inf
+    xbest = nothing
+    for _ in 1:ntry
+        x0 = rand20.(x)
+        opt = optimize(cost, x0; autodiff = AutoForwardDiff())
+        if opt.minimum < min_cost
+            min_cost = opt.minimum
+            xbest = opt.minimizer
+        end
+    end
+    return xbest
+end
+function do_fit(signal_ri::Function, i::Int)
     seed!(i)
     y = yb + 1σ * randn(ComplexF64, size(yb))
-    cost(x) = abs2(norm(signal_ri(x) - real_imag(vec(y))))
-    opt = optimize(cost, x0; autodiff = AutoForwardDiff())
-    return opt.minimizer
+    cost(x) = abs2(norm(signal_ri(x) - real_imag(vec(y)))) # LS cost
+    return try_many_fits(cost)
 end
 
-if !@isdefined(xr3) #|| true
+mean2(x) = sum(x, dims=2) / nrep
+std2(x) = sqrt.(sum(abs2, x .- mean2(x), dims=2) / nrep)
+if !@isdefined(xr3) || true
     nrep = 400
-    xr0 = stack([do_fit(signal_ri0, x, i) for i in 1:nrep])
-    xr3 = stack([do_fit(signal_ri3, x, i) for i in 1:nrep])
-    mean2(x) = sum(x, dims=2) / nrep
-    std2(x) = sqrt.(sum(abs2, x .- mean2(x), dims=2) / nrep)
+    xr0 = stack([do_fit(signal_ri0, i) for i in 1:nrep])
+    xr3 = stack([do_fit(signal_ri3, i) for i in 1:nrep])
     mean0 = mean2(xr0)
     mean3 = mean2(xr3)
     std0 = std2(xr0)
@@ -439,16 +450,25 @@ function hists(xr, crb_std, plot_title; nbin=30)
                 max(maximum(xr[i,:]), xtickf(i)[3]),)
     tmp = map(i -> histogram(xr[i,:]; xticks = xtickf(i),
         xlims = xlimf(i), nbin, title = "$(keys(xt)[i])"), 1:5)
-    plot( tmp... ; layout = (2,3), plot_title)
-end
+    plot( tmp... ; layout = (3,2), plot_title)
+end;
+
+#=
+The estimates of M0, T1, T2 and kappa
+are mostly within ``±2 σ_{\text{CRB}}``
+and have quite small biases,
+when using the correct signal model
+with the finite duration RF pulse.
+=#
 pr3 = hists(xr3, crb_std3, "Correct model: $tRF_ms ms RectRF")
 
 
 #=
 The estimates of M0, T1, T2 and kappa
-are all biased
+are all seriously biased,
 when fitting with the incorrect signal model
 that assumes and instantaneous RF pulse.
+as seen in the histograms below.
 =#
 pr0 = hists(xr0, crb_std3, "Incorrect model: Instantaneous RF")
 
