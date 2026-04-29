@@ -64,8 +64,8 @@ function crb(
     does not know the type of the output of `signal`.
     =#
     T = promote_type(Tx, Tσ, Float32)
-    jac = ForwardDiff.jacobian(signal, x)              
-    fish = jac' * jac / σ^2    
+    jac = ForwardDiff.jacobian(signal, x)
+    fish = jac' * jac / σ^2
     crb = inv(fish)
     return T.(crb)
 end
