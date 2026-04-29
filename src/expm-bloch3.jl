@@ -489,24 +489,36 @@ function excite_bloch3(spin::Spin, rf::RF{T,G}) where {T <: Real, G <: Gradient}
 end
 
 
+#=
+"""
+    excite!(spin::Spin, rf::RectRF)
+Mutating version of excite().  todo: use workspace
+"""
+function excite!(spin::Spin, rf::RectRF)
+    (A, b) = excite(spin, rf)
+    applydynamics!(spin, ...)
+end
+=#
+
+
 """
     (A1, b1) = excite(spin::Spin, rf::RectRF)
 Version for a `RectRF` pulse of duration `rf.duration`.
 """
 function excite(spin::Spin, rf::RectRF)
 
-    0 == gradient_frequency(rf.grad, spin.pos) || throw("gradient unsupported")
     r1_kHz = 1 / spin.T1
     r2_kHz = 1 / spin.T2
     s, c = sincos(only(rf.θ) + π/2) # match convention in rotatetheta!()
     tRF_ms = duration(rf)
     α_rad = rf.α
+    f0_Hz = spin.Δf + gradient_frequency(rf.grad, spin.pos) # total off-res
     expA, b1 = excite_bloch3(
         r1_kHz, r2_kHz,
-        2π * (spin.Δf/1000), # w0 in rad/ms
+        2π * f0_Hz / 1000, # w0 in rad/ms
         α_rad / tRF_ms * s, α_rad / tRF_ms * c, tRF_ms,
     )
-    expA = ExcitationMatrix(expA)
+    expA = BlochMatrix(expA)
     b = Magnetization(spin.M0 * b1)
     return (expA, b)
 end

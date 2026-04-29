@@ -467,7 +467,7 @@ pr3 = hists(xr3, crb_std3, "Correct model: $tRF_ms ms RectRF")
 The estimates of M0, T1, T2 and kappa
 are all seriously biased,
 when fitting with the incorrect signal model
-that assumes and instantaneous RF pulse.
+that assumes and instantaneous RF pulse,
 as seen in the histograms below.
 =#
 pr0 = hists(xr0, crb_std3, "Incorrect model: Instantaneous RF")

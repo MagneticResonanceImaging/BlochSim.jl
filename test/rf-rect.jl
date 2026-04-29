@@ -1,7 +1,7 @@
 # test/rf-rect.jl
 
-using BlochSim: InstantaneousRF, RectRF
-using BlochSim: Gradient, Magnetization, Spin, excite, excite!
+using BlochSim: InstantaneousRF, RectRF, RF1
+using BlochSim: Gradient, Magnetization, Position, Spin, excite, excite!
 using Test: @inferred, @test, @testset
 
 @testset "RectRF" begin
@@ -12,7 +12,9 @@ using Test: @inferred, @test, @testset
 
     α = π/3
     θ = π/5
-    rf = @inferred RectRF(2f0, α, θ, Gradient(0,0,0))
+
+    grad = Gradient(0.1, 0.2, 0.3) # G/cm (to stress test)
+    rf = @inferred RectRF(2f0, α, θ, grad)
     @test rf isa RectRF
     @test rf.duration isa Real
     @test rf.α isa Real
@@ -22,59 +24,38 @@ using Test: @inferred, @test, @testset
     show(devnull, "text/plain", rf)
     @test 1 == length(rf)
 
+    # test with very short pulses
     rf0 = InstantaneousRF(α, θ)
-    rf1 = RectRF(1e-6, α, θ)
-    spin = Spin(1, 1000, 100, 7.)
+    rf1 = RF1(α, 1e-8, θ, grad)
+    rf3 = RectRF(1e-8, α, θ, grad)
+    pos = Position(3, 2, 1) # cm
+    spin = Spin(1, 1000, 100, 7., pos)
     (A0, b0) = @inferred excite(spin, rf0)
     (A1, b1) = @inferred excite(spin, rf1)
-    @test maximum(abs, Matrix(A0) - Matrix(A1)) ≤ 1e-7
-    @test maximum(abs, #= Vector(b0) - =# Vector(b1)) ≤ 1e-9
+    (A3, b3) = @inferred excite(spin, rf3)
+    @test maximum(abs, Matrix(A0) - Matrix(A1)) ≤ 1e-6
+    @test maximum(abs, Matrix(A1) - Matrix(A3)) ≤ 1e-7
+    @test maximum(abs, #= Vector(b0) - =# Vector(b1)) ≤ 1e-11
 
-    spin0 = deepcopy(spin)
+
+    # test with longer pulse
+    tRF_ms = 2
+    nsamp = 2000 # 1μs spacing
+    rf1 = RF1(α, tRF_ms, θ, grad; nsamp)
+    @test sum(rf1.α) ≈ α
+    rf3 = RectRF(tRF_ms, α, θ, grad)
+    pos = Position(3, 2, 1) # cm
+    spin = Spin(1, 1000, 100, 7., pos)
+    (A1, b1) = @inferred excite(spin, rf1)
+    (A3, b3) = @inferred excite(spin, rf3)
+
+    @test maximum(abs, Matrix(A1) - Matrix(A3)) ≤ 1e-6
+    @test maximum(abs, Vector(b1) - Vector(b3)) ≤ 1e-9
+
     spin1 = deepcopy(spin)
-    excite!(spin0, rf0)
-#   excite!(spin1, rf1) todo
+    spin3 = deepcopy(spin)
+    excite!(spin1, rf1)
+    excite!(spin3, rf3)
+
+    @test maximum(abs, Vector(spin1.M - spin3.M)) ≤ 1e-6
 end
-
-
-#=
-    M_correct = Magnetization(sqrt(2)/2, -sqrt(2)/2, 0)
-    return s.M ≈ M_correct
-
-
-    A2 = BlochMatrix()
-    B2 = Magnetization()
-    excite!(A2, B2, spin, rf)
-
-    show(devnull, rf)
-    show(devnull, "text/plain", rf)
-    @test A1 == A2
-    return B1 == B2
-
-
-    (A1, B1) = @inferred excite(spin, RF(rf, dt, Δθ, grad))
-    A2 = BlochMatrix()
-    B2 = Magnetization()
-    excite!(A2, B2, spin, RF(rf, dt, Δθ, grad))
-    @test A1 == A2
-    return B1 == B2
-
-    s = Spin(1, Inf, Inf, 0)
-    dt = 250π / GAMMA
-    Δθ = π/8
-    grad = [Gradient(0, 0, 0) for i = 1:2]
-    rf = RF(fill(exp(im * π/8), length(grad)), dt, Δθ, grad)
-    excite!(s, rf)
-    M_correct = Magnetization(sqrt(2)/2, -sqrt(2)/2, 0)
-    return s.M ≈ M_correct
-
-    s = Spin(1, Inf, Inf, 0)
-    dt = 250π / GAMMA
-    Δθ = π/8
-    rf = RF(fill(exp(im * π/8), 2), dt, Δθ)
-    excite!(s, rf)
-    M_correct = Magnetization(sqrt(2)/2, -sqrt(2)/2, 0)
-
-    @test duration(rf) == 2dt
-    return s.M ≈ M_correct
-=#

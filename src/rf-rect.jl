@@ -25,33 +25,29 @@ b1_gauss(α_rad, tRF_ms) = α_rad / GAMMA / (tRF_ms / 1000)
 
 
 """
-    rf = RF1(α_rad, tRF_ms, θ = 0)
+    rf = RF1(α_rad, tRF_ms, θ = 0, args...; nsamp=1, kwargs...)
 RF "rectangular" pulse
 of duration `tRF_ms`
 for flip angle `α_rad`
 and phase `θ` (in radians),
-represented by a single-sample "waveform".
+represented by a `nsamp`-sample constant "waveform" with phase `θ`.
 """
-function RF1(α_rad, tRF_ms, θ_rad = 0, args...; kwargs...)
-    waveform = [cis(θ_rad)] * b1_gauss(α_rad, tRF_ms) # single sample "waveform"
-    return RF(waveform, tRF_ms, args...; kwargs...)
+function RF1(α_rad, tRF_ms, θ_rad = 0, args...; nsamp::Int = 1, kwargs...)
+    waveform = fill(cis(θ_rad) * b1_gauss(α_rad, tRF_ms), nsamp)
+    return RF(waveform, tRF_ms / nsamp, args...; kwargs...)
 end
 
 
 """
-    RectRF(duration_ms, [α = π/2], [θ = 0], [grad = zeros(3)]) <: AbstractRF
+    RectRF(duration_ms, [α = π/2], [θ = 0], [grad = zero(Gradient)]) <: AbstractRF
 
-Represent a rectangular RF pulse
-of duration `duration_ms`
-for flip angle `α`
-and phase `θ`
-and constant gradient 3-vector `grad`.
-
-- `grad` B0 gradient that is turned on during the RF pulse
-  (defaults to `Gradient(0, 0, 0)`, i.e., turned off).
-- `grad`: Gradient applied during the RF pulse
-  - `::Gradient`: Constant gradient
-  - `::Vector{<:Gradient}`: Time-varying gradient
+Represent a rectangular RF pulse with
+- `duration_ms` duration (ms)
+- `α` flip angle (radians)
+- `θ` phase (radians)
+- `grad` constant B0 gradient 3-vector (G/cm)
+   that is turned on during the RF pulse
+   (defaults to `Gradient(0, 0, 0)`, i.e., turned off).
 """
 struct RectRF{Ta <: Real, Td <: Real, G <: Gradient} <: AbstractRF
     duration::Td
@@ -63,10 +59,9 @@ struct RectRF{Ta <: Real, Td <: Real, G <: Gradient} <: AbstractRF
         duration::Td,
         α::Real = π/2,
         θ::Real = zero(α),
-        grad::Gradient = Gradient(0, 0, 0),
+        grad::Gradient = zero(Gradient),
     ) where {Td <: Real}
 
-        grad == Gradient(0, 0, 0) || throw("todo: grad unsupported")
         Ta = promote_type(eltype(α), eltype(θ))
         new{Ta, Td, typeof(grad)}(duration, α, θ, grad)
     end
