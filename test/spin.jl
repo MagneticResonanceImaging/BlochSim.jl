@@ -62,6 +62,7 @@ end
 function Position1()
 
     P1 = @inferred Position(1, 2, 3)
+    @test Vector(P1) == 1:3
     P2 = @inferred Position(1.0, 2.0, 3.0)
     z0 = @inferred zero(Position)
     z1 = @inferred zero(Position{Float16})

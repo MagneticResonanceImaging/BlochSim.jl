@@ -40,7 +40,7 @@ Base.:(==)(p1::Position, p2::Position) = p1.x == p2.x && p1.y == p2.y && p1.z ==
 
 Base.zero(::Type{Position}) = Position(0, 0, 0)
 Base.zero(::Type{Position{T}}) where {T <: Real} = Position(zero(T), zero(T), zero(T))
-Base.Vector(p::Position) = [p.x, p.z, p.z]
+Base.Vector(p::Position) = [p.x, p.y, p.z]
 
 const DualFloat64 = Union{Float64,<:ForwardDiff.Dual}
 
