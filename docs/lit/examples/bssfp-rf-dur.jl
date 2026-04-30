@@ -121,6 +121,7 @@ that treats each RF sample as:
 - free precession for Δt/2
 - instantaneous RF rotation
 - free precession for Δt/2.
+See [Gras et al. MRM Jul. 2018](https://doi.org/10.1002/mrm.27001).
 
 By the time we reach TE = TR/2,
 apparently this approximation

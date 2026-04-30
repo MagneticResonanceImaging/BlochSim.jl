@@ -217,9 +217,8 @@ bssfp(::bSSFPmode{:Ellipse}, xt::NamedTuple{bSSFPtuple1}, args...) =
 """
      bssfp(bSSFPbloch3, tRF_ms, args...)
 
-1-pool version for a constant RF of duration `tRF_ms`
-(no gradient).
-todo: extend to include constant gradient too.
+1-pool version for a constant RF of duration `tRF_ms`.
+(Account for gradient effects in `Δf_Hz`.)
 """
 function bssfp(::bSSFPmode{:Bloch3},
     tRF_ms::Number, # rectangular waveform only for now
@@ -344,7 +343,7 @@ function bssfp(
 )
 
     rf isa InstantaneousRF ||
-        throw("todo: relaxation and duraction effects?  need to derive for MC!")
+        throw("todo: relaxation and duration effects?  need to derive for MC!")
 
     # excite the spin and reshape R to be the correct dimensions for a SpinMC object
     (R,) = excite(spin, rf)
