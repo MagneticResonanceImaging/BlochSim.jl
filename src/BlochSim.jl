@@ -69,7 +69,8 @@ include("mese.jl")
 include("spgr.jl")
 
 include("rf-rect.jl")
-include("bssfp.jl")
+include("bssfp1.jl")
+include("bssfp2.jl")
 include("expm-bloch3.jl")
 include("crb.jl")
 
