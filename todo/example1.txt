@@ -1,9 +1,9 @@
 example1.mat is from the file "Beispiel1.mat" from Christina Graf
 
-d            1x1              5240  struct              
-u         1668x1             13344  double              
-v         1668x1             13344  double              
-w         1668x1             13344  double              
+d            1x1              5240  struct
+u         1668x1             13344  double
+v         1668x1             13344  double
+w         1668x1             13344  double
 
 d: struct with fields:
       M0c: 1

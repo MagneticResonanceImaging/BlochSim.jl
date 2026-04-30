@@ -63,11 +63,14 @@ include("blochmatrix.jl")
 include("spin.jl")
 include("spoiling.jl")
 include("expm.jl")
-include("expm-bloch3.jl")
 include("freeprecess.jl")
 include("excite.jl")
 include("mese.jl")
 include("spgr.jl")
+
+include("rf-rect.jl")
 include("bssfp.jl")
+include("expm-bloch3.jl")
+include("crb.jl")
 
 end

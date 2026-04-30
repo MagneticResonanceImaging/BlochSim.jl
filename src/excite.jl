@@ -327,7 +327,7 @@ using a "cascade" of three simpler steps:
 - free precession for Δt/2
 - instantaneous RF rotation
 - free precession for Δt/2
-todo [cite?].
+See Gras et al. MRM Jul. 2018 https://doi.org/10.1002/mrm.27001.
 The accuracy of this "cascade" approximation
 depends on Δt,
 as explored in one of the repo demos.

@@ -26,7 +26,8 @@ end
 
 # Constructors
 
-BlochMatrix(A::AbstractMatrix) = BlochMatrix(vec(A)...)
+BlochMatrix(A::AbstractMatrix{T}) where {T<:Real} =
+    BlochMatrix{T}(A...) # fails if not 3×3
 
 BlochMatrix(t::NTuple{9}) = BlochMatrix(t...)
 
@@ -336,7 +337,7 @@ struct BlochMcConnellDynamicsMatrix{T<:Real,N,M} <: AbstractBlochMcConnellMatrix
     end
 end
 
-# todo: return type depends on argument N, so not inferable
+# return type depends on argument N, so not type-inferable
 function BlochMcConnellDynamicsMatrix{T}(N) where {T}
 
     A = ntuple(i -> BlochDynamicsMatrix{T}(), N)
@@ -445,8 +446,7 @@ struct BlochMcConnellMatrix{T<:Real,N} <: AbstractBlochMcConnellMatrix{T,N}
     A::NTuple{N,NTuple{N,BlochMatrix{T}}}
 end
 
-# caution: the return type depends on the input argument N
-# making this function not type-inferable (todo)
+# return type depends on argument N, so not type-inferable
 function BlochMcConnellMatrix{T}(N) where {T}
 
     A = ntuple(i -> ntuple(i -> BlochMatrix{T}(), N), N)
@@ -592,6 +592,12 @@ ExcitationMatrix{Int64}:
  1  0  0
  0  0  1
 
+julia> ExcitationMatrix(reshape(1:9,3,3))
+ExcitationMatrix{Int64}:
+ 1  4  7
+ 2  5  8
+ 3  6  9
+
 julia> M = MagnetizationMC((1, 2, 3), (4, 5, 6))
 2-compartment Magnetization vector with eltype Int64:
  Compartment 1:
@@ -621,6 +627,7 @@ end
 
 ExcitationMatrix{T}() where {T} = ExcitationMatrix(BlochMatrix{T}())
 ExcitationMatrix() = ExcitationMatrix(BlochMatrix())
+ExcitationMatrix(A::AbstractMatrix) = ExcitationMatrix(BlochMatrix(A))
 
 function Base.show(io::IO, ::MIME"text/plain", A::ExcitationMatrix{T}) where {T}
 

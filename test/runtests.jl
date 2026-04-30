@@ -16,7 +16,9 @@ end
     include("expm-bloch3.jl")
     include("freeprecess.jl")
     include("excite.jl")
+    include("rf-rect.jl")
     include("bssfp.jl")
     include("mese.jl")
     include("spgr.jl")
+    include("crb.jl")
 end

@@ -641,26 +641,25 @@ end
     end
 
     @testset "Sequences" begin
-    
+
         @testset "MESE" begin
-    
+
             @test testB2c()
             @test testB2d()
             @test testB2dMC()
-    
+
         end
-    
+
         @testset "SPGR" begin
-    
-    
+
             @test testB3a()
             @test testB3b()
             @test testB3c()
             @test testB5a()
             @test testB5b()
-    
+
         end
-    
+
     end
 
 end

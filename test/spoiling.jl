@@ -1,6 +1,22 @@
+# test/spoiling.jl
+
 using Test: @inferred, @test, @testset
+using BlochSim: Gradient, GradientSpoiling, RFSpoiling, RFandGradientSpoiling
+using BlochSim: rfspoiling_increment, spoil, spoil!, spoiler_gradient
+using BlochSim: Magnetization, MagnetizationMC, Spin, SpinMC
+using BlochSim: applydynamics!, freeprecess
+import BlochSim
 
 function GradientSpoiling1()
+
+    g0 = @inferred Gradient(0, 0, 0)
+    g1 = @inferred zero(Gradient)
+    g2 = @inferred zero(Gradient{Float16})
+    @test g0 == g1 == g2
+
+    g = 1:3
+    grad = @inferred Gradient(g...)
+    @test g == Vector(grad)
 
     @inferred GradientSpoiling(0, 1, 0, 1)
     g = @inferred GradientSpoiling(0.0, 1, 0f0, 2//3)
