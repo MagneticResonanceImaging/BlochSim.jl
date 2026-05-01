@@ -23,7 +23,7 @@ Base.show(io::IO, ::MIME"text/plain", grad::Gradient{T}) where {T} =
 
 
 Base.Vector(g::Gradient) = [g.x, g.y, g.z]
-Base.zero(::Type{Gradient}) = Gradient(0, 0, 0)
+Base.zero(::Type{Gradient}) = zero(Gradient{Float64})
 Base.zero(::Type{Gradient{T}}) where {T <: Real} = Gradient(zero(T), zero(T), zero(T))
 Base.:(==)(g1::Gradient, g2::Gradient) = g1.x == g2.x && g1.y == g2.y && g1.z == g2.z
 
@@ -164,6 +164,7 @@ rfspoiling_increment(::AbstractSpoiling) = 0 # COV_EXCL_LINE
 rfspoiling_increment(s::RFSpoiling) = s.Δθ
 rfspoiling_increment(s::RFandGradientSpoiling) = rfspoiling_increment(s.rf)
 
+
 """
     spoil(spin, spoiling, [nothing])
     spoil(spinmc, spoiling, [workspace])
@@ -199,6 +200,7 @@ function spoil(
 
 end
 
+
 """
     spoil!(spin)
 
@@ -223,6 +225,7 @@ end
 
 applydynamics!(spin::AbstractSpin, ::IdealSpoilingMatrix) = spoil!(spin)
 
+
 """
     spoil!(A, B, spin, spoiling, [nothing])
     spoil!(A, B, spinmc, spoiling, [workspace])
@@ -243,4 +246,25 @@ function spoil!(
 
     freeprecess!(A, B, spin, spoiler_gradient_duration(spoiling), spoiler_gradient(spoiling), workspace)
 
+end
+
+
+"""
+    spoil!(spin, spoiling; A::FreePrecessionMatrix, B::Magnetization)
+
+Mutates `spin` by applying effects of `spoiling`
+(which could be a refocusing gradient, for example).
+Provide optional (mutated) arguments `A` and `B` to avoid allocations.
+"""
+function spoil!(
+    spin::Spin,
+    spoiling::GradientSpoiling;
+    A::FreePrecessionMatrix = FreePrecessionMatrix(),
+    B::Magnetization = Magnetization(),
+)
+    spoil!(A, B, spin, spoiling)
+    BtoM = copy(spin.M)
+    applydynamics!(spin, BtoM, A, B)
+
+    return spin
 end
