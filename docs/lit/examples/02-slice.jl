@@ -97,8 +97,10 @@ prompt()
 
 #=
 ### Slice-selective gradient
-2π/(tRF/2nlobe) = GAMMA * gz * slice_width
-so gz = 2nlobe*2π/tRF / GAMMA / slice_width
+
+`2π/(tRF/2nlobe) = GAMMA * gz * slice_width`
+so
+`gz = 2nlobe*2π/tRF / GAMMA / slice_width`
 =#
 slice_width = 0.5 # cm
 gz =  (2nlobe*2π)/(tRF_ms/1000) / GAMMA / slice_width
@@ -106,20 +108,13 @@ grad = Gradient(0, 0, gz)
 rf1 = RF(waveform, Δt_ms, 0, grad)
 α_total = sum(rf1.α .* cis.(rf1.θ))
 @assert α_total ≈ α_rad
-refocus = GradientSpoiling(Gradient(0, 0, -gz), tRF_ms/2)
+refocus = GradientSpoiling(Gradient(0, 0, -gz), tRF_ms/2);
 
 #=
-Excite the spins with the RF
+### Excite the spins with the RF, then refocus
 =#
 map(spins) do spin
     excite!(spin, rf1)
-end;
-
-
-#=
-### Refocus spins after excitation
-=#
-map(spins) do spin
     spoil!(spin, refocus)
 end;
 
@@ -135,6 +130,8 @@ mpha = @. atan(my, mx)
 
 pmag = plot(
   xaxis = ("z [cm]", (-1,1), [-1, -slice_width/2, 0, slice_width/2, 1]),
+  yaxis = ("", (-0.2,1), ([0, sin(α_rad)/2, sin(α_rad), 1],
+    ["0", "sin($(α_deg)°)/2", "sin($(α_deg)°)", 1]) ),
   legend = :right,
 )
 plot!(zlist, mx, label = "Mx")
@@ -145,7 +142,7 @@ plot!(zlist, mmag, label = "|Mxy|")
 ppha = plot( xaxis = ("z [cm]", ), legend = :right )
 plot!(zlist, mpha, label = "∠Mxy")
 
-plot(pmag, ppha,
+plot(pmag, ppha; layout = (2,1),
   plot_title = "Slice profile for 5-lobe sinc, α = $(α_deg)°",
 )
 
