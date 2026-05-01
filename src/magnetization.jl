@@ -38,8 +38,8 @@ mutable struct Magnetization{T<:Real}
 end
 
 Magnetization(x, y, z) = Magnetization(promote(x, y, z)...)
-Magnetization{T}() where {T} = Magnetization(zero(T), zero(T), zero(T))
-Magnetization() = Magnetization(0.0, 0.0, 0.0)
+Magnetization{T}() where {T} = zero(Magnetization{T})
+Magnetization() = zero(Magnetization)
 
 function Magnetization(v::AbstractVector)
    length(v) == 3 || throw("v needs length 3")
@@ -51,6 +51,9 @@ Base.show(io::IO, ::MIME"text/plain", M::Magnetization{T}) where {T} =
     print(io, "Magnetization vector with eltype $T:\n Mx = ", M.x, "\n My = ", M.y, "\n Mz = ", M.z)
 
 Base.copy(M::Magnetization) = Magnetization(M.x, M.y, M.z)
+Base.zero(::Type{Magnetization{T}}) where {T <: Number} =
+    Magnetization(zero(T), zero(T), zero(T))
+Base.zero(::Type{Magnetization}) = zero(Magnetization{Float64})
 
 function Base.copyto!(dst::Magnetization, src::Magnetization)
 
