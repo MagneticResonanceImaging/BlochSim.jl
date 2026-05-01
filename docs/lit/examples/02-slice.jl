@@ -35,7 +35,7 @@ end
 
 using BlochSim: GAMMA, Gradient, GradientSpoiling, Position, Spin, SpinMC
 using BlochSim: InstantaneousRF, RF, b1_gauss
-using BlochSim: excite!, spoil # spoil! todo
+using BlochSim: excite!, spoil, spoil!
 #src using LinearAlgebra: diag
 using MIRTjim: prompt
 using Plots: annotate!, color, default, gui, plot, plot!, scatter!, scatter3d!, text
@@ -59,12 +59,12 @@ round2(x) = round(x, digits = 2)
 Mz0, T1_ms, T2_ms, Δf_Hz = 1, 400, 10, 9 # tissue parameters
 xt = (; Mz0, T1_ms, T2_ms, Δf_Hz) # tuple
 
-zlist = range(-2, 2, 401) # z positions (cm)
+zlist = range(-1, 1, 201) # z positions (cm)
 
 spins = map(zlist) do z
     pos = Position(0, 0, z)
     Spin(Mz0, T1_ms, T2_ms, Δf_Hz, pos)
-end
+end;
 
 
 #=
@@ -76,7 +76,8 @@ tRF_ms = 0.9
 nsamp = round(Int, tRF_ms / Δt_ms)
 pisinc(x) = x == 0 ? zero(x) : sin(π * x) / (π * x)
 
-sinc5(t) = sinc(5 * 2 * t / tRF_ms)
+nlobe = 5
+sinc5(t) = sinc(2nlobe * t / tRF_ms)
 
 α_deg = 60 # flip angle ° (somewhat large for testing)
 α_rad = deg2rad(α_deg)
@@ -93,8 +94,14 @@ prf = plot(t, waveform,
 #
 prompt()
 
-# slice-selective gradient
-gz = 3.0 # todo
+
+#=
+### Slice-selective gradient
+2π/(tRF/2nlobe) = GAMMA * gz * slice_width
+so gz = 2nlobe*2π/tRF / GAMMA / slice_width
+=#
+slice_width = 0.5 # cm
+gz =  (2nlobe*2π)/(tRF_ms/1000) / GAMMA / slice_width
 grad = Gradient(0, 0, gz)
 rf1 = RF(waveform, Δt_ms, 0, grad)
 α_total = sum(rf1.α .* cis.(rf1.θ))
@@ -106,28 +113,14 @@ Excite the spins with the RF
 =#
 map(spins) do spin
     excite!(spin, rf1)
-end
+end;
 
 
 #=
 ### Refocus spins after excitation
 =#
-
-using BlochSim: AbstractSpin, applydynamics!
-
-"""
-    refocus!(spin, ...)
-Mutates spin
-todo: belongs in src
-"""
-function refocus!(spin::AbstractSpin, args...)
-    (A, B) = spoil(spin, args...)
-    BtoM = copy(spin.M)
-    applydynamics!(spin, BtoM, A, B)
-end
-
 map(spins) do spin
-    refocus!(spin, refocus)
+    spoil!(spin, refocus)
 end;
 
 
@@ -141,7 +134,7 @@ mmag = @. sqrt(mx^2 + my^2)
 mpha = @. atan(my, mx)
 
 pmag = plot(
-  xaxis = ("z [cm]", ),
+  xaxis = ("z [cm]", (-1,1), [-1, -slice_width/2, 0, slice_width/2, 1]),
   legend = :right,
 )
 plot!(zlist, mx, label = "Mx")
@@ -158,5 +151,7 @@ plot(pmag, ppha,
 
 #
 prompt()
+
+# todo: effect on qMRI
 
 #src include("../../../inc/reproduce.jl")
