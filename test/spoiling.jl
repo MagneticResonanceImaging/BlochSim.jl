@@ -3,7 +3,8 @@
 using Test: @inferred, @test, @testset
 using BlochSim: Gradient, GradientSpoiling, RFSpoiling, RFandGradientSpoiling
 using BlochSim: rfspoiling_increment, spoil, spoil!, spoiler_gradient
-using BlochSim: Magnetization, MagnetizationMC, Spin, SpinMC
+using BlochSim: FreePrecessionMatrix
+using BlochSim: MagnetizationMC, Spin, SpinMC
 using BlochSim: applydynamics!, freeprecess
 import BlochSim
 
@@ -109,8 +110,17 @@ end
 function spoil4()
 
     s = Spin(1, 1000, 100, 0)
-    (A1, B1) = @inferred spoil(s, GradientSpoiling(1, 1, 1, 10))
+    grad = @inferred GradientSpoiling(1, 1, 1, 10)
+    (A1, B1) = @inferred spoil(s, grad)
     (A2, B2) = freeprecess(s, 10)
+
+
+    s1 = deepcopy(s)
+    s2 = deepcopy(s)
+    @inferred spoil!(s1, grad)
+    @inferred spoil!(s2, grad; A = FreePrecessionMatrix(), B = Magnetization())
+    @test s1 == s2
+    @test 96 ≥ @allocated spoil!(s2, grad; A = FreePrecessionMatrix(), B = Magnetization())
 
     @test A1 == A2
     return B1 == B2
