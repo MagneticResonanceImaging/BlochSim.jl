@@ -123,6 +123,13 @@ Spin{T}(M0, T1, T2, Δf, pos::Position...) where {T} =
 Spin(M0, T1, T2, Δf, pos::Position...) =
     Spin(Magnetization(0.0, 0.0, M0), M0, T1, T2, Δf, pos...)
 
+Base.:(==)(s1::Spin, s2::Spin) =
+    s1.M0 == s2.M0 &&
+    s1.T1 == s2.T1 &&
+    s1.T2 == s2.T2 &&
+    s1.Δf == s2.Δf &&
+    s1.pos == s2.pos
+
 function Base.show(io::IO, ::MIME"text/plain", spin::Spin{T}) where {T}
 
     print(io, "Spin{$T}:")
