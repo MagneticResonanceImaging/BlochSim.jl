@@ -35,7 +35,7 @@ end
 
 using BlochSim: GAMMA, Gradient, GradientSpoiling, Position, Spin, SpinMC
 using BlochSim: InstantaneousRF, RF, b1_gauss
-using BlochSim: excite!, spoil, spoil!
+using BlochSim: excite!, spoil!
 #src using LinearAlgebra: diag
 using MIRTjim: prompt
 using Plots: annotate!, color, default, gui, plot, plot!, scatter!, scatter3d!, text
