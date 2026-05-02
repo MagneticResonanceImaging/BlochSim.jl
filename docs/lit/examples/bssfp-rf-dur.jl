@@ -14,7 +14,7 @@ for quantifying the parameters
 of a single isochromat (1-pool model).
 
 
-### References
+#### References
 
 - Bieri & Scheffler, MRM 62(5):1232-41, Nov 2009:
   [SSFP signal with finite RF pulses](https://doi.org/10.1002/mrm.22116).
@@ -52,12 +52,12 @@ end
 # Run `Pkg.add()` in the preceding code block first, if needed.
 
 using ADTypes: AutoForwardDiff
+using Optim: optimize # must precede BlochSim for extension
 using BlochSim: Spin, InstantaneousRF, RF, RectRF, excite
 using BlochSim: bssfp, GAMMA, expm_bloch3, excite_bloch3, RF1, b1_gauss
-using BlochSim: crb, real_imag, snr2sigma
+using BlochSim: crb, real_imag, snr2sigma, fit_signal
 using LinearAlgebra: diag, norm
 using MIRTjim: prompt
-using Optim: optimize
 using Plots: default, gui, histogram, histogram!, plot, plot!, scatter!
 using Random: seed!
 
@@ -97,7 +97,7 @@ signal0te = _bssfp(TE_ms, rf0); # signal for InstantaneousRF at TE
 
 
 #=
-### Test "nearly instantaneous" RF pulse
+## Test "nearly instantaneous" RF pulse
 =#
 rf1 = RF1(α_rad, 1e-12) # super-short for first test
 signal1te = _bssfp(TE_ms, rf1)
@@ -110,7 +110,7 @@ signal30te = _bssfp(TE_ms, rf30)
 @assert maximum(abs, signal30te - signal0te) ≤ 1e-8
 
 #=
-### Test 2ms `RF` pulse
+## Test 2ms `RF` pulse
 Somewhat unexpectedly (to JF),
 the bSSFP signal matches the `InstantaneousRF` case.
 
@@ -175,7 +175,7 @@ A3, B3 = excite(spin, rf3)
 
 
 #=
-### RectRF excitation approximation
+## RectRF excitation approximation
 
 Examine the approximation error
 of the "cascade" approximation
@@ -291,7 +291,7 @@ prompt()
 
 
 #=
-### Effect on qMRI
+## Effect on qMRI
 
 Here we simulate data
 for a finite-duration RF pulse,
@@ -368,7 +368,7 @@ plot!(Δϕ_rad, abs.(tmp); label="0 ms RF", line=:dash, color)
 prompt()
 
 #=
-### Nonlinear LS fitting
+## Nonlinear LS fitting
 =#
 
 # Nonlinear LS fitting cost functions:
@@ -391,7 +391,7 @@ tmp = Base.Fix{1}(_bssfp0, xh0).(Δϕ_rads, α_rads')
 scatter!(Δϕ_rads, abs.(tmp); label="fit0", marker=:x, color)
 
 #=
-### Multiple realizations
+## Multiple realizations
 The table and plot above
 were for a single noisy realization.
 To make more definitive conclusions,
@@ -400,35 +400,22 @@ with many noisy realizations
 to assess estimator statistics.
 
 For each realization,
-the nonlinear LS estimator
+the nonlinear LS estimator in `fit_signal`
 is the one with the lowest cost
-among multiple random initial guesses.
+among `ntry` random initial guesses.
 =#
 rand20(x::Number) = x * (1 + 0.2 * (rand() - 0.5) / 0.5) # ± 20% variability
 ntry = 10
-function try_many_fits(cost, ntry::Int = ntry)
-    min_cost = Inf
-    xbest = nothing
-    for _ in 1:ntry
-        x0 = rand20.(x)
-        opt = optimize(cost, x0; autodiff = AutoForwardDiff())
-        if opt.minimum < min_cost
-            min_cost = opt.minimum
-            xbest = opt.minimizer
-        end
-    end
-    return xbest
-end
 function do_fit(signal_ri::Function, i::Int)
-    seed!(i)
+    seed!(i) # to ensure that both models fit the same data
     y = yb + 1σ * randn(ComplexF64, size(yb))
-    cost(x) = abs2(norm(signal_ri(x) - real_imag(vec(y)))) # LS cost
-    return try_many_fits(cost)
+    x0fun = i -> rand20.(x)
+    return fit_signal(signal_ri, x0fun, real_imag(vec(y)); ntry)
 end
 
 mean2(x) = sum(x, dims=2) / nrep
 std2(x) = sqrt.(sum(abs2, x .- mean2(x), dims=2) / nrep)
-if !@isdefined(xr3) || true
+if !@isdefined(xr3) # || true
     nrep = 400
     xr0 = stack([do_fit(signal_ri0, i) for i in 1:nrep])
     xr3 = stack([do_fit(signal_ri3, i) for i in 1:nrep])
@@ -462,6 +449,8 @@ with the finite duration RF pulse.
 =#
 pr3 = hists(xr3, crb_std3, "Correct model: $tRF_ms ms RectRF")
 
+#
+prompt()
 
 #=
 The estimates of M0, T1, T2 and kappa
@@ -471,5 +460,3 @@ that assumes and instantaneous RF pulse,
 as seen in the histograms below.
 =#
 pr0 = hists(xr0, crb_std3, "Incorrect model: Instantaneous RF")
-
-#src include("../../../inc/reproduce.jl")
