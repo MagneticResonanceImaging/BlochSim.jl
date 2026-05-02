@@ -92,5 +92,3 @@ bv = @benchmark fv($x) # 3.8 μs (147 allocations: 10.4 KiB)
 I3 = I(3)
 fp(t) = expv(t, A, I3) # ExponentialAction
 bp = @benchmark fp($t) # 3.4 μs (128 allocations: 9.9 KiB)
-
-#src include("../../../inc/reproduce.jl")
