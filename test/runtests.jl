@@ -22,4 +22,5 @@ end
     include("mese.jl")
     include("spgr.jl")
     include("crb.jl")
+    include("fit.jl") # extension - should be last
 end
