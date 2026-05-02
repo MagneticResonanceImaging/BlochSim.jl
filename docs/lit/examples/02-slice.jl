@@ -26,6 +26,7 @@ if false
         "LinearAlgebra"
         "MIRTjim"
         "Plots"
+        "Random"
     ])
 end
 
@@ -39,9 +40,11 @@ using BlochSim: excite!, spoil!
 #src using LinearAlgebra: diag
 using MIRTjim: prompt
 using Plots: annotate!, color, default, gui, plot, plot!, scatter!, scatter3d!, text
+using Random: seed!
 
 default(titlefontsize = 10, markerstrokecolor = :auto, label="", width = 1.5,
     linewidth = 2)
+seed!(0);
 
 
 # The following line is helpful when running this file as a script;
@@ -98,12 +101,13 @@ prompt()
 #=
 ### Slice-selective gradient
 
+From Fourier analysis:
 `2π/(tRF/2nlobe) = GAMMA * gz * slice_width`
 so
 `gz = 2nlobe*2π/tRF / GAMMA / slice_width`
 =#
 slice_width = 0.5 # cm
-gz =  (2nlobe*2π)/(tRF_ms/1000) / GAMMA / slice_width
+gz =  (2nlobe*2π) / (tRF_ms/1000) / GAMMA / slice_width
 grad = Gradient(0, 0, gz)
 rf1 = RF(waveform, Δt_ms, 0, grad)
 α_total = sum(rf1.α .* cis.(rf1.θ))
@@ -149,6 +153,28 @@ plot(pmag, ppha; layout = (2,1),
 #
 prompt()
 
-# todo: effect on qMRI
+#=
+The simulation shown above
+is similar to Fig. 5 of
+[Pauly et al. 1989](https://doi.org/10.1016/0022-2364(89)90265-5),
+where it is noted that improved refocusing
+could lead to better refocusing.
+This simulation ignores gradient slew-rate constraints
+that must be considered in practice.
+=#
+
+#src todo: effect on qMRI
+
+
+#=
+ntry = 10
+rand20(x::Number) = x * (1 + 0.2 * (rand() - 0.5) / 0.5) # ± 20% variability
+function do_fit(signal_ri::Function, i::Int)
+    seed!(i)
+    y = yb + 1σ * randn(ComplexF64, size(yb))
+    cost(x) = abs2(norm(signal_ri(x) - real_imag(vec(y)))) # LS cost
+    return optimize_multistart(cost, todo)
+end
+=#
 
 #src include("../../../inc/reproduce.jl")
