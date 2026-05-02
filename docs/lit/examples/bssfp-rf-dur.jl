@@ -37,7 +37,6 @@ if false
     Pkg.add([
         "ADTypes"
         "BlochSim"
-        "ForwardDiff"
         "InteractiveUtils"
         "LaTeXStrings"
         "LinearAlgebra"
@@ -63,7 +62,7 @@ using Plots: default, gui, histogram, histogram!, plot, plot!, scatter!
 using Random: seed!
 
 default(titlefontsize = 10, markerstrokecolor = :auto, label="", width = 1.5,
-    linewidth=2)
+    linewidth = 2)
 seed!(0);
 
 
