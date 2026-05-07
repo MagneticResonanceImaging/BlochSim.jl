@@ -42,7 +42,7 @@ using BlochSim: InstantaneousRF, RectRF
 using BlochSim: bssfp
 using MIRTjim: prompt
 using Plots: color, default, gui, plot, plot!, scatter!, scatter3d!
-using Plots: annotate!, text, xaxis!, yaxis!
+using Plots: annotate!, text
 using Random: seed!
 
 default(titlefontsize = 13, plot_titlefontsize = 13,
@@ -67,11 +67,18 @@ when T1 and T2 are relatively long,
 i.e.,
 `T1, T2 ≫ TR`.
 
-This plot uses the "standard"
+The 'blue' plots use the "standard"
 180° RF phase cycling factor
-that moves the passband to 0Hz.
+that moves the passband to 0Hz,
+whereas the 'red' plots
+use a 60° increment.
 
-Our result matches except for a conjugate (-phase).
+Our "blue" result matches
+Fig. 1 of Ref. 1
+except for a conjugate (-phase).
+
+The nonzero phase in passband of the red plot is disconcerting, (todo)
+suggesting possibly incorrect modeling of receiver phase for the π/3 case?
 =#
 
 TR_ms = 10 # ms
@@ -88,22 +95,27 @@ Mz0, T1_ms, T2_ms, Δf_Hz = 1, 20TR_ms, 15TR_ms, nothing # tissue parameters
 _xtick(::Val{2π}) = ((-2:2).*π, ["$(i)π" for i in -2:2]) # helper
 _xtick(::Val{π/2}) = ((-1:1).*π/2, ["$(i)π/2" for i in -1:1])
 
-function plot_fig1(T1_ms, T2_ms, rf = rf0, Δϕ = 1π)
-    sig = map(Δf_list) do Δf_Hz
-        bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, Δϕ, rf)
-    end
+Δϕ_vec = [π, π/3]
+Δϕ_label = ["Δϕ=π" "Δϕ=π/3"]
+function plot_fig1(T1_ms, T2_ms, rf = rf0)
+    color = [:blue :red]
+    sig = stack(map(Δϕ_vec) do Δϕ
+        map(Δf_list) do Δf_Hz
+            bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, Δϕ, rf)
+        end
+    end)
 
     xtick = _xtick(Val(2π))
     xaxis = ("phase evolution: θ = 2π⋅Δf⋅TR", (-2π,2π), xtick)
     ymax = round(maximum(abs, sig), RoundUp; sigdigits=1)
-    p1mag = plot(θ, abs.(sig); xtick, color = :magenta,
+    p1mag = plot(θ, abs.(sig); xtick, color,
      yaxis = ("magnitude", (0,ymax)),
     )
     ytick = ((-1:1).*π, ["$(i)π" for i in -1:1])
     yaxis = ("signal phase", (-π,π), ytick)
-    p1pha =  plot(θ, angle.(sig); xaxis, yaxis)
+    p1pha =  plot(θ, angle.(sig); xaxis, yaxis, color, label = Δϕ_label)
     fig = plot( p1mag, p1pha;
-     plot_title = ("TR = $TR_ms, TE = $TE_ms, Δϕ=π, T1 = $T1_ms, T2 = $T2_ms"),
+     plot_title = ("TR = $TR_ms, TE = $TE_ms, T1 = $T1_ms, T2 = $T2_ms"),
      layout = (2,1),
     )
     return sig, fig
@@ -125,12 +137,9 @@ Zoom to examine the phase slope near 0:
 =#
 function fig_zoom(fig)
     fig = deepcopy(fig)
-    fig = plot(fig)
-
-    xaxis = ("spin phase evolution [rad]", (-1,1) .* (π/2), _xtick(Val(π/2)), )
-    xaxis!(fig, xaxis...)
+    xaxis = ("spin phase evolution [rad]", (-1,1) .* (π/2), _xtick(Val(π/2)))
     yaxis = ("signal phase [rad]", (-1,1) .* 0.04, (-1:1) * 0.04)
-    yaxis!(fig, yaxis...)
+    fig = plot(fig, title = "Zoom"; xaxis, yaxis)
     return fig
 end
 fig1b = fig_zoom(fig1[2])
@@ -143,6 +152,7 @@ prompt()
 ### Phase evolution vs TE
 
 Show spin phase evolution as a function of TE,
+for `Δϕ = π`,
 to further illustrate spin-echo like refocusing
 at `TE ≈ TR/2`,
 reproducing Fig. 2a of Ref. 1.
@@ -157,9 +167,9 @@ function plot_fig2(T1_ms, T2_ms, title::String; rf=rf0)
         end
     end)
 
-    fig = plot(TE_list, angle.(sig);
+    fig = plot(TE_list, angle.(sig); title,
         xaxis = ("TE [ms]", (0, TR_ms), [0, TR_ms/2, TR_ms]),
-        yaxis = ("phase [rad]", ), title,
+        yaxis = ("phase [rad]", (-1,1) .* (π/2), _xtick(Val(π/2))),
     )
 
     return sig, fig
@@ -223,18 +233,25 @@ fig5
 #
 prompt()
 
-fig35 = plot(θ, [angle.(sig3) angle.(sig5)];
- xtick = _xtick(Val(2π)),
- label = ["Instantaneous RF" "1 ms RectRF"],
+tmp1 = Iterators.product(
+        ["Instant. RF " "1ms RectRF "],
+        Δϕ_label,
+    )
+
+fig35 = plot(θ, [angle.(sig3) angle.(sig5)][:, [1, 3, 2, 4]];
+ xtick = _xtick(Val(2π)), color = [1 3 2 4],
+ label = hcat(map(t -> *(t...), tmp1)...),
  title = "Effect of RF duration on bSSFP phase",
 )
 
 #
 prompt()
 
+
 # Largest phase differences near the low signal magnitude regions:
 fig35diff = plot(θ, angle.(sig3 .* conj(sig5));
  xtick = _xtick(Val(2π)),
+ label = ["Δϕ=π" "Δϕ=π/3"],
  title="phase difference",
 )
 
@@ -282,4 +299,4 @@ fig6
 #
 prompt()
 
-#src todo: examine 2-pool case
+#src examine 2-pool case?
