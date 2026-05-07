@@ -45,8 +45,8 @@ using Plots: color, default, gui, plot, plot!, scatter!, scatter3d!
 using Plots: annotate!, text, xaxis!, yaxis!
 using Random: seed!
 
-default(titlefontsize = 10, markerstrokecolor = :auto, label="", width = 1.5,
-    linewidth = 2)
+default(titlefontsize = 13, plot_titlefontsize = 13,
+ markerstrokecolor = :auto, label="", width = 1.5, linewidth = 2)
 seed!(0);
 
 
@@ -88,9 +88,9 @@ Mz0, T1_ms, T2_ms, Δf_Hz = 1, 20TR_ms, 15TR_ms, nothing # tissue parameters
 _xtick(::Val{2π}) = ((-2:2).*π, ["$(i)π" for i in -2:2]) # helper
 _xtick(::Val{π/2}) = ((-1:1).*π/2, ["$(i)π/2" for i in -1:1])
 
-function plot_fig1(T1_ms, T2_ms, rf=rf0)
+function plot_fig1(T1_ms, T2_ms, rf = rf0, Δϕ = 1π)
     sig = map(Δf_list) do Δf_Hz
-        bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, 1π, rf)
+        bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, Δϕ, rf)
     end
 
     xtick = _xtick(Val(2π))
@@ -104,7 +104,6 @@ function plot_fig1(T1_ms, T2_ms, rf=rf0)
     p1pha =  plot(θ, angle.(sig); xaxis, yaxis)
     fig = plot( p1mag, p1pha;
      plot_title = ("TR = $TR_ms, TE = $TE_ms, Δϕ=π, T1 = $T1_ms, T2 = $T2_ms"),
-     plot_titlefontsize = 12,
      layout = (2,1),
     )
     return sig, fig
@@ -151,8 +150,8 @@ reproducing Fig. 2a of Ref. 1.
 TE_list = range(0.01, 0.99, 51) * TR_ms
 
 function plot_fig2(T1_ms, T2_ms, title::String; rf=rf0)
-    Δf_list2 = range(-1, 1, 21) / (TR_ms/1000) / 2.2 # Hz
-    sig = stack(map(Δf_list2) do Δf_Hz
+    Δf_Hz = range(-1, 1, 21) / (TR_ms/1000) / 2.2 # Hz
+    sig = stack(map(Δf_Hz) do Δf_Hz
         map(TE_list) do TE_ms
             bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, 1π, rf)
         end
@@ -218,6 +217,7 @@ but the signal phase changes fairly little.
 
 rf1 = RectRF(1, α_rad)
 sig5, fig5 = plot_fig1(T1_ms, T2_ms, rf1)
+fig5[2].attr[:title] = "with RectRF"
 fig5
 
 #
@@ -226,6 +226,7 @@ prompt()
 fig35 = plot(θ, [angle.(sig3) angle.(sig5)];
  xtick = _xtick(Val(2π)),
  label = ["Instantaneous RF" "1 ms RectRF"],
+ title = "Effect of RF duration on bSSFP phase",
 )
 
 #
