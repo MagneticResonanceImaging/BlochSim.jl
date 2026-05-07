@@ -241,4 +241,44 @@ fig35diff = plot(θ, angle.(sig3 .* conj(sig5));
 prompt()
 
 
+#=
+## Phase cycling
+Plot bSSFP signal and phase
+versus phase cycling factor `Δϕ`,
+instead of spin phase evolution.
+Now the phase does not appear constant
+across the passband.
+=#
+function plot_cycle1(T1_ms, T2_ms; rf=rf0)
+    Δϕ = range(-1, 1, 201) * 2π # [rad]
+    Δf_Hz = 0
+#src    Δf_Hz = 1/(TR_ms/1000)/2
+    sig = map(Δϕ) do Δϕ
+        bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, Δϕ, rf)
+    end
+
+    xtick = _xtick(Val(2π))
+    ymax = round(maximum(abs, sig), RoundUp; sigdigits=1)
+    figm = plot(Δϕ, abs.(sig); xtick, color = :magenta,
+     yaxis = ("magnitude", (0,ymax)),
+    )
+
+    figa = plot(Δϕ, angle.(sig); xtick,
+        xaxis = ("Δϕ [rad]", (-1,1) .* 2π, ),
+        yaxis = ("phase [rad]", ),
+    )
+
+    fig = plot(figm, figa; layout = (2,1),
+     plot_title = ("TR = $TR_ms, TE = $TE_ms, Δf=0, T1 = $T1_ms, T2 = $T2_ms"),
+    )
+
+    return sig, fig
+end
+
+sig6, fig6 = plot_cycle1(200, 150)
+fig6
+
+#
+prompt()
+
 #src todo: examine 2-pool case
