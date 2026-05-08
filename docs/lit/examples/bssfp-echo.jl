@@ -281,11 +281,19 @@ versus phase cycling factor `Δϕ`,
 instead of spin phase evolution.
 Now the phase does not appear constant
 across the passband.
+
+Here the phase changes about 2 radians over 2π;
+experimental 7T data has about 3 radians.
+The source of that discrepancy is unknown.
 =#
-function plot_cycle1(T1_ms, T2_ms; rf=rf0)
+α_deg = 60
+rf60 = InstantaneousRF(deg2rad(α_deg), 0)
+#src rf60 = RectRF(1, deg2rad(α_deg))
+function plot_cycle1(
+    T1_ms, T2_ms, Δf_Hz = 0;
+    TR_ms = 8, TE_ms = 4, rf = rf60, # Amaya's experiment
+)
     Δϕ = range(-1, 1, 201) * 2π # [rad]
-    Δf_Hz = 0
-#src    Δf_Hz = 1/(TR_ms/1000)/2
     sig = map(Δϕ) do Δϕ
         bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, Δϕ, rf)
     end
@@ -301,14 +309,14 @@ function plot_cycle1(T1_ms, T2_ms; rf=rf0)
         yaxis = ("phase [rad]", ),
     )
 
-    fig = plot(figm, figa; layout = (2,1),
-     plot_title = ("TR = $TR_ms, TE = $TE_ms, Δf=0, T1 = $T1_ms, T2 = $T2_ms"),
+    fig = plot(figm, figa; layout = (2,1), plot_title =
+     ("α=$(α_deg)°, TR=$TR_ms, TE=$TE_ms, Δf=$Δf_Hz, T1=$T1_ms, T2=$T2_ms"),
     )
 
     return sig, fig
 end
 
-sig6, fig6 = plot_cycle1(200, 150)
+sig6, fig6 = plot_cycle1(274, 54)
 fig6
 
 #

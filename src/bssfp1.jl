@@ -142,7 +142,7 @@ end
 
 
 """
-    function bssfp(spin, TR_ms, TE_ms, rf::AbstractRF)
+    bssfp(spin, TR_ms, TE_ms, rf::AbstractRF)
 Classic version with no phase cycling increment,
 for `InstantaneousRF` only.
 """
@@ -174,7 +174,7 @@ end
 
 
 """
-    function bssfp(spin, TR_ms, TE_ms, Δϕ_rad, rf::AbstractRF)
+    bssfp(spin, TR_ms, TE_ms, Δϕ_rad, rf::AbstractRF)
 Signal accounting for phase cycling increment `Δϕ_rad`,
 allowing for finite duration `rf` pulse.
 """
