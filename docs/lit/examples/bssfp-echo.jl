@@ -57,7 +57,7 @@ isinteractive() || prompt(:draw);
 
 
 #=
-### bSSFP quasi spin-echo
+## bSSFP quasi spin-echo
 
 We first reproduce
 Fig. 1 of Ref. 1
@@ -71,7 +71,8 @@ The 'blue' plots use the "standard"
 180° RF phase cycling factor
 that moves the passband to 0Hz,
 whereas the 'red' plots
-use a 60° increment.
+use a 60° increment
+and the 'black' plots use no phase cycling.
 
 Our "blue" result matches
 Fig. 1 of Ref. 1
@@ -96,9 +97,10 @@ _xtick(::Val{2π}) = ((-2:2).*π, ["$(i)π" for i in -2:2]) # helper
 _xtick(::Val{π/2}) = ((-1:1).*π/2, ["$(i)π/2" for i in -1:1])
 
 Δϕ_vec = [π, π/3]
-Δϕ_label = ["Δϕ=π" "Δϕ=π/3"]
+Δϕ_vec = [π, π/3, 0]
+Δϕ_label = ["Δϕ=π" "Δϕ=π/3" "Δϕ=0"]
 function plot_fig1(T1_ms, T2_ms, rf = rf0)
-    color = [:blue :red]
+    color = [:blue :red :black]
     sig = stack(map(Δϕ_vec) do Δϕ
         map(Δf_list) do Δf_Hz
             bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, Δϕ, rf)
@@ -149,7 +151,7 @@ prompt()
 
 
 #=
-### Phase evolution vs TE
+## Phase evolution vs TE
 
 Show spin phase evolution as a function of TE,
 for `Δϕ = π`,
@@ -234,13 +236,14 @@ fig5
 prompt()
 
 tmp1 = Iterators.product(
-        ["Instant. RF " "1ms RectRF "],
         Δϕ_label,
+        [" Instant. RF " " 1ms RectRF "],
     )
 
 ymax = round(maximum(abs, sig5), RoundUp; sigdigits=1)
-fig35m = plot(θ, [abs.(sig3) abs.(sig5)][:, [1, 3, 2, 4]];
- xtick = _xtick(Val(2π)), color = [1 3 2 4],
+fig35m = plot(θ, [abs.(sig3) abs.(sig5)];
+ xtick = _xtick(Val(2π)), color = [1 2 3 1 2 3],
+ line = [:solid :solid :solid :dash :dash :dash],
  ylim = (0, ymax),
  label = hcat(map(t -> *(t...), tmp1)...),
  title = "Effect of RF duration on bSSFP magnitude",
@@ -249,8 +252,9 @@ fig35m = plot(θ, [abs.(sig3) abs.(sig5)][:, [1, 3, 2, 4]];
 #
 prompt()
 
-fig35p = plot(θ, [angle.(sig3) angle.(sig5)][:, [1, 3, 2, 4]];
- xtick = _xtick(Val(2π)), color = [1 3 2 4],
+fig35p = plot(θ, [angle.(sig3) angle.(sig5)];
+ xtick = _xtick(Val(2π)), color = [1 2 3 1 2 3],
+ line = [:solid :solid :solid :dash :dash :dash],
  label = hcat(map(t -> *(t...), tmp1)...),
  title = "Effect of RF duration on bSSFP phase",
 )
