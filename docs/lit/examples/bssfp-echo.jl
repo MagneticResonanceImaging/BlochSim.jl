@@ -238,7 +238,18 @@ tmp1 = Iterators.product(
         Δϕ_label,
     )
 
-fig35 = plot(θ, [angle.(sig3) angle.(sig5)][:, [1, 3, 2, 4]];
+ymax = round(maximum(abs, sig5), RoundUp; sigdigits=1)
+fig35m = plot(θ, [abs.(sig3) abs.(sig5)][:, [1, 3, 2, 4]];
+ xtick = _xtick(Val(2π)), color = [1 3 2 4],
+ ylim = (0, ymax),
+ label = hcat(map(t -> *(t...), tmp1)...),
+ title = "Effect of RF duration on bSSFP magnitude",
+)
+
+#
+prompt()
+
+fig35p = plot(θ, [angle.(sig3) angle.(sig5)][:, [1, 3, 2, 4]];
  xtick = _xtick(Val(2π)), color = [1 3 2 4],
  label = hcat(map(t -> *(t...), tmp1)...),
  title = "Effect of RF duration on bSSFP phase",
