@@ -1,7 +1,8 @@
 #=
-# [Slice selective excitation](@id slice select)
+# [Slice selective excitation](@id slice-select)
 
 This page illustrates slice-selective excitation
+in MRI
 using the Julia package
 [`BlochSim`](https://github.com/StevenWhitaker/BlochSim.jl)
 =#
@@ -25,6 +26,7 @@ if false
         "LaTeXStrings"
         "LinearAlgebra"
         "MIRTjim"
+        "Optim"
         "Plots"
         "Random"
     ])
@@ -34,17 +36,19 @@ end
 # Tell this Julia session to use the following packages for this example.
 # Run `Pkg.add()` in the preceding code block first, if needed.
 
+using ADTypes: AutoForwardDiff
+using Optim: optimize # must precede BlochSim for extension
 using BlochSim: GAMMA, Gradient, GradientSpoiling, Position, Spin, SpinMC
-using BlochSim: InstantaneousRF, RF, b1_gauss
+using BlochSim: InstantaneousRF, RF, b1_gauss, rf_slice
 using BlochSim: excite!, spoil!
-using BlochSim: bssfp, real_imag
-#src using LinearAlgebra:
+using BlochSim: bssfp, real_imag, signal, snr2sigma, fit_signal
+using LinearAlgebra: norm
 using MIRTjim: prompt
-using Plots: annotate!, color, default, gui, plot, plot!, scatter!, scatter3d!, text
+using Plots: default, gui
+using Plots: annotate!, color, plot, plot!, scatter!, scatter3d!, text
 using Random: seed!
 
-default(titlefontsize = 10, markerstrokecolor = :auto, label="", width = 1.5,
-    linewidth = 2)
+default(titlefontsize = 10, markerstrokecolor = :auto, label="", linewidth = 2)
 seed!(0);
 
 
@@ -55,10 +59,8 @@ isinteractive() || prompt(:draw);
 
 
 #=
-### Array of spins
+## Array of spins
 =#
-
-round2(x) = round(x, digits = 2)
 
 Mz0, T1_ms, T2_ms, Δf_Hz = 1, 400, 10, 9 # tissue parameters
 
@@ -72,28 +74,20 @@ spins = make_spins(Mz0, T1_ms, T2_ms, Δf_Hz);
 
 
 #=
-### RF pulse for slice-selection
+## RF pulse for slice-selection
 =#
 
-Δt_ms = 1e-3 # ms, so 1μs dwell
 tRF_ms = 0.9
-nsamp = round(Int, tRF_ms / Δt_ms)
-pisinc(x) = x == 0 ? zero(x) : sin(π * x) / (π * x)
-
 nlobe = 5
-sinc5(t) = sinc(2nlobe * t / tRF_ms)
-
 α_deg = 60 # flip angle ° (somewhat large for testing)
 α_rad = deg2rad(α_deg)
+slice_width = 0.5 # cm
+rf1, rephasing1 = rf_slice(tRF_ms ; α_rad, nlobe, slice_width)
 
+nsamp = length(rf1.α)
+wave = real(rf1.α .* cis.(rf1.θ)) * b1_gauss(1, rf1.Δt) # convert rad to gauss
 t = ((0:(nsamp-1))/nsamp .- 0.5) * tRF_ms # [-tRF_ms/2, tRF_ms/2)
-function make_waveform(α_rad, tRF_ms)
-    wave = sinc5.(t)
-    wave .*= nsamp / sum(wave) # make sum to unity
-    return wave * b1_gauss(α_rad, tRF_ms) # flip angle
-end
-waveform = make_waveform(α_rad, tRF_ms)
-prf = plot(t, waveform,
+prf = plot(t, wave,
   xaxis = ("t [ms]", (-1,1) .* (tRF_ms/2), ),
   yaxis = ("b₁(t) [Gauss]", ),
   title = "5-lobe sinc for α = $(α_deg)° and tRF = $tRF_ms ms",
@@ -102,38 +96,22 @@ prf = plot(t, waveform,
 #
 prompt()
 
+# Make RF version that includes rephasing gradient (for testing):
+rf2 = rf_slice(Val(:built_in_rephasing), tRF_ms; α_rad, nlobe, slice_width);
+
 
 #=
-### Slice-selective gradient
-
-From Fourier analysis:
-`2π/(tRF/2nlobe) = GAMMA * gz * slice_width`
-so
-`gz = 2nlobe*2π/tRF / GAMMA / slice_width`
-=#
-slice_width = 0.5 # cm
-gz = (2nlobe*2π) / (tRF_ms/1000) / GAMMA / slice_width
-grad = Gradient(0, 0, gz)
-
-# RF pulse with slice-selection gradient
-rf1 = RF(waveform, Δt_ms, 0, grad)
-α_total = sum(rf1.α .* cis.(rf1.θ))
-@assert α_total ≈ α_rad
-
-# Refocusing gradient
-refocus = GradientSpoiling(Gradient(0, 0, -gz), tRF_ms/2);
-
-#=
-### Excite the spins with the RF, then refocus
+## Excite the spins with the non-rephased RF, then rephase
 =#
 map(spins) do spin
     excite!(spin, rf1)
-    spoil!(spin, refocus)
+    spoil!(spin, rephasing1)
 end;
+signal1 = signal.(spins)
 
 
 #=
-### Plot slice profile
+## Plot slice profile
 =#
 function plot_profile(spins)
     mx = map(spin -> spin.M.x, spins)
@@ -160,7 +138,7 @@ function plot_profile(spins)
       plot_title = "Slice profile for 5-lobe sinc, α = $(α_deg)°",
     )
 end
-plot_profile(spins)
+pp1 = plot_profile(spins)
 
 #
 prompt()
@@ -179,23 +157,12 @@ that must be considered in practice.
 
 
 #=
-### Merge RF and refocusing gradient
-This construction will be more convenient later.
+## RF "pulse" with built-in rephasing gradient
+(Shown for illustration only; it is computationally inefficient.)
 =#
-function make_rf2(α_rad::Real, tRF_ms::Real)
-    waveform = make_waveform(α_rad, tRF_ms)
-    waveform1 = sinc5.(t)
-    waveform1 .*= (nsamp / sum(waveform1)) * b1_gauss(α_rad, tRF_ms)
-    grad2 = [fill(Gradient(0, 0, gz), nsamp);
-             fill(Gradient(0, 0, -gz), nsamp÷2)] # refocus
-    waveform2 = [waveform1; zeros(nsamp÷2)]
-    return RF(waveform2, Δt_ms, 0, grad2)
-end
-rf2 = make_rf2(α_rad, tRF_ms)
-
-plot(
+prg = plot(
     plot(real(rf2.α .* cis.(rf2.θ)), ylabel = "α"),
-    plot( map(g -> g.z, rf2.grad),
+    plot( map(g -> g.z, rf2.grad); color = :green,
         xlabel = "time sample", ylabel = "Gz [G/cm]"),
     layout = (2,1),
 )
@@ -205,13 +172,15 @@ prompt()
 
 
 #=
-### Excite the spins with the RF that has built-in refocus
+### Excite the spins with the RF that has built-in rephasing
 (Plot should be identical.)
 =#
 spins = make_spins(Mz0, T1_ms, T2_ms, Δf_Hz)
 map(spins) do spin
     excite!(spin, rf2)
 end;
+signal2 = signal.(spins)
+@assert signal1 ≈ signal2 # sanity check
 pp2 = plot_profile(spins)
 
 #
@@ -226,7 +195,7 @@ kappa = 1 # also estimate the B1+ factor
 xt = (; Mz0, T1_ms, T2_ms, Δf_Hz, kappa) # tuple
 x = collect(Float64, xt) # unknowns in vector
 
-TR_ms, TE_ms = 8, 4 # bSSFP scan parameters
+TR_ms, TE_ms = 8, 4; # bSSFP scan parameters
 ## spin = Spin(Mz0, T1_ms, T2_ms, Δf_Hz) # for basic model
 
 #=
@@ -242,7 +211,8 @@ num_scans = length(design) # number of different scans
 
 # Helper for `InstantaneousRF` bSSFP signal model
 _bssfp0(x, Δϕ_rad, α_rad) =
-     bssfp(x[1:4]..., TR_ms, TE_ms, Δϕ_rad, InstantaneousRF(x[5] * α_rad))
+     bssfp(x[1:4]..., TR_ms, TE_ms, Δϕ_rad, InstantaneousRF(x[5] * α_rad));
+
 
 #=
 Helper for bSSFP model with slice-selective RF pulse.
@@ -250,11 +220,15 @@ Helper for bSSFP model with slice-selective RF pulse.
 - This version models flip-angle dependent slice profile effects.
 =#
 function _bssfp2(x, Δϕ_rad, α_rad)
-     rf2 = make_rf2(x[5] * α_rad, tRF_ms)
-     spins = make_spins(x[1:4]...)
-     return sum(spins) do spin # todo scale factor
-          bssfp(spin, TR_ms, TE_ms, Δϕ_rad, rf2)
-     end
+    rf2 = rf_slice(Val(:built_in_rephasing), # todo: use rephasing2
+        tRF_ms; α_rad = x[5] * α_rad, # kappa
+        nlobe, slice_width,
+    )
+    spins = make_spins(x[1:4]...)
+    ## todo: adjust TE because RF pulse is 50% "too long" due to rephasing grad
+    return sum(spins) do spin # todo scale factor
+         bssfp(spin, TR_ms, TE_ms, Δϕ_rad, rf2) # todo: include rephasing2
+    end
 end
 
 function signal_c0(x)
@@ -269,17 +243,26 @@ function signal_c2(x)
 end
 signal_ri2(x) = real_imag(vec(signal_c2(x)))
 
-## signal_ri0(x)
+snr_db = 40
+σ = snr2sigma(snr_db, signal_c2(x))
+yb = signal_c2(x) # noiseless data account for slice-profile effects
+y = yb + 1σ * randn(ComplexF64, size(yb));
+#src @show 20*log10(norm(yb) / norm(y - yb))
 
-## signal_ri2(x)
+rand20(x::Number) = x * (1 + 0.2 * (rand() - 0.5) / 0.5) # ± 20% variability
+ntry = 10
+function do_fit(signal_ri::Function, i::Int)
+    seed!(i) # to ensure that both models fit the same data
+    y = yb + 1σ * randn(ComplexF64, size(yb))
+    x0fun = i -> rand20.(x)
+    return fit_signal(signal_ri, x0fun, real_imag(vec(y)); ntry)
+end
 
 #=
-ntry = 10
-rand20(x::Number) = x * (1 + 0.2 * (rand() - 0.5) / 0.5) # ± 20% variability
-function do_fit(signal_ri::Function, i::Int)
-    seed!(i)
-    y = yb + 1σ * randn(ComplexF64, size(yb))
-    cost(x) = abs2(norm(signal_ri(x) - real_imag(vec(y)))) # LS cost
-    return optimize_multistart(cost, todo)
+todo: fails
+todo: add varpro to fit_signal?
+if !@isdefined(xr3) # || true
 end
+    nrep = 400
+    xr0 = stack([do_fit(signal_ri0, i) for i in 1:nrep])
 =#
