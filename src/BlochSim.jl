@@ -85,5 +85,6 @@ include("bssfp1.jl")
 include("bssfp2.jl")
 include("expm-bloch3.jl")
 include("crb.jl")
+include("slice.jl")
 
 end
