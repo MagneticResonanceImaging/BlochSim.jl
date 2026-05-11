@@ -81,9 +81,7 @@ end
 """
     bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, Δϕ_rad, α_rad, θ_rf_rad=0)
     bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, Δϕ_rad, rf, [pos])
-    bssfp(spin, Δf_Hz, TR_ms, TE_ms, Δϕ_rad, rf)
-    bssfp(spin, Δf_Hz, TR_ms, Val(:midTR) or Val(:postRF), Δϕ_rad, rf)
-    `Val(:midTR)` for TE = TR/2;  Val(:postRF) for TE = tRF/2
+    bssfp(spin, Δf_Hz, TR_ms, TE_ms | Val(:midTR) | Val(:postRF), Δϕ_rad, rf)
 
 Return steady-state magnetization signal value
 at the echo time
@@ -100,6 +98,7 @@ by accounting for possibly finite RF duration.
 - `T1_ms` MRI tissue parameter for T1 relaxation (ms)
 - `T2_ms` MRI tissue parameter for T2 relaxation (ms)
 - `Δf_Hz` off-resonance value (Hz)
+  Use `Val(:midTR)` for TE = TR/2;  Val(:postRF) for TE = tRF/2
 # In (scan parameters):
 - `TR_ms` repetition time (ms)
 - `TE_ms` echo time (ms), measured from *middle* of RF pulse
@@ -133,7 +132,7 @@ function bssfp(
     pos::Position = Position(0.0, 0.0, 0.0),
 )
     TE_ms = _TE_ms(TE_ms, TR_ms, rf) # handle Val
-    tRF_ms = duration(rf)
+    tRF_ms = duration(rf) # todo: later?
     tRF_ms/2 ≤ TE_ms < TR_ms - tRF_ms/2 ||
         throw("bad TE=$TE_ms for TR=$TR_ms and tRF=$tRF_ms")
     spin = Spin(Mz0, T1_ms, T2_ms, Δf_Hz, pos)
