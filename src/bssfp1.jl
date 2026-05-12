@@ -131,10 +131,6 @@ function bssfp(
     rf::AbstractRF,
     pos::Position = Position(0.0, 0.0, 0.0),
 )
-    TE_ms = _TE_ms(TE_ms, TR_ms, rf) # handle Val
-    tRF_ms = duration(rf) # todo: later?
-    tRF_ms/2 ≤ TE_ms < TR_ms - tRF_ms/2 ||
-        throw("bad TE=$TE_ms for TR=$TR_ms and tRF=$tRF_ms")
     spin = Spin(Mz0, T1_ms, T2_ms, Δf_Hz, pos)
     return bssfp(spin, TR_ms, TE_ms, Δϕ_rad, rf)
 end
@@ -147,9 +143,12 @@ for `InstantaneousRF` only.
 """
 function bssfp(spin::Spin, TR_ms::Number, TE_ms::TE_ms_type, rf::AbstractRF)
 
-    TE_ms = _TE_ms(TE_ms, TR_ms, rf) # handle Val
-    (R,) = excite(spin, rf) # matrix for spin excitation
     rf isa InstantaneousRF || throw("unsupported")
+
+    TE_ms = _TE_ms(TE_ms, TR_ms, rf) # handle Val
+    0 < TE_ms < TR_ms || throw("bad TE=$TE_ms for TR=$TR_ms")
+
+    (R,) = excite(spin, rf) # matrix for spin excitation
 
     #=
     Matrices for precession/relaxation for various time period values
@@ -178,16 +177,30 @@ Signal accounting for phase cycling increment `Δϕ_rad`,
 allowing for finite duration `rf` pulse.
 """
 function bssfp(spin::Spin,
-    TR_ms::Number, TE_ms::TE_ms_type, Δϕ_rad::Number, rf::AbstractRF,
+    TR_ms::Number, TE_ms::TE_ms_type, Δϕ_rad::Number,
+    rf::Union{AbstractRF, Tuple{<:RF, <:GradientSpoiling}},
 )
 
+    if rf isa Tuple
+        rf, rephasing = rf
+        Tg = rephasing.Tg # duration of rephasing gradient that follows RF
+    else
+        rephasing = nothing
+        Tg = 0
+    end
+
     TE_ms = _TE_ms(TE_ms, TR_ms, rf) # handle Val
+    tRF_ms = duration(rf)
+    tRF_ms/2 + Tg ≤ TE_ms < TR_ms - tRF_ms/2 ||
+        throw("bad TE=$TE_ms for TR=$TR_ms tRF=$tRF_ms Tg=$Tg")
+
     (A1, b1) = excite(spin, rf) # matrix for spin excitation
 
     tRF_ms = duration(rf)
-    (A0, d0) = freeprecess(spin, TR_ms - tRF_ms)
+    (A0, d0) = freeprecess(spin, TR_ms - tRF_ms - Tg)
     Rz = FreePrecessionMatrix(1, 1, -Δϕ_rad) # phase cycling
     b = isnothing(b1) ? Vector(A1 * d0) : Vector(A1 * d0 + b1)
+    rephasing == nothing || throw("todo")
     A = Matrix(A1 * A0 * Rz)
     Mss = (I - A) \ b # steady-state magnetization immediately after RF
 
