@@ -484,9 +484,15 @@ combine!(A, A1, A2) = mul!(A, A2, A1)
     A, B = combine(A1, B1, A2, B2)
 See [`combine!`](@ref).
 """
-function combine(A1, B1, A2, B2)
-    A = BlochMatrix()
-    B = Magnetization()
+function combine(
+    A1::Union{AbstractBlochMatrix{T1}, ExcitationMatrix{T1}},
+    B1,
+    A2::Union{AbstractBlochMatrix{T2}, ExcitationMatrix{T2}},
+    B2,
+) where {T1, T2}
+    T = promote_type(T1, T2)
+    A = BlochMatrix{T}()
+    B = Magnetization{T}()
     combine!(A, B, A1, B1, A2, B2)
     return (A, B)
 end
