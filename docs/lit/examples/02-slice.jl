@@ -67,6 +67,7 @@ For a range of z-positions to examine slice profile
 Mz0, T1_ms, T2_ms, Δf_Hz = 1, 400, 10, 9 # tissue parameters
 
 zpos = range(-1, 1, 201) # z positions (cm)
+zpos = range(-0.1, 0.1, 21) # z positions (cm) # todo: narrow for testing
 zfov = only(diff([extrema(zpos)...])) # 2 cm
 
 make_spins(Mz0, T1_ms, T2_ms, Δf_Hz) = map(zpos) do z
@@ -85,7 +86,9 @@ nlobe = 5
 α_deg = 60 # flip angle ° (somewhat large for testing)
 α_rad = deg2rad(α_deg)
 slice_width = 0.5 # cm
+#src slice_width = 4.5 # cm ok agreement over a narrow zfov with this
 rf1, rephasing1 = rf_slice(tRF_ms ; α_rad, nlobe, slice_width)
+#src todo: increasing nlobe does not seem to help; try SLR pulse?
 
 nsamp = length(rf1.α)
 wave = real(rf1.α .* cis.(rf1.θ)) * b1_gauss(1, rf1.Δt) # convert rad to gauss
@@ -93,7 +96,7 @@ t = ((0:(nsamp-1))/nsamp .- 0.5) * tRF_ms # [-tRF_ms/2, tRF_ms/2)
 prf = plot(t, wave,
   xaxis = ("t [ms]", (-1,1) .* (tRF_ms/2), ),
   yaxis = ("b₁(t) [Gauss]", ),
-  title = "5-lobe sinc for α = $(α_deg)° and tRF = $tRF_ms ms",
+  title = "$nlobe-lobe sinc: α=$(α_deg)° tRF=$tRF_ms ms width=$slice_width cm",
 )
 
 #
@@ -123,22 +126,20 @@ function plot_profile(spins)
     mmag = @. sqrt(mx^2 + my^2)
     mpha = @. atan(my, mx)
 
-    pmag = plot(
-      xaxis = ("z [cm]", (-1,1), [-1, -slice_width/2, 0, slice_width/2, 1]),
-      yaxis = ("", (-0.2,1), ([0, sin(α_rad)/2, sin(α_rad), 1],
-        ["0", "sin($(α_deg)°)/2", "sin($(α_deg)°)", 1]) ),
-      legend = :right,
-    )
+    xaxis = ("z [cm]", (-1,1), [-1, -slice_width/2, 0, slice_width/2, 1])
+    ytick = ([0, cos(α_rad), sin(α_rad), 1],
+        ["0", "cos($(α_deg)°)", "sin($(α_deg)°)", 1])
+    pmag = plot(; xaxis, yaxis = ("", (-0.2,1), ytick), legend = :right)
     plot!(zpos, mx, label = "Mx")
     plot!(zpos, my, label = "My")
     plot!(zpos, mz, label = "Mz")
     plot!(zpos, mmag, label = "|Mxy|")
 
-    ppha = plot( xaxis = ("z [cm]", ), legend = :right )
+    ppha = plot(; xaxis, legend = :right)
     plot!(zpos, mpha, label = "∠Mxy")
 
     return plot(pmag, ppha; layout = (2,1),
-      plot_title = "Slice profile for 5-lobe sinc, α = $(α_deg)°",
+      plot_title = "Slice profile for $nlobe-lobe sinc, α = $(α_deg)°",
     )
 end
 pp1 = plot_profile(spins)
@@ -222,6 +223,7 @@ Helper for bSSFP model with slice-selective RF pulse.
 - This version models flip-angle dependent slice profile effects.
 =#
 scale2 = diff(zpos)[1] * zfov / slice_width / 2 # todo: arbitrary factor?
+scale2 = 1/length(zpos) # todo
 function _bssfp2(x, Δϕ_rad, α_rad)
     rf2 = rf_slice(Val(:built_in_rephasing), # todo: use rephasing2
         tRF_ms; α_rad = x[5] * α_rad, # kappa
@@ -229,9 +231,20 @@ function _bssfp2(x, Δϕ_rad, α_rad)
     )
     spins = make_spins(x[1:4]...)
     return scale2 * sum(spins) do spin # todo scale factor
-         ## todo: adjust TE because RF pulse is 50% "too long" due to rephasing grad
-         TE_kludge = TE_ms + (0/2) * tRF_ms
-         bssfp(spin, TR_ms, TE_kludge, Δϕ_rad, rf2) # todo: include rephasing2
+         ## adjust TE because RF pulse is "too long" due to rephasing grad
+         TE_adjust = TE_ms - rephasing1.Tg / 2
+         bssfp(spin, TR_ms, TE_adjust, Δϕ_rad, rf2) # todo: include rephasing2
+    end
+end
+
+scale1 = scale2
+function _bssfp1(x, Δϕ_rad, α_rad)
+    rf, rephasing = rf_slice(tRF_ms; α_rad = x[5] * α_rad, # kappa
+        nlobe, slice_width,
+    )
+    spins = make_spins(x[1:4]...)
+    return scale1 * sum(spins) do spin
+         bssfp(spin, TR_ms, TE_ms, Δϕ_rad, (rf, rephasing))
     end
 end
 
@@ -240,6 +253,12 @@ function signal_c0(x)
     return map(splat(_bssfp), design)
 end
 signal_ri0(x) = real_imag(vec(signal_c0(x)))
+
+function signal_c1(x)
+    _bssfp(Δϕ_rad, α_rad) = _bssfp1(x, Δϕ_rad, α_rad)
+    return map(splat(_bssfp), design)
+end
+signal_ri1(x) = real_imag(vec(signal_c1(x)))
 
 function signal_c2(x)
     _bssfp(Δϕ_rad, α_rad) = _bssfp2(x, Δϕ_rad, α_rad)
@@ -272,10 +291,13 @@ pmism = plot( ; xaxis, widen = true,
 label = reshape(map(x -> "$(x)° noisy", α_degs), 1, :)
 scatter!(Δϕ_rads, abs.(y); label)
 Δϕ_fine = range(-1, 1, 61) * π # phase-cycling factors for plot
-tmp2 = Base.Fix{1}(_bssfp2, x).(Δϕ_fine, α_rads')
+@time tmp2 = Base.Fix{1}(_bssfp2, x).(Δϕ_fine, α_rads')
+@time tmp1 = Base.Fix{1}(_bssfp1, x).(Δϕ_fine, α_rads')
+@assert tmp1 ≈ tmp2
+@time tmp0 = Base.Fix{1}(_bssfp0, x).(Δϕ_fine, α_rads')
 color = (1:length(α_degs))'
 plot!(Δϕ_fine, abs.(tmp2); label="$tRF_ms ms sinc RF", color)
-tmp0 = Base.Fix{1}(_bssfp0, x).(Δϕ_fine, α_rads')
+plot!(Δϕ_fine, abs.(tmp1); label="$tRF_ms ms sinc RF v1", color)
 plot!(Δϕ_fine, abs.(tmp0); label="0 ms RF", line=:dash, color)
 
 #
@@ -287,6 +309,7 @@ pmisa = plot( ; xaxis, widen = true, ylabel = "signal phase",
 )
 scatter!(Δϕ_rads, angle.(y); label)
 plot!(Δϕ_fine, angle.(tmp2); label="$tRF_ms ms sinc RF", color)
+plot!(Δϕ_fine, angle.(tmp1); label="$tRF_ms ms sinc RF v1", color)
 @assert angle.(tmp0[:,1]) ≈ angle.(tmp0[:,2]) ≈ angle.(tmp0[:,3]) # same!
 plot!(Δϕ_fine, angle.(tmp0[:,1]); label="0 ms RF", line=:dash, color=:black)
 
@@ -317,7 +340,7 @@ may be quite significant.
 round2(x) = round(x; sigdigits=3)
 mean2(x) = sum(x, dims=2)[:,1] / nrep
 std2(x) = sqrt.(sum(abs2, x .- mean2(x), dims=2)[:,1] / nrep)
-if !@isdefined(xr0) # || true
+if !@isdefined(xr0) || true # todo
     nrep = 100
     xr0 = stack([do_fit(signal_ri0, i) for i in 1:nrep])
     mean0 = mean2(xr0)
