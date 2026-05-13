@@ -7,7 +7,7 @@ for an isochromat (1-pool).
 export bssfp, bSSFPtuple1
 export bSSFPbloch, bSSFPbloch3, bSSFPellipse
 
-using BlochSim: Position, Spin, excite, freeprecess, duration
+using BlochSim: Position, Spin, excite, freeprecess, combine, duration
 using BlochSim: AbstractRF, InstantaneousRF, RF1
 using LinearAlgebra: I
 
@@ -172,13 +172,18 @@ end
 
 
 """
-    bssfp(spin, TR_ms, TE_ms, Δϕ_rad, rf::AbstractRF)
+    bssfp(spin, TR_ms, TE_ms, Δϕ_rad, rf::AbstractRF | rf::Tuple)
 Signal accounting for phase cycling increment `Δϕ_rad`,
-allowing for finite duration `rf` pulse.
+allowing for finite duration `rf` pulse,
+or a combination of a (typically slice selective) RF pulse
+and a rephasing gradient, provided as
+`Tuple{<:AbstractRF, <:GradientSpoiling}}`.
+
+todo: could be accelerated using a workspace
 """
 function bssfp(spin::Spin,
     TR_ms::Number, TE_ms::TE_ms_type, Δϕ_rad::Number,
-    rf::Union{AbstractRF, Tuple{<:RF, <:GradientSpoiling}},
+    rf::Union{AbstractRF, Tuple{<:AbstractRF, <:GradientSpoiling}},
 )
 
     if rf isa Tuple
@@ -195,14 +200,18 @@ function bssfp(spin::Spin,
         throw("bad TE=$TE_ms for TR=$TR_ms tRF=$tRF_ms Tg=$Tg")
 
     (A1, b1) = excite(spin, rf) # matrix for spin excitation
+    if !isnothing(rephasing)
+        (Ar, Br) = spoil(spin, rephasing)
+        (A1, b1) = combine(A1, b1, Ar, Br)
+    end
 
     tRF_ms = duration(rf)
     (A0, d0) = freeprecess(spin, TR_ms - tRF_ms - Tg)
+    (A, b) = combine(A0, d0, A1, b1) #  A = A1*A0, b=A1*d0+b1
+
     Rz = FreePrecessionMatrix(1, 1, -Δϕ_rad) # phase cycling
-    b = isnothing(b1) ? Vector(A1 * d0) : Vector(A1 * d0 + b1)
-    rephasing == nothing || throw("todo")
-    A = Matrix(A1 * A0 * Rz)
-    Mss = (I - A) \ b # steady-state magnetization immediately after RF
+    A = Matrix(A * Rz)
+    Mss = (I - A) \ Vector(b) # steady-state magnetization immediately after RF
 
     # account for free precession from end of RF to TE:
     t_free_ms = TE_ms - tRF_ms / 2
