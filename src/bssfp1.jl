@@ -188,16 +188,16 @@ function bssfp(spin::Spin,
 
     if rf isa Tuple
         rf, rephasing = rf
-        Tg = rephasing.Tg # duration of rephasing gradient that follows RF
+        Tg_ms = rephasing.Tg # duration of rephasing gradient that follows RF
     else
         rephasing = nothing
-        Tg = 0
+        Tg_ms = 0
     end
 
     TE_ms = _TE_ms(TE_ms, TR_ms, rf) # handle Val
     tRF_ms = duration(rf)
-    tRF_ms/2 + Tg ≤ TE_ms < TR_ms - tRF_ms/2 ||
-        throw("bad TE=$TE_ms for TR=$TR_ms tRF=$tRF_ms Tg=$Tg")
+    tRF_ms/2 + Tg_ms ≤ TE_ms < TR_ms - tRF_ms/2 ||
+        throw("bad TE=$TE_ms for TR=$TR_ms tRF=$tRF_ms Tg=$Tg_ms")
 
     (A1, b1) = excite(spin, rf) # matrix for spin excitation
     if !isnothing(rephasing)
@@ -206,19 +206,20 @@ function bssfp(spin::Spin,
     end
 
     tRF_ms = duration(rf)
-    (A0, d0) = freeprecess(spin, TR_ms - tRF_ms - Tg)
-    (A, b) = combine(A0, d0, A1, b1) #  A = A1*A0, b=A1*d0+b1
+    t_free_ms = TR_ms - tRF_ms - Tg_ms # total free precession time
+    (A0, d0) = freeprecess(spin, t_free_ms)
+    (A, b) = combine(A0, d0, A1, b1) # A = A1*A0, b=A1*d0+b1
 
     Rz = FreePrecessionMatrix(1, 1, -Δϕ_rad) # phase cycling
     A = Matrix(A * Rz)
     Mss = (I - A) \ Vector(b) # steady-state magnetization immediately after RF
 
-    # account for free precession from end of RF to TE:
-    t_free_ms = TE_ms - tRF_ms / 2
-#   Efree = FreePrecessionMatrix(I, exp(-t_free_ms/spin.T2), spin.Δf_Hz)
+    # account for free precession from end of RF (or rephasing) to TE:
+    t_echo_ms = TE_ms - tRF_ms / 2 - Tg_ms
+#   Efree = FreePrecessionMatrix(I, exp(-t_echo_ms / spin.T2), spin.Δf_Hz)
     return complex(Mss[1], Mss[2]) * # complex signal
-        exp(-t_free_ms / spin.T2) * # T2 decay
-        cis(-2π/1000*spin.Δf*t_free_ms) # off resonance
+        exp(-t_echo_ms / spin.T2) * # T2 decay
+        cis(-2π/1000 * spin.Δf * t_echo_ms) # off resonance
 end
 
 
