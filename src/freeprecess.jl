@@ -412,10 +412,16 @@ end
 """
     combine!(A, B, A1, B1, A2, B2)
     combine!(A, A1, A2)
+    A, B = combine(A1, B1, A2, B2)
 
-Combine the matrices and vectors that describe the dynamics of a spin into one
-matrix and one vector, overwriting `A` and `B`. The dynamics described by `A1`
-and `B1` apply first, then those described by `A2` and `B2`. In other words,
+Combine the matrices and vectors that describe the dynamics of a spin
+into one matrix and one vector.
+The mutating versions `combine!`
+overwrite `A` and `B` (when relevant).
+
+The dynamics described by `A1` and `B1` apply first,
+then those described by `A2` and `B2`.
+In other words:
 `A = A2 * A1` and `B = A2 * B1 + B2`.
 
 # Examples
@@ -472,6 +478,25 @@ function combine!(A, B, ::Nothing, ::Nothing, A2, B2)
 end
 
 combine!(A, A1, A2) = mul!(A, A2, A1)
+
+
+"""
+    A, B = combine(A1, B1, A2, B2)
+See [`combine!`](@ref).
+"""
+function combine(
+    A1::Union{AbstractBlochMatrix{T1}, ExcitationMatrix{T1}},
+    B1,
+    A2::Union{AbstractBlochMatrix{T2}, ExcitationMatrix{T2}},
+    B2,
+) where {T1, T2}
+    T = promote_type(T1, T2)
+    A = BlochMatrix{T}()
+    B = Magnetization{T}()
+    combine!(A, B, A1, B1, A2, B2)
+    return (A, B)
+end
+
 
 """
     applydynamics!(spin, BtoM, A, [B])

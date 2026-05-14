@@ -106,6 +106,11 @@ Base.length(rf::RF) = length(rf.α)
     duration(rf)
 
 Return the duration (ms) of the RF pulse.
+
+Caution.
+If the RF waveform has a long tail of zeros
+due to the presence of a built-in rephasing gradient,
+then this duration value includes that tail.
 """
 duration(::InstantaneousRF) = 0 # COV_EXCL_LINE
 duration(rf::RF) = length(rf) * rf.Δt

@@ -1,4 +1,15 @@
+# test/freeprecess.jl
+
+using BlochSim: InstantaneousRF, Gradient, Magnetization, MagnetizationMC
+using BlochSim: Spin, SpinMC, Position, GAMBAR
+using BlochSim: BlochMatrix, BlochMcConnellMatrix
+using BlochSim: ExcitationMatrix, FreePrecessionMatrix
+using BlochSim: applydynamics!
+using BlochSim: combine, combine!, excite!
+using BlochSim: freeprecess, freeprecess!
+
 using Test: @inferred, @test, @testset
+
 
 function freeprecess1()
 
@@ -158,6 +169,21 @@ function freeprecessmc5()
     return B1 ≈ B2
 
 end
+
+
+@testset "combine" begin
+    A = BlochMatrix()
+    B = Magnetization()
+    A1 = BlochMatrix(1, 2, 3, 4, 5, 6, 7, 8, 9)
+    B1 = Magnetization(7, 6, 5)
+    A2 = BlochMatrix((9:-1:1)...)
+    B2 = Magnetization(2, 3, 4)
+    combine!(A, B, A1, B1, A2, B2)
+    A0, B0 = @inferred combine(A1, B1, A2, B2)
+    @test A0 == A == A2 * A1
+    @test B0 == B == A2 * B1 + B2
+end
+
 
 function combine1()
 

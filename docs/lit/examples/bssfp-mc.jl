@@ -17,7 +17,7 @@ and myelin water exchange.
 This demo recreates Figure 3 from [1] and Figure 2 from [2].
 
 
-### References
+#### References
 
 - [1] Hargreaves, B., Vasanawala, S., Pauly, J., & Nishimura, D. (2001).
   Characterization and reduction of the transient response
@@ -616,5 +616,3 @@ tab2 = [ # table of results
 ]
 
 #src todo: simulation to compare to CRB using Optim
-
-#src include("../../../inc/reproduce.jl")

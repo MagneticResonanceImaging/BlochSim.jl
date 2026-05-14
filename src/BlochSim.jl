@@ -1,3 +1,8 @@
+"""
+# BlochSim.jl
+
+BlochSim is a Julia package for performing Bloch simulations for MRI.
+"""
 module BlochSim
 
 import ForwardDiff # Dual, partials, value
@@ -58,6 +63,13 @@ export MESEBlochSimWorkspace
 export SPGRBlochSim
 export SPGRBlochSimWorkspace
 
+# methods defined in the extension(s)
+export fit_signal, optimize_multistart
+
+fit_signal(args...; kwargs...) = throw("First run `using Optim`")
+optimize_multistart(args...; kwargs...) = throw("First run `using Optim`")
+
+
 include("magnetization.jl")
 include("blochmatrix.jl")
 include("spin.jl")
@@ -73,5 +85,6 @@ include("bssfp1.jl")
 include("bssfp2.jl")
 include("expm-bloch3.jl")
 include("crb.jl")
+include("slice.jl")
 
 end

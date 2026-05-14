@@ -3,7 +3,7 @@ test/bssfp1.jl 1-pool case
 =#
 
 using BlochSim: bssfp, Spin, InstantaneousRF, duration, real_imag
-using BlochSim: bSSFPbloch, bSSFPbloch3, bSSFPellipse
+using BlochSim: bSSFPbloch, bSSFPbloch3, bSSFPellipse, rf_slice
 using ForwardDiff: ForwardDiff
 import ForwardDiff: derivative, gradient
 using Test: @inferred, @test, @testset
@@ -74,6 +74,9 @@ end
     bmid = bssfp(spin, TR_ms, TR_ms/2, 0, rf)
     @test bmid == bssfp(spin, TR_ms, Val(:midTR), 0, rf)
 
+    # slice-select version
+    rf, rephasing = rf_slice(1)
+    sig4 = @inferred bssfp(spin, TR_ms, TE_ms, Δϕ_rad, (rf, rephasing))
 end
 
 

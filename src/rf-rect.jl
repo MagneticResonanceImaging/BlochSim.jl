@@ -1,8 +1,8 @@
 # rf-rect
 
 using BlochSim: AbstractRF, GAMMA, Gradient
-export RectRF
 
+export RectRF
 
 
 # Helpers for making rectangular RF pulses for use with analytical Bloch solvers
