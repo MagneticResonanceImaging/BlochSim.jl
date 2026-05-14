@@ -102,12 +102,9 @@ prf = plot(t, wave,
 #
 prompt()
 
-# Make RF version that includes rephasing gradient (for testing):
-rf2 = rf_slice(Val(:built_in_rephasing), tRF_ms; α_rad, nlobe, slice_width);
-
 
 #=
-## Excite the spins with the non-rephased RF, then rephase
+## Excite the spins with the RF, then apply rephasing gradient
 =#
 map(spins) do spin
     excite!(spin, rf1)
@@ -161,37 +158,6 @@ that must be considered in practice.
 
 
 #=
-## RF "pulse" with built-in rephasing gradient
-(Shown for illustration only; it is computationally inefficient.)
-=#
-prg = plot(
-    plot(real(rf2.α .* cis.(rf2.θ)), ylabel = "α"),
-    plot( map(g -> g.z, rf2.grad); color = :green,
-        xlabel = "time sample", ylabel = "Gz [G/cm]"),
-    layout = (2,1),
-)
-
-#
-prompt()
-
-
-#=
-### Excite the spins with the RF that has built-in rephasing
-(Plot should be identical.)
-=#
-spins = make_spins(Mz0, T1_ms, T2_ms, Δf_Hz)
-map(spins) do spin
-    excite!(spin, rf2)
-end;
-signal2 = signal.(spins)
-@assert signal1 ≈ signal2 # sanity check
-pp2 = plot_profile(spins)
-
-#
-prompt()
-
-
-#=
 ## Examine slice-profile effect on qMRI with bSSFP
 =#
 
@@ -222,22 +188,8 @@ Helper for bSSFP model with slice-selective RF pulse.
 - Here we must sum across spins the effect of each (Δϕ_rad, α_rad) pair.
 - This version models flip-angle dependent slice profile effects.
 =#
-scale2 = diff(zpos)[1] * zfov / slice_width / 2 # todo: arbitrary factor?
-scale2 = 1/length(zpos) # todo
-function _bssfp2(x, Δϕ_rad, α_rad)
-    rf2 = rf_slice(Val(:built_in_rephasing), # todo: use rephasing2
-        tRF_ms; α_rad = x[5] * α_rad, # kappa
-        nlobe, slice_width,
-    )
-    spins = make_spins(x[1:4]...)
-    return scale2 * sum(spins) do spin # todo scale factor
-         ## adjust TE because RF pulse is "too long" due to rephasing grad
-         TE_adjust = TE_ms - rephasing1.Tg / 2
-         bssfp(spin, TR_ms, TE_adjust, Δϕ_rad, rf2) # todo: include rephasing2
-    end
-end
-
-scale1 = scale2
+scale1 = diff(zpos)[1] * zfov / slice_width / 2 # todo: arbitrary factor?
+scale1 = 1/length(zpos) # todo
 function _bssfp1(x, Δϕ_rad, α_rad)
     rf, rephasing = rf_slice(tRF_ms; α_rad = x[5] * α_rad, # kappa
         nlobe, slice_width,
@@ -260,22 +212,16 @@ function signal_c1(x)
 end
 signal_ri1(x) = real_imag(vec(signal_c1(x)))
 
-function signal_c2(x)
-    _bssfp(Δϕ_rad, α_rad) = _bssfp2(x, Δϕ_rad, α_rad)
-    return map(splat(_bssfp), design)
-end
-signal_ri2(x) = real_imag(vec(signal_c2(x)));
-
 #src tmp0 = _bssfp0(x, π, π/3)
-#src tmp2 = _bssfp2(x, π, π/3)
-#src scale = dot(tmp2, tmp0) / dot(tmp0, tmp0)
+#src tmp1 = _bssfp1(x, π, π/3)
+#src scale = dot(tmp1, tmp0) / dot(tmp0, tmp0)
 
 
 # Data simulations and fitting
 
 snr_db = 40
-σ = snr2sigma(snr_db, signal_c2(x))
-yb = signal_c2(x) # noiseless data account for slice-profile effects
+σ = snr2sigma(snr_db, signal_c1(x))
+yb = signal_c1(x) # noiseless data account for slice-profile effects
 y = yb + 1σ * randn(ComplexF64, size(yb));
 #src @show 20*log10(norm(yb) / norm(y - yb))
 
@@ -291,13 +237,10 @@ pmism = plot( ; xaxis, widen = true,
 label = reshape(map(x -> "$(x)° noisy", α_degs), 1, :)
 scatter!(Δϕ_rads, abs.(y); label)
 Δϕ_fine = range(-1, 1, 61) * π # phase-cycling factors for plot
-@time tmp2 = Base.Fix{1}(_bssfp2, x).(Δϕ_fine, α_rads')
 @time tmp1 = Base.Fix{1}(_bssfp1, x).(Δϕ_fine, α_rads')
-@assert tmp1 ≈ tmp2
 @time tmp0 = Base.Fix{1}(_bssfp0, x).(Δϕ_fine, α_rads')
 color = (1:length(α_degs))'
-plot!(Δϕ_fine, abs.(tmp2); label="$tRF_ms ms sinc RF", color)
-plot!(Δϕ_fine, abs.(tmp1); label="$tRF_ms ms sinc RF v1", color)
+plot!(Δϕ_fine, abs.(tmp1); label="$tRF_ms ms sinc RF", color)
 plot!(Δϕ_fine, abs.(tmp0); label="0 ms RF", line=:dash, color)
 
 #
@@ -308,8 +251,7 @@ pmisa = plot( ; xaxis, widen = true, ylabel = "signal phase",
  title = "SNR=$snr_db dB TR=$TR_ms TE=$TE_ms T1=$T1_ms T2=$T2_ms",
 )
 scatter!(Δϕ_rads, angle.(y); label)
-plot!(Δϕ_fine, angle.(tmp2); label="$tRF_ms ms sinc RF", color)
-plot!(Δϕ_fine, angle.(tmp1); label="$tRF_ms ms sinc RF v1", color)
+plot!(Δϕ_fine, angle.(tmp1); label="$tRF_ms ms sinc RF", color)
 @assert angle.(tmp0[:,1]) ≈ angle.(tmp0[:,2]) ≈ angle.(tmp0[:,3]) # same!
 plot!(Δϕ_fine, angle.(tmp0[:,1]); label="0 ms RF", line=:dash, color=:black)
 
