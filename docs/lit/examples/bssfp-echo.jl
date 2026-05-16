@@ -78,8 +78,11 @@ Our "blue" result matches
 Fig. 1 of Ref. 1
 except for a conjugate (-phase).
 
-The nonzero phase in passband of the red plot is disconcerting, (todo)
-suggesting possibly incorrect modeling of receiver phase for the π/3 case?
+The nonzero phase in passband of the red plot
+was initially disconcerting,
+but `fig6` below
+that shows a linear phase over the passband
+matches real data reasonably well.
 =#
 
 TR_ms = 10 # ms
@@ -216,6 +219,7 @@ fig4
 #
 prompt()
 
+
 #=
 ## Finite RF duration
 
@@ -301,7 +305,7 @@ function plot_cycle1(
     xtick = _xtick(Val(2π))
     ymax = round(maximum(abs, sig), RoundUp; sigdigits=1)
     figm = plot(Δϕ, abs.(sig); xtick, color = :magenta,
-     yaxis = ("magnitude", (0,ymax)),
+        yaxis = ("magnitude", (0,ymax)),
     )
 
     figa = plot(Δϕ, angle.(sig); xtick,
@@ -310,7 +314,7 @@ function plot_cycle1(
     )
 
     fig = plot(figm, figa; layout = (2,1), plot_title =
-     ("α=$(α_deg)°, TR=$TR_ms, TE=$TE_ms, Δf=$Δf_Hz, T1=$T1_ms, T2=$T2_ms"),
+        ("α=$(α_deg)°, TR=$TR_ms, TE=$TE_ms, Δf=$Δf_Hz, T1=$T1_ms, T2=$T2_ms"),
     )
 
     return sig, fig
@@ -318,6 +322,84 @@ end
 
 sig6, fig6 = plot_cycle1(274, 54)
 fig6
+
+#
+prompt()
+
+
+#=
+## Multiple flip angles
+Plot bSSFP signal and phase
+versus phase cycling factor `Δϕ`
+for a set of flip angles.
+=#
+Δϕ_rad = range(-1, 1, 401) * 2π
+function plot_flips(
+    T1_ms, T2_ms, Δf_Hz = 0;
+    TR_ms = 8, TE_ms = 4,
+    α_str = "[1; 5:5:90]",
+    α_deg = eval(Meta.parse(α_str)),
+)
+    sig = stack(map(α_deg) do α_deg
+        map(Δϕ_rad) do Δϕ
+            rf = InstantaneousRF(deg2rad(α_deg), 0)
+            bssfp(Mz0, T1_ms, T2_ms, Δf_Hz, TR_ms, TE_ms, Δϕ, rf)
+        end
+    end)
+
+    xtick = _xtick(Val(2π))
+    ymax = round(maximum(abs, sig), RoundUp; sigdigits=1)
+    figm = plot(Δϕ_rad, abs.(sig[:,2:end-1]); xtick, # color = :magenta,
+        yaxis = ("magnitude", (0,ymax)),
+    )
+    plot!(Δϕ_rad, abs.(sig[:,end]); label="$(α_deg[end])°", color = :red)
+    plot!(Δϕ_rad, abs.(sig[:,1]); label="$(α_deg[1])°", color = :black)
+
+    figa = plot(Δϕ_rad, angle.(sig); xtick,
+        xaxis = ("Δϕ [rad]", (-1,1) .* 2π, ),
+        yaxis = ("phase [rad]", ),
+    )
+
+    fig = plot(figm, figa; layout = (2,1), plot_title =
+        ("α=$(α_str)°, TR=$TR_ms, TE=$TE_ms, Δf=$Δf_Hz, T1=$T1_ms, T2=$T2_ms"),
+    )
+
+    return sig, fig
+end
+
+sig7, fig7 = plot_flips(274, 54)
+fig7
+
+#
+prompt()
+
+
+#=
+## Flip angle sweep
+Plot bSSFP signal magnitude
+as a function flip angle α
+for a few values of T2 and phase cycling increment Δϕ.
+=#
+Δϕ_plot = [0, π/4, π/2, π]
+T2_list = [50, 20, 10]
+α_str = "[0.01; 1:19; 20:5:90]"
+α_deg = eval(Meta.parse(α_str))
+tmp = map(Δϕ_plot) do Δϕ
+    ip = argmin(abs.(Δϕ .- Δϕ_rad))
+    sig = stack(map(T2_list) do T2
+        T1 = 400
+        plot_flips(T1, T2; α_str, α_deg)[1][ip,:]
+    end)
+
+    plot(α_deg, abs.(sig),
+     xaxis = ("α °", (0, 90), 0:10:90),
+     ylabel = "magnitude",
+     ## marker = :dot,
+     label = reshape(map(t -> "T2 = $t ms", T2_list), 1, :), # row!
+     title = "bSSFP signal: Δϕ=$(Δϕ_rad[ip]/π) π",
+    )
+end
+fig8 = plot(tmp...)
 
 #
 prompt()
