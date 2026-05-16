@@ -368,6 +368,7 @@ function plot_flips(
 end
 
 sig7, fig7 = plot_flips(274, 54)
+fig7
 
 #
 prompt()
