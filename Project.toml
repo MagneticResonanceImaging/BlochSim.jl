@@ -12,7 +12,7 @@ LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 ADTypes = "1"
 ForwardDiff = "1"
 LinearAlgebra = "1"
-Optim = "1"
+Optim = "2"
 julia = "1.12"
 
 [weakdeps]
