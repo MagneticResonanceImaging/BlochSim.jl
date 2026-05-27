@@ -131,7 +131,8 @@ julia> signal(spinmc)
 
 Offers many mutating (in-place) methods for compute efficiency.
 
-## Related package(s)
+
+## Related Julia package(s)
 
 * [MRIgeneralizedBloch.jl](https://github.com/JakobAsslaender/MRIgeneralizedBloch.jl)
   focuses on [magnetization transfer](https://doi.org/10.1002/mrm.29071)
@@ -139,6 +140,14 @@ Offers many mutating (in-place) methods for compute efficiency.
   has Pulseq compatibility
 * [BlochSimulators.jl](https://github.com/oscarvanderheide/BlochSimulators.jl)
   has GPU support
+
+
+## Other Resources
+
+- [https://www.drcmr.dk/bloch](Bloch simulator for education)
+- [https://github.com/namalkanti/bloch-simulator-python](python wrapper to C-code Bloch simulator based on a Matlab mex file created by Brian Hargreaves at Stanford)
+- [https://github.com/ZhengguoTan/BlochSim](python version of the same)
+- [https://ismrm.github.io/mrhub](ISMRM MR-Hub for open-source tools)
 
 
 ## Acknowledgement
