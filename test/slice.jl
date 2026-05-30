@@ -4,7 +4,7 @@ using BlochSim: rf_slice, duration, RF, GradientSpoiling
 using Test: @inferred, @test, @testset
 
 @testset "slice" begin
-    flip(rf) = sum(rf.α .* cis.(rf.θ))
+    flip(rf) = sum(@. rf.α * cis(rf.θ))
 
     tRF_ms = 1.01 # stress test
     rf, rephasing = @inferred rf_slice(tRF_ms)
