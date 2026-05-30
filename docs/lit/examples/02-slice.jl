@@ -40,7 +40,7 @@ end
 using ADTypes: AutoForwardDiff
 using Optim: optimize # must precede BlochSim for extension
 using BlochSim: GAMMA, Gradient, GradientSpoiling, Position, Spin, SpinMC
-using BlochSim: InstantaneousRF, RF, b1_gauss, rf_slice
+using BlochSim: InstantaneousRF, RF, b1_gauss, rf_slice, rf_gauss
 using BlochSim: excite!, spoil!
 using BlochSim: bssfp, real_imag, signal, snr2sigma, fit_signal
 using LinearAlgebra: dot, norm
@@ -91,7 +91,9 @@ rf1, rephasing1 = rf_slice(tRF_ms ; α_rad, nlobe, slice_width)
 #src todo: increasing nlobe does not seem to help; try SLR pulse?
 
 nsamp = length(rf1.α)
-wave = real(rf1.α .* cis.(rf1.θ)) * b1_gauss(1, rf1.Δt) # convert rad to gauss
+wave = rf_gauss(rf1) # convert rad to gauss
+@assert wave ≈ real(wave)
+wave = real(wave)
 t = ((0:(nsamp-1))/nsamp .- 0.5) * tRF_ms # [-tRF_ms/2, tRF_ms/2)
 prf = plot(t, wave,
   xaxis = ("t [ms]", (-1,1) .* (tRF_ms/2), ),
