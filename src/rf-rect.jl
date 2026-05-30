@@ -1,8 +1,8 @@
 # rf-rect
 
-using BlochSim: AbstractRF, GAMMA, Gradient
+#using BlochSim: AbstractRF, GAMMA, Gradient
 
-export RectRF
+export RectRF, b1_gauss, rf_gauss
 
 
 # Helpers for making rectangular RF pulses for use with analytical Bloch solvers
@@ -22,6 +22,16 @@ Return finite-duration (rectangular) RF pulse amplitude
 - so `b1_gauss = α_rad / GAMMA / tRF_s`
 """
 b1_gauss(α_rad, tRF_ms) = α_rad / GAMMA / (tRF_ms / 1000)
+
+
+"""
+    rf_gauss(rf::AbstractRF)
+
+Return complex RF waveform in Gauss from `rf` object.
+"""
+function rf_gauss(rf::AbstractRF)
+    return @. rf.α * cis(rf.θ) * b1_gauss(1, rf.Δt)
+end
 
 
 """
