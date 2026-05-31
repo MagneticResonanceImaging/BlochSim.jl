@@ -1,11 +1,13 @@
 #=
 # [Slice selective excitation](@id slice-select)
 
-This page illustrates slice-selective excitation
+This page
+explores the effects of slice-profile
+(or slab-selective excitation)
+on bSSFP signals
 in MRI
 using the Julia package
 [`BlochSim`](https://github.com/StevenWhitaker/BlochSim.jl)
-and explores slice-profile effects on bSSFP signals.
 =#
 
 #srcURL
@@ -70,11 +72,11 @@ over a thin slice out of a larger slab
 
 Mz0, T1_ms, T2_ms, Δf_Hz = 1, 400, 10, 9 # tissue parameters
 
-#src zpos = range(-0.2, 0.2, 201) # z positions (cm)
+zpos_plot = range(-0.6, 0.6, 201) # z positions (cm) to view slice-select
 zpos = range(-0.05, 0.05, 21) # z positions (cm) # 1mm slice in a bigger slab
 zfov = maximum(zpos) - minimum(zpos)
 
-make_spins(Mz0, T1_ms, T2_ms, Δf_Hz) = map(zpos) do z
+make_spins(Mz0, T1_ms, T2_ms, Δf_Hz; zpos = zpos) = map(zpos) do z
     pos = Position(0, 0, z)
     Spin(Mz0, T1_ms, T2_ms, Δf_Hz, pos)
 end
@@ -91,7 +93,9 @@ nlobe = 3
 α_rad = deg2rad(α_deg)
 #src slice_width = 0.1 # cm (1 mm)
 slice_width = 0.6 # cm (6 mm slab)
-Δt_ms = 4e-3 # 4μs dwell time
+Δt_ms = 4e-3; # 4μs dwell time for RF sampling
+
+# Initial design with truncated sinc (too much ripple)
 rf1, rephasing1 = rf_slice(tRF_ms ; α_rad, nlobe, slice_width, Δt_ms)
 rtype = "$nlobe-lobe sinc";
 
@@ -101,11 +105,12 @@ rtype = "$nlobe-lobe sinc";
 =#
 slr = dzrf( ; n = length(rf1), tb = 2nlobe, ptype = :st, ftype = :ls, )
 @assert slr ≈ real(slr)
-factor = 2sin(α_rad/2)
-slr = real(slr) * factor
-rf2 = RF(slr * b1_gauss(1, Δt_ms), Δt_ms, 0, rf1.grad)
-
-rf1 = rf2 # use SLR
+slr = real(slr)
+function rf_maker(α_rad)
+    factor = 2sin(α_rad/2)
+    return RF(factor * slr * b1_gauss(1, Δt_ms), Δt_ms, 0, rf1.grad)
+end
+rf1 = rf_maker(α_rad) # use SLR
 rtype = "SLR TBW=$(2nlobe)"
 
 
@@ -166,26 +171,34 @@ prompt()
 #=
 ## Excite the spins with the RF, then apply rephasing gradient
 =#
-map(spins) do spin
-    excite!(spin, rf1)
-    spoil!(spin, rephasing1)
+function do_excite!(spins)
+    map(spins) do spin
+        excite!(spin, rf1)
+        spoil!(spin, rephasing1)
+    end
 end;
-signal1 = signal.(spins);
 
 
 #=
-## Plot slice profile
+## Plot slab profile
+This shows the magnetization at the _end_ of the rephasing gradient,
+so there is somewhat more T2 decay.
+The gray lines show the slice of interest.
 =#
-function plot_profile(spins)
+function plot_profile(zpos)
+    spins = make_spins(Mz0, T1_ms, T2_ms, Δf_Hz; zpos)
+    do_excite!(spins)
     mx = map(spin -> spin.M.x, spins)
     my = map(spin -> spin.M.y, spins)
     mz = map(spin -> spin.M.z, spins)
     mmag = @. sqrt(mx^2 + my^2)
     mpha = @. atan(my, mx)
     zmm = 10zpos # mm
+    wmm = 10slice_width # mm
+    zfmm = maximum(zmm) - minimum(zmm) # zlim for plot in mm
 
-    xaxis = ("z [mm]", (-1,1) .* (10zfov/2),
-        10 * [-zfov/2, -slice_width/2, 0, slice_width/2, zfov/2])
+    xaxis = ("z [mm]", (-1,1) .* (zfmm/2),
+        [-zfmm/2, -wmm/2, 0, wmm/2, zfmm/2])
     ytick = ([0, cos(α_rad), sin(α_rad), 1],
         ["0", "cos($(α_deg)°)", "sin($(α_deg)°)", 1])
     pmag = plot(; xaxis, yaxis = ("", (-0.2,1), ytick), legend = :right)
@@ -193,15 +206,16 @@ function plot_profile(spins)
     plot!(zmm, my, label = "My")
     plot!(zmm, mz, label = "Mz")
     plot!(zmm, mmag, label = "|Mxy|")
+    plot!([-1,-1]*10zfov/2, [0, 1], color=:gray) # show slice FOV
+    plot!([+1,+1]*10zfov/2, [0, 1], color=:gray)
 
     ppha = plot(; xaxis, legend = :right)
     plot!(zmm, mpha, label = "∠Mxy")
 
-    return plot(pmag, ppha; layout = (2,1),
-      plot_title = "Slice profile for $rtype, α = $(α_deg)°, w=$(10slice_width) mm",
-    )
+    plot_title = "Slab profile for $rtype, α = $(α_deg)°, w=$(10slice_width) mm"
+    return plot(pmag, ppha; layout = (2,1), plot_title)
 end
-pp1 = plot_profile(spins)
+pp1 = plot_profile(zpos_plot)
 
 #
 prompt()
@@ -252,12 +266,12 @@ Helper for bSSFP model with slice-selective RF pulse.
 =#
 scale1 = (zfov > slice_width ? (zfov / slice_width) : 1) / length(zpos)
 function _bssfp1(x, Δϕ_rad, α_rad)
-    rf, rephasing = rf_slice(tRF_ms; α_rad = x[5] * α_rad, # kappa
-        nlobe, slice_width,
-    )
+    rf = rf_maker(x[5] * α_rad) # kappa
+#src   rf, rephasing = rf_slice(tRF_ms; α_rad = x[5] * α_rad, # kappa
+#src       nlobe, slice_width)
     spins = make_spins(x[1:4]...)
     return scale1 * sum(spins) do spin
-         bssfp(spin, TR_ms, TE_ms, Δϕ_rad, (rephasing, rf, rephasing))
+         bssfp(spin, TR_ms, TE_ms, Δϕ_rad, (rephasing1, rf, rephasing1))
     end
 end
 
