@@ -22,6 +22,8 @@ function GradientSpoiling1()
     @inferred GradientSpoiling(0, 1, 0, 1)
     g = @inferred GradientSpoiling(0.0, 1, 0f0, 2//3)
 
+    @test duration(g) ≈ 2//3
+
     show(devnull, g.gradient)
     show(devnull, "text/plain", g.gradient)
     show(devnull, g)
