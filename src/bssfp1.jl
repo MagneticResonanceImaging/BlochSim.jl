@@ -51,6 +51,8 @@ Elliptical signal model for bSSFP.
 This is the analytical solution to the 1-pool bSSFP signal
 with instantaneous RF.
 
+See other [`bssfp`](@ref) methods for argument definitions.
+
 Xiang et al. MRM 2014;
 https://doi.org/10.1002/mrm.25098
 
@@ -84,7 +86,7 @@ end
     bssfp(spin, Δf_Hz, TR_ms, TE_ms | Val(:midTR) | Val(:postRF), Δϕ_rad, rf)
 
 Return steady-state magnetization signal value
-at the echo time
+at the given echo time
 for a single-pool tissue
 for a bSSFP sequence
 using `BlochSim`.
@@ -172,24 +174,36 @@ end
 
 
 """
+    BalancedRF
+Tuple type representing prephasing gradient, RF, and rephasing gradient
+as used in slice-selective bSSFP excitation.
+"""
+const BalancedRF = Tuple{<:GradientSpoiling, <:AbstractRF, <:GradientSpoiling}
+
+
+"""
     bssfp(spin, TR_ms, TE_ms, Δϕ_rad, rf::AbstractRF | rf::Tuple)
 Signal accounting for phase cycling increment `Δϕ_rad`,
 allowing for finite duration `rf` pulse,
-or a combination of a (typically slice selective) RF pulse
-and a rephasing gradient, provided as
-`Tuple{<:AbstractRF, <:GradientSpoiling}}`.
+or a 3-tuple combination of a
+- prephasing gradient
+- (typically slice selective) RF pulse
+- rephasing gradient, provided as
+`Tuple{<:GradientSpoiling, <:AbstractRF, <:GradientSpoiling}`.
+Typically the prephasing and rephasing are the same gradients.
 
-todo: could be accelerated using a workspace
+Echo time is measured from the center of the RF pulse.
 """
 function bssfp(spin::Spin,
     TR_ms::Number, TE_ms::TE_ms_type, Δϕ_rad::Number,
-    rf::Union{AbstractRF, Tuple{<:AbstractRF, <:GradientSpoiling}},
+    rf::Union{AbstractRF, BalancedRF},
 )
 
     if rf isa Tuple
-        rf, rephasing = rf
+        prephasing, rf, rephasing = rf
         Tg_ms = rephasing.Tg # duration of rephasing gradient that follows RF
     else
+        prephasing = nothing
         rephasing = nothing
         Tg_ms = 0
     end
@@ -200,9 +214,15 @@ function bssfp(spin::Spin,
         throw("bad TE=$TE_ms for TR=$TR_ms tRF=$tRF_ms Tg=$Tg_ms")
 
     (A1, b1) = excite(spin, rf) # matrix for spin excitation
+
+    if !isnothing(prephasing)
+        (Ap, Bp) = spoil(spin, prephasing)
+        (A1, b1) = combine(Ap, Bp, A1, b1) # A1 = A1 * Ap
+    end
+
     if !isnothing(rephasing)
         (Ar, Br) = spoil(spin, rephasing)
-        (A1, b1) = combine(A1, b1, Ar, Br)
+        (A1, b1) = combine(A1, b1, Ar, Br) # A1 = Ar * A1
     end
 
     tRF_ms = duration(rf)
@@ -212,9 +232,11 @@ function bssfp(spin::Spin,
 
     Rz = FreePrecessionMatrix(1, 1, -Δϕ_rad) # phase cycling
     A = Matrix(A * Rz)
-    Mss = (I - A) \ Vector(b) # steady-state magnetization immediately after RF
+    # steady-state magnetization immediately after excitation block
+    # i.e., at the end of the prephasing, RF, rephasing tuple:
+    Mss = (I - A) \ Vector(b)
 
-    # account for free precession from end of RF (or rephasing) to TE:
+    # account for free precession from end of excitation block to TE:
     t_echo_ms = TE_ms - tRF_ms / 2 - Tg_ms
 #   Efree = FreePrecessionMatrix(I, exp(-t_echo_ms / spin.T2), spin.Δf_Hz)
     return complex(Mss[1], Mss[2]) * # complex signal

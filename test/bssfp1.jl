@@ -76,7 +76,7 @@ end
 
     # slice-select version
     rf, rephasing = rf_slice(1)
-    sig4 = @inferred bssfp(spin, TR_ms, TE_ms, Δϕ_rad, (rf, rephasing))
+    sig4 = @inferred bssfp(spin, TR_ms, TE_ms, Δϕ_rad, (rephasing, rf, rephasing))
 end
 
 
