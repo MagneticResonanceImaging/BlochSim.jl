@@ -27,6 +27,7 @@ if false
         "LaTeXStrings"
         "LinearAlgebra"
         "MIRTjim"
+        "MRIPulses"
         "Optim"
         "Plots"
         "Random"
@@ -40,13 +41,14 @@ end
 using ADTypes: AutoForwardDiff
 using Optim: optimize # must precede BlochSim for extension
 using BlochSim: GAMMA, Gradient, GradientSpoiling, Position, Spin, SpinMC
-using BlochSim: InstantaneousRF, RF, b1_gauss, rf_slice, rf_gauss
+using BlochSim: InstantaneousRF, RF, b1_gauss, rf_slice, rf_gauss, duration
 using BlochSim: excite!, spoil!
 using BlochSim: bssfp, real_imag, signal, snr2sigma, fit_signal
 using LinearAlgebra: dot, norm
 using MIRTjim: prompt
+using MRIPulses: dzrf
 using Plots: default, gui
-using Plots: annotate!, plot, plot!, scatter!, scatter3d!, text
+using Plots: plot, plot!, scatter!, scatter3d!, text
 using Random: seed!
 
 default(titlefontsize = 10, markerstrokecolor = :auto, label="", linewidth = 2)
@@ -62,13 +64,15 @@ isinteractive() || prompt(:draw);
 #=
 ## Array of spins
 For a range of z-positions to examine slice profile
+over a thin slice out of a larger slab
+(for 3D imaging).
 =#
 
 Mz0, T1_ms, T2_ms, Δf_Hz = 1, 400, 10, 9 # tissue parameters
 
-zpos = range(-1, 1, 201) # z positions (cm)
-zpos = range(-0.1, 0.1, 21) # z positions (cm) # todo: narrow for testing
-zfov = only(diff([extrema(zpos)...])) # 2 cm
+#src zpos = range(-0.2, 0.2, 201) # z positions (cm)
+zpos = range(-0.05, 0.05, 21) # z positions (cm) # 1mm slice in a bigger slab
+zfov = maximum(zpos) - minimum(zpos)
 
 make_spins(Mz0, T1_ms, T2_ms, Δf_Hz) = map(zpos) do z
     pos = Position(0, 0, z)
@@ -82,13 +86,28 @@ spins = make_spins(Mz0, T1_ms, T2_ms, Δf_Hz);
 =#
 
 tRF_ms = 1
-nlobe = 5
+nlobe = 3
 α_deg = 60 # flip angle ° (somewhat large for testing)
 α_rad = deg2rad(α_deg)
-slice_width = 0.5 # cm
-#src slice_width = 4.5 # cm ok agreement over a narrow zfov with this
-rf1, rephasing1 = rf_slice(tRF_ms ; α_rad, nlobe, slice_width)
-#src todo: increasing nlobe does not seem to help; try SLR pulse?
+#src slice_width = 0.1 # cm (1 mm)
+slice_width = 0.6 # cm (6 mm slab)
+Δt_ms = 4e-3 # 4μs dwell time
+rf1, rephasing1 = rf_slice(tRF_ms ; α_rad, nlobe, slice_width, Δt_ms)
+rtype = "$nlobe-lobe sinc";
+
+
+#=
+## SLR pulse design
+=#
+slr = dzrf( ; n = length(rf1), tb = 2nlobe, ptype = :st, ftype = :ls, )
+@assert slr ≈ real(slr)
+factor = 2sin(α_rad/2)
+slr = real(slr) * factor
+rf2 = RF(slr * b1_gauss(1, Δt_ms), Δt_ms, 0, rf1.grad)
+
+rf1 = rf2 # use SLR
+rtype = "SLR TBW=$(2nlobe)"
+
 
 nsamp = length(rf1.α)
 wave = rf_gauss(rf1) # convert rad to gauss
@@ -98,8 +117,47 @@ t = ((0:(nsamp-1))/nsamp .- 0.5) * tRF_ms # [-tRF_ms/2, tRF_ms/2)
 prf = plot(t, wave,
   xaxis = ("t [ms]", (-1,1) .* (tRF_ms/2), ),
   yaxis = ("b₁(t) [Gauss]", ),
-  title = "$nlobe-lobe sinc: α=$(α_deg)° tRF=$tRF_ms ms width=$slice_width cm",
+  title = "$rtype: α=$(α_deg)° tRF=$tRF_ms ms",
 )
+
+#
+prompt()
+
+
+#=
+## Timing diagram for bSSFP
+The point marked by the blue disk
+is where `bssfp` first computes the steady-state magnetization,
+followed by precession/decay to time `TE`
+to return the signal value.
+=#
+TR_ms, TE_ms = 8, 4; # bSSFP scan parameters
+function plot_sequence(prephasing, rf, rephasing)
+    tp = duration(prephasing)
+    tb = duration(rf)
+    tr = duration(rephasing1)
+    x = [-tp-tb/2 -tp-tb/2 -tb/2 -tb/2 tb/2 tb/2 tb/2+tr tb/2+tr]
+    x = [x'; TR_ms .+ x'] # show a 2nd excitation block for a nicer plot
+    gp = prephasing.gradient.z
+    gb = rf1.grad.z
+    gr = rephasing.gradient.z
+    y = [0 gp gp gb gb gr gr 0]
+    y = [y'; y']
+    xaxis = ("t [ms]", (-tp-tb/2, TR_ms+tb/2+tr), [-tb/2, 0, tb/2, TE_ms, TR_ms])
+    tmp = real(rf_gauss(rf))
+    prf = plot(; xaxis, ylabel = "RF [Gauss]", color = :red,
+        annotate = (TE_ms, 0, text("TE")),
+    )
+    plot!(prf, t, tmp; color = :red)
+    plot!(prf, t .+ TR_ms, tmp; color = :red)
+    pgr = plot(x, y; xaxis, ylabel="Gz [Gauss/cm]", color = :green,
+        annotate = (TR_ms, 0, text("TR")),
+    )
+    scatter!(pgr, [tb/2+tr], [0], marker = :circle, color = :blue)
+
+    return plot(prf, pgr, layout = (2,1), widen = true)
+end
+pseq = plot_sequence(rephasing1, rf1, rephasing1)
 
 #
 prompt()
@@ -124,21 +182,23 @@ function plot_profile(spins)
     mz = map(spin -> spin.M.z, spins)
     mmag = @. sqrt(mx^2 + my^2)
     mpha = @. atan(my, mx)
+    zmm = 10zpos # mm
 
-    xaxis = ("z [cm]", (-1,1), [-1, -slice_width/2, 0, slice_width/2, 1])
+    xaxis = ("z [mm]", (-1,1) .* (10zfov/2),
+        10 * [-zfov/2, -slice_width/2, 0, slice_width/2, zfov/2])
     ytick = ([0, cos(α_rad), sin(α_rad), 1],
         ["0", "cos($(α_deg)°)", "sin($(α_deg)°)", 1])
     pmag = plot(; xaxis, yaxis = ("", (-0.2,1), ytick), legend = :right)
-    plot!(zpos, mx, label = "Mx")
-    plot!(zpos, my, label = "My")
-    plot!(zpos, mz, label = "Mz")
-    plot!(zpos, mmag, label = "|Mxy|")
+    plot!(zmm, mx, label = "Mx")
+    plot!(zmm, my, label = "My")
+    plot!(zmm, mz, label = "Mz")
+    plot!(zmm, mmag, label = "|Mxy|")
 
     ppha = plot(; xaxis, legend = :right)
-    plot!(zpos, mpha, label = "∠Mxy")
+    plot!(zmm, mpha, label = "∠Mxy")
 
     return plot(pmag, ppha; layout = (2,1),
-      plot_title = "Slice profile for $nlobe-lobe sinc, α = $(α_deg)°",
+      plot_title = "Slice profile for $rtype, α = $(α_deg)°, w=$(10slice_width) mm",
     )
 end
 pp1 = plot_profile(spins)
@@ -151,6 +211,7 @@ prompt()
 The simulation shown above
 is similar to Fig. 5 of
 [Pauly et al. 1989](https://doi.org/10.1016/0022-2364(89)90265-5),
+(or would be if we set `zfov` larger),
 but perhaps a bit worse due to the short T2 considered here.
 Pauly notes that minor gradient adjustments
 could lead to better refocusing.
@@ -166,8 +227,6 @@ that must be considered in practice.
 kappa = 1 # also estimate the B1+ factor
 xt = (; Mz0, T1_ms, T2_ms, Δf_Hz, kappa) # tuple
 x = collect(Float64, xt) # unknowns in vector
-
-TR_ms, TE_ms = 8, 4; # bSSFP scan parameters
 
 
 #=
@@ -189,16 +248,16 @@ _bssfp0(x, Δϕ_rad, α_rad) =
 Helper for bSSFP model with slice-selective RF pulse.
 - Here we must sum across spins the effect of each (Δϕ_rad, α_rad) pair.
 - This version models flip-angle dependent slice profile effects.
+- Need a scale factor when excited slice occupies a small fraction of z FOV.
 =#
-scale1 = diff(zpos)[1] * zfov / slice_width / 2 # todo: arbitrary factor?
-scale1 = 1/length(zpos) # todo
+scale1 = (zfov > slice_width ? (zfov / slice_width) : 1) / length(zpos)
 function _bssfp1(x, Δϕ_rad, α_rad)
     rf, rephasing = rf_slice(tRF_ms; α_rad = x[5] * α_rad, # kappa
         nlobe, slice_width,
     )
     spins = make_spins(x[1:4]...)
     return scale1 * sum(spins) do spin
-         bssfp(spin, TR_ms, TE_ms, Δϕ_rad, (rf, rephasing))
+         bssfp(spin, TR_ms, TE_ms, Δϕ_rad, (rephasing, rf, rephasing))
     end
 end
 
@@ -214,12 +273,10 @@ function signal_c1(x)
 end
 signal_ri1(x) = real_imag(vec(signal_c1(x)))
 
-#src tmp0 = _bssfp0(x, π, π/3)
-#src tmp1 = _bssfp1(x, π, π/3)
-#src scale = dot(tmp1, tmp0) / dot(tmp0, tmp0)
 
-
-# Data simulations and fitting
+#=
+## Data simulations and fitting
+=#
 
 snr_db = 40
 σ = snr2sigma(snr_db, signal_c1(x))
@@ -248,8 +305,8 @@ plot!(Δϕ_fine, abs.(tmp0); label="0 ms RF", line=:dash, color)
 #
 prompt()
 
-# Phase:
-pmisa = plot( ; xaxis, widen = true, ylabel = "signal phase",
+# Phase (fairly small effect of slice-selective excitation):
+pmisa = plot( ; xaxis, widen = true, ylabel = "signal phase [rad]",
  title = "SNR=$snr_db dB TR=$TR_ms TE=$TE_ms T1=$T1_ms T2=$T2_ms",
 )
 scatter!(Δϕ_rads, angle.(y); label)
@@ -261,6 +318,13 @@ plot!(Δϕ_fine, angle.(tmp0[:,1]); label="0 ms RF", line=:dash, color=:black)
 prompt()
 
 
+#=
+## Model fitting
+Using instantaneous RF model,
+despite data having slice-selection effects.
+=#
+
+# Function for fitting noisy signal
 rand20(x::Number) = x * (1 + 0.2 * (rand() - 0.5) / 0.5) # ± 20% variability
 ntry = 10
 function do_fit(signal_ri::Function, i::Int)
@@ -268,7 +332,7 @@ function do_fit(signal_ri::Function, i::Int)
     y = yb + 1σ * randn(ComplexF64, size(yb))
     x0fun = i -> rand20.(x)
     return fit_signal(signal_ri, x0fun, real_imag(vec(y)); ntry)
-end
+end;
 
 
 #=
@@ -278,6 +342,7 @@ the parameter estimates are badly biased.
 
 It seems that
 the slice profile effects
+(or perhaps finite RF pulse effects)
 may be quite significant.
 =#
 #src todo: add varpro to fit_signal?
@@ -295,5 +360,3 @@ tab4 = [ # estimation results table
  :param :value :μ0 :σ0;
  collect(keys(xt)) collect(xt) round2.(mean0) round2.(std0);
 ]
-
-#src throw() # xx
