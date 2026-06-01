@@ -282,7 +282,7 @@ signal_ri0(x) = real_imag(vec(signal_c0(x)))
 function signal_c1(x, scale, rf_maker!, zpos)
     _bssfp(Δϕ_rad, α_rad) = _bssfp1(x, Δϕ_rad, α_rad, scale, rf_maker!, zpos)
     return map(splat(_bssfp), design)
-end
+end;
 
 
 #=
@@ -291,7 +291,7 @@ Scale factor since excited slice occupies a small fraction of z FOV:
 zfov2 = maximum(zpos2) - minimum(zpos2)
 scale2 = zfov2 / slice_width / length(zpos2)
 args2 = (scale2, rf_maker2!, zpos2)
-signal_ri2(x) = real_imag(vec(signal_c1(x, args2...)))
+signal_ri2(x) = real_imag(vec(signal_c1(x, args2...)));
 
 
 #=
@@ -467,6 +467,11 @@ pb3 = plot_bssfp(args3, y3)
 #
 prompt()
 
+
+#=
+## Fit InstantaneousRF model to 3D data
+The T1 parameter estimates are perhaps somewhat better?
+=#
 
 if !@isdefined(xr3)
     nrep = 100
