@@ -8,11 +8,11 @@ using Test: @inferred, @test, @testset
 @testset "crb" begin
     seed!(0)
     A = randn(7, 4)
-    fsignal(x) = A * x
+    fsignal1(x) = A * x
     x = 1:4
     σ = 3
-#   bound = @inferred crb(fsignal, x, σ) # impossible it seems
-    bound1 = crb(fsignal, x, σ)
+#   bound = @inferred crb(fsignal1, x, σ) # impossible it seems
+    bound1 = crb(fsignal1, x, σ)
     fisher1 = A'A / σ^2
     @test bound1 ≈ inv(fisher1)
 

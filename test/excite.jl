@@ -1,5 +1,11 @@
-using BlochSim: rotatetheta
+# test/excite.jl
+
+using BlochSim: duration, excite, excite!, rotatetheta, rf_gauss
+using BlochSim: BlochMatrix, BlochMcConnellMatrix, ExcitationMatrix
+using BlochSim: Gradient, Magnetization, MagnetizationMC, Position, Spin, SpinMC
+using BlochSim: GAMMA, InstantaneousRF, RF
 using Test: @inferred, @test, @testset
+
 
 function excite1()
 
@@ -17,6 +23,7 @@ function excite1()
 
 end
 
+
 function excite2()
 
     s = Spin(1, 1000, 100, 3.75)
@@ -27,18 +34,22 @@ function excite2()
 
 end
 
+
 function excite3()
 
-    rf = sinc.(-3:0.5:3)
+    wave = sinc.(-3:0.5:3)
     Δθ = π/3
     grad = [Gradient(0, 0, z) for z = 0:0.5:6]
     dt = 0.1
-    rf = @inferred RF(rf, dt, Δθ, grad)
+    rf = @inferred RF(wave, dt, Δθ, grad)
     spin = Spin(1, 1000, 100, 1.25, Position(0, 0, 1))
     (A1, B1) = excite(spin, rf)
     A2 = BlochMatrix()
     B2 = Magnetization()
     excite!(A2, B2, spin, rf)
+
+    tmp = rf_gauss(rf)
+    @test tmp ≈ wave
 
     show(devnull, rf)
     show(devnull, "text/plain", rf)
@@ -46,6 +57,7 @@ function excite3()
     return B1 == B2
 
 end
+
 
 function excite4()
 
@@ -63,6 +75,7 @@ function excite4()
 
 end
 
+
 function excite5()
 
     s = Spin(1, Inf, Inf, 0)
@@ -75,6 +88,7 @@ function excite5()
     return s.M ≈ M_correct
 
 end
+
 
 function excite6()
 
@@ -90,6 +104,7 @@ function excite6()
 
 end
 
+
 function excitemc1()
 
     θ = π/4
@@ -101,6 +116,7 @@ function excitemc1()
     return A1.A == A2.A
 
 end
+
 
 function excitemc2()
 
@@ -118,6 +134,7 @@ function excitemc2()
 
 end
 
+
 function excitemc3()
 
     s = SpinMC(1.5, [1/3, 2/3], [400, 1000], [20, 100], [3.75, 3.75], [20, 40])
@@ -126,6 +143,7 @@ function excitemc3()
     return s.M ≈ M_correct
 
 end
+
 
 @testset "Excitation" begin
 

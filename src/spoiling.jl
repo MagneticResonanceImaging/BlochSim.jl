@@ -95,6 +95,7 @@ function Base.show(io::IO, ::MIME"text/plain", s::GradientSpoiling{T}) where {T}
 
 end
 
+
 # I almost removed RFSpoiling but decided against it because it can be used to
 # implement, e.g., phase cycling for bSSFP
 """
@@ -154,6 +155,13 @@ Return the duration of the spoiler gradient (ms).
 spoiler_gradient_duration(::AbstractSpoiling) = 0 # COV_EXCL_LINE
 spoiler_gradient_duration(s::GradientSpoiling) = s.Tg
 spoiler_gradient_duration(s::RFandGradientSpoiling) = spoiler_gradient_duration(s.gradient)
+
+"""
+   duration(::GradientSpoiling)
+Duration of a `GradientSpoiling` "waveform" in ms.
+"""
+duration(s::GradientSpoiling) = s.Tg
+
 
 """
     rfspoiling_increment(spoiling)
