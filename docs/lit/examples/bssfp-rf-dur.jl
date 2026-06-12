@@ -341,6 +341,7 @@ crb_std3 = sqrt.(diag(crb_ri3))
 round2(x) = round(x; sigdigits=3)
 crb_cv0 = round2.(crb_std0 ./ x)
 crb_cv3 = round2.(crb_std3 ./ x)
+
 tab2 = [ # table of results
  :dB snr_db :σ round2(σ) :kappa kappa;
  :TR_ms TR_ms :TE_ms TE_ms :num_scans num_scans;
@@ -348,14 +349,15 @@ tab2 = [ # table of results
  collect(keys(xt)) collect(xt) round2.([crb_std0 crb_cv0 crb_std3 crb_cv3]);
 ]
 
-# Simulate data using the "exact" finite RF model
+#=
+Simulate data using the "exact" finite RF model
+and compare to instantaneous RF approximation.
+=#
 yb = signal_c3(x)
 y = yb + 1σ * randn(ComplexF64, size(yb));
 #src @show 20*log10(norm(yb) / norm(y - yb))
 
-plot( ; xaxis, widen = true,
- title = "SNR=$snr_db dB",
-)
+plot( ; xaxis, widen = true, title = "SNR=$snr_db dB")
 label = reshape(map(x -> "$(x)° noisy", α_degs), 1, :)
 scatter!(Δϕ_rads, abs.(y); label)
 tmp = Base.Fix{1}(_bssfp3, x).(Δϕ_rad, α_rads')
@@ -369,17 +371,11 @@ prompt()
 
 #=
 ## Nonlinear LS fitting
+Fit with both the _inexact_ and _exact_ models:
 =#
 
-# Nonlinear LS fitting cost functions:
-cost0(x) = abs2(norm(signal_ri0(x) - real_imag(vec(y))))
-cost3(x) = abs2(norm(signal_ri3(x) - real_imag(vec(y))));
-
-# Nonlinear LS fits:
-opt0 = optimize(cost0, x; autodiff = AutoForwardDiff())
-opt3 = optimize(cost3, x; autodiff = AutoForwardDiff())
-xh0 = opt0.minimizer
-xh3 = opt3.minimizer;
+xh0 = fit_signal(signal_ri0, x, real_imag(vec(y)); ntry=1)
+xh3 = fit_signal(signal_ri3, x, real_imag(vec(y)); ntry=1)
 
 tab3 = [ # estimation results table
  "" :true :rf0 :rf3;
@@ -389,6 +385,7 @@ tab3 = [ # estimation results table
 #
 tmp = Base.Fix{1}(_bssfp0, xh0).(Δϕ_rads, α_rads')
 scatter!(Δϕ_rads, abs.(tmp); label="fit0", marker=:x, color)
+
 
 #=
 ## Multiple realizations
@@ -467,6 +464,7 @@ pr3 = hists(xr3, crb_std3, "Correct model: $tRF_ms ms RectRF")
 #
 prompt()
 
+
 #=
 Histograms of scaled χ² stats for _correct_ model
 =#
@@ -489,6 +487,10 @@ that assumes an instantaneous RF pulse,
 as seen in the histograms below.
 =#
 pr0 = hists(xr0, crb_std3, "Incorrect model: Instantaneous RF")
+
+#
+prompt()
+
 
 #=
 Histograms of scaled χ² stats for _incorrect_ model
