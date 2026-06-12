@@ -418,6 +418,7 @@ function do_fit(signal_ri::Function, i::Int)
     return (; xfit, chi2_gt, chi2_fit)
 end
 
+mean(x) = sum(x) / length(x)
 mean2(x) = sum(x, dims=2) / nrep |> vec
 std2(x) = sqrt.(sum(abs2, x .- mean2(x), dims=2) / nrep) |> vec
 if !@isdefined(fit3)
@@ -469,11 +470,12 @@ prompt()
 #=
 Histograms of scaled χ² stats for _correct_ model
 =#
-xaxis = ("scaled χ²", (0.2, 2), range(0.2, 2, 6))
-plot(
- histogram(chi2_gt3; xaxis, title="GT"),
- histogram(chi2_fit3; xaxis, title="Fit"),
-)
+xaxis = ("scaled χ²", (0, 2), 0:0.5:2)
+p1 = histogram(chi2_gt3; xaxis, title="GT")
+scatter!(p1, [mean(chi2_gt3)], [1], color=:magenta)
+p2 = histogram(chi2_fit3; xaxis, title="Fit")
+scatter!(p2, [mean(chi2_fit3)], [1], color=:magenta)
+p3_chi2 = plot(p1, p2; layout = (2,1))
 
 #
 prompt()
@@ -483,7 +485,7 @@ prompt()
 The estimates of M0, T1, T2 and kappa
 are all seriously biased,
 when fitting with the _incorrect_ signal model
-that assumes and instantaneous RF pulse,
+that assumes an instantaneous RF pulse,
 as seen in the histograms below.
 =#
 pr0 = hists(xr0, crb_std3, "Incorrect model: Instantaneous RF")
@@ -491,7 +493,8 @@ pr0 = hists(xr0, crb_std3, "Incorrect model: Instantaneous RF")
 #=
 Histograms of scaled χ² stats for _incorrect_ model
 =#
-plot(
- histogram(chi2_gt0; title="'GT' for Instantaneous"),
- histogram(chi2_fit0; title="Fit for Instantaneous"),
-)
+p1 = histogram(chi2_gt0; title="'GT' for Instantaneous")
+scatter!(p1, [mean(chi2_gt0)], [1], color=:red)
+p2 = histogram(chi2_fit0; title="Fit for Instantaneous")
+scatter!(p2, [mean(chi2_fit0)], [1], color=:red)
+p0_chi2 = plot(p1, p2; layout = (2,1))
