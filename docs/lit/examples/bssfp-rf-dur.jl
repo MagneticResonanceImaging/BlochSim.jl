@@ -409,16 +409,30 @@ ntry = 10
 function do_fit(signal_ri::Function, i::Int)
     seed!(i) # to ensure that both models fit the same data
     y = yb + 1σ * randn(ComplexF64, size(yb))
+    y = real_imag(vec(y))
     x0fun = i -> rand20.(x)
-    return fit_signal(signal_ri, x0fun, real_imag(vec(y)); ntry)
+    xfit = fit_signal(signal_ri, x0fun, y; ntry)
+    chi2(x) = norm(signal_ri(x) - y)^2 / length(y) / (σ^2/2) # scaled χ² stats
+    chi2_gt = chi2(x)
+    chi2_fit = chi2(xfit)
+    return (; xfit, chi2_gt, chi2_fit)
 end
 
-mean2(x) = sum(x, dims=2) / nrep
-std2(x) = sqrt.(sum(abs2, x .- mean2(x), dims=2) / nrep)
-if !@isdefined(xr3) # || true
+mean2(x) = sum(x, dims=2) / nrep |> vec
+std2(x) = sqrt.(sum(abs2, x .- mean2(x), dims=2) / nrep) |> vec
+if !@isdefined(fit3)
     nrep = 400
-    xr0 = stack([do_fit(signal_ri0, i) for i in 1:nrep])
-    xr3 = stack([do_fit(signal_ri3, i) for i in 1:nrep])
+    @time fit0 = [do_fit(signal_ri0, i) for i in 1:nrep]
+    @time fit3 = [do_fit(signal_ri3, i) for i in 1:nrep]
+end
+if !@isdefined(xr3) || true
+    fget(f, fit) = stack(Iterators.map(f, fit))
+    xr0 = fget(f -> f.xfit, fit0)
+    xr3 = fget(f -> f.xfit, fit3)
+    chi2_gt0 = fget(f -> f.chi2_gt, fit0)
+    chi2_gt3 = fget(f -> f.chi2_gt, fit3)
+    chi2_fit0 = fget(f -> f.chi2_fit, fit0)
+    chi2_fit3 = fget(f -> f.chi2_fit, fit3)
     mean0 = mean2(xr0)
     mean3 = mean2(xr3)
     std0 = std2(xr0)
@@ -444,7 +458,7 @@ end;
 The estimates of M0, T1, T2 and kappa
 are mostly within ``±2 σ_{\text{CRB}}``
 and have quite small biases,
-when using the correct signal model
+when using the _correct_ signal model
 with the finite duration RF pulse.
 =#
 pr3 = hists(xr3, crb_std3, "Correct model: $tRF_ms ms RectRF")
@@ -453,10 +467,31 @@ pr3 = hists(xr3, crb_std3, "Correct model: $tRF_ms ms RectRF")
 prompt()
 
 #=
+Histograms of scaled χ² stats for _correct_ model
+=#
+xaxis = ("scaled χ²", (0.2, 2), range(0.2, 2, 6))
+plot(
+ histogram(chi2_gt3; xaxis, title="GT"),
+ histogram(chi2_fit3; xaxis, title="Fit"),
+)
+
+#
+prompt()
+
+
+#=
 The estimates of M0, T1, T2 and kappa
 are all seriously biased,
-when fitting with the incorrect signal model
+when fitting with the _incorrect_ signal model
 that assumes and instantaneous RF pulse,
 as seen in the histograms below.
 =#
 pr0 = hists(xr0, crb_std3, "Incorrect model: Instantaneous RF")
+
+#=
+Histograms of scaled χ² stats for _incorrect_ model
+=#
+plot(
+ histogram(chi2_gt0; title="'GT' for Instantaneous"),
+ histogram(chi2_fit0; title="Fit for Instantaneous"),
+)
