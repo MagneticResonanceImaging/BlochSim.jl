@@ -70,7 +70,7 @@ end
 
 """
     xmin = fit_signal(model::Function, x0::Array, y::Array)
-    xmin = fit_signal(model::Function, x0fun::Function, y::Array; ntry::Int)
+    xmin = fit_signal(model::Function, x0fun::Function, y::Array; ntry=10)
 
 Perform nonlinear LS fitting
 `xmin = argmin_x ‖ model(x) - y ‖²`.
