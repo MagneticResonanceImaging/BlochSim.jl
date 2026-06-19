@@ -4,10 +4,13 @@ https://github.com/MagneticResonanceImaging/BlochSim.jl
 
 [![docs-stable][docs-stable-img]][docs-stable-url]
 [![docs-dev][docs-dev-img]][docs-dev-url]
-[![action status][action-img]][action-url]
-[![pkgeval status][pkgeval-img]][pkgeval-url]
+[![action][action-img]][action-url]
+[![Aqua QA][aqua-img]][aqua-url]
 [![codecov][codecov-img]][codecov-url]
+[![deps][deps-img]][deps-url]
 [![license][license-img]][license-url]
+[![pkgeval][pkgeval-img]][pkgeval-url]
+[![version][ver-img]][ver-url]
 
 This Julia package provides functionality
 for simulating arbitrary MRI pulse sequences.
@@ -163,15 +166,28 @@ Tested with Julia ≥ v1.12
 
 
 <!-- URLs -->
-[action-img]: https://github.com/MagneticResonanceImaging/BlochSim.jl/actions/workflows/ci.yml/badge.svg
+[action-img]: https://github.com/MagneticResonanceImaging/BlochSim.jl/actions/workflows/CI/badge.svg
 [action-url]: https://github.com/MagneticResonanceImaging/BlochSim.jl/actions
-[pkgeval-img]: https://juliaci.github.io/NanosoldierReports/pkgeval_badges/B/BlochSim.svg
-[pkgeval-url]: https://juliaci.github.io/NanosoldierReports/pkgeval_badges/B/BlochSim.html
-[codecov-img]: https://codecov.io/gh/MagneticResonanceImaging/BlochSim.jl/branch/main/graph/badge.svg?token=tduieBgema
+
+[aqua-img]: https://juliatesting.github.io/Aqua.jl/dev/assets/badge.svg
+[aqua-url]: https://github.com/JuliaTesting/Aqua.jl
+
+[codecov-img]: https://codecov.io/gh/MagneticResonanceImaging/BlochSim.jl/coverage.svg
 [codecov-url]: https://codecov.io/gh/MagneticResonanceImaging/BlochSim.jl
-[docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
-[docs-stable-url]: https://MagneticResonanceImaging.github.io/BlochSim.jl/stable
+
+[deps-img]: https://juliahub.com/docs/BlochSim/deps.svg
+[deps-url]: https://juliahub.com/ui/Packages/BlochSim
+
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
 [docs-dev-url]: https://MagneticResonanceImaging.github.io/BlochSim.jl/dev
-[license-img]: http://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat
+[docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
+[docs-stable-url]: https://MagneticResonanceImaging.github.io/BlochSim.jl/stable
+
+[license-img]: https://img.shields.io/badge/license-MIT-brightgreen.svg
 [license-url]: LICENSE
+
+[pkgeval-img]: https://juliaci.github.io/NanosoldierReports/pkgeval_badges/B/BlochSim.svg
+[pkgeval-url]: https://juliaci.github.io/NanosoldierReports/pkgeval_badges/B/BlochSim.html
+
+[ver-img]: https://juliahub.com/docs/BlochSim/version.svg
+[ver-url]: https://juliahub.com/ui/Packages/BlochSim
