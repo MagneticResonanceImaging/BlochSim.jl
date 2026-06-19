@@ -166,7 +166,7 @@ Tested with Julia ≥ v1.12
 
 
 <!-- URLs -->
-[action-img]: https://github.com/MagneticResonanceImaging/BlochSim.jl/actions/workflows/CI/badge.svg
+[action-img]: https://github.com/MagneticResonanceImaging/BlochSim.jl/workflows/CI/badge.svg
 [action-url]: https://github.com/MagneticResonanceImaging/BlochSim.jl/actions
 
 [aqua-img]: https://juliatesting.github.io/Aqua.jl/dev/assets/badge.svg
