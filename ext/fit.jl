@@ -16,7 +16,7 @@ import BlochSim: fit_signal, optimize_multistart # extended here
 
 using ADTypes: AutoForwardDiff
 using LinearAlgebra: norm
-using Optim: optimize
+using Optim: optimize, LBFGS
 
 
 """
@@ -31,6 +31,7 @@ Return the minimizer with the lowest `cost`.
 Option:
 - `costs[i]` is mutated to contain the `cost` of the `i`th trial.
 - `autodiff` to pass to `Optim.optimize` default `AutoForwardDiff()`
+- `optim_method` optimization method used by `Optim.optimize`; default `LBFGS()`
 
 An example initialization method is
 `x0fun = i -> xtrue * (1 + 0.2 * (rand() - 0.5) / 0.5)` for # ± 20% variability
@@ -47,6 +48,7 @@ function optimize_multistart(
     ntry::Integer = 10,
     costs::AbstractVector = Vector{Float64}(undef, ntry),
     autodiff = AutoForwardDiff(),
+    optim_method = LBFGS(),
 )
 
     min_cost = Inf
@@ -54,7 +56,7 @@ function optimize_multistart(
 
     for i in 1:ntry
         x0 = x0fun(i)
-        opt = optimize(cost, x0; autodiff)
+        opt = optimize(cost, x0, optim_method; autodiff)
         if opt.minimum < min_cost
             min_cost = opt.minimum
             xbest = opt.minimizer
