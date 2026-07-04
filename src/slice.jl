@@ -7,11 +7,28 @@ RF and gradient waveforms for slice-selective excitation
 
 export rf_slice
 
+#=
+# utility to check for NaN when testing, per
+# https://discourse.julialang.org/t/diagnosing-nans-from-forwarddiff/16364
+import ForwardDiff
+hasnan(x::Real) = false
+hasnan(x::ForwardDiff.Dual) = any(isnan, ForwardDiff.partials(x))
+hasnan(x::AbstractArray) = any(hasnan, x)
+=#
+
 
 """
-    rf_sinc(α_rad, tRF_ms, Δt_ms, shape, nlobe)
+    rf_sinc(α_rad, tRF_ms, Δt_ms, shape, nlobe; tweak_zero = 1e-7)
 
 Make truncated sinc RF waveform.
+
+By default, any zero values of the `sinc` (before scaling)
+are replaced by `tweak_zero`
+to avoid autodiff problems at zero
+when optimizing B1+ scaling; see
+https://github.com/MagneticResonanceImaging/BlochSim.jl/issues/84
+To preserve the zero values,
+set `tweak_zero = 0`.
 """
 function rf_sinc(
     α_rad::Real,
@@ -19,6 +36,8 @@ function rf_sinc(
     Δt_ms::Real,
     shape::Symbol,
     nlobe::Real,
+    ;
+    tweak_zero::Real = 1e-7,
 )
 
     shape === :sinc || throw("unsupported shape $shape")
@@ -26,6 +45,7 @@ function rf_sinc(
     nsamp * Δt_ms ≈ tRF_ms || @warn("Δt_ms=$Δt_ms does not divide tRF_ms=$tRF_ms")
     t = ((0:(nsamp-1))/nsamp .- 0.5) * tRF_ms # [-tRF_ms/2, tRF_ms/2)
     wave = sinc.(2nlobe * t / tRF_ms)
+    wave[findall(==(0), wave)] .= tweak_zero # avoid angle(0) issues in RF()
     wave .*= nsamp / sum(wave) # make sum to unity
     return wave * b1_gauss(α_rad, tRF_ms) # flip angle
 end
@@ -76,6 +96,7 @@ ignores slew-rate constraints.
 - `slice_width` default 1 cm
 - `rephasing::Bool` include rephasing gradient? default `!isinf(slice_width)`
 - `Δθ` phase passed to `RF`; default 0 radian
+- `tweak_zero` see `rf_sinc`
 
 # Out
 - `rf` a `BlochSim.RF` object
@@ -90,9 +111,11 @@ function rf_slice(
     slice_width::Real = 1, # cm
     rephasing::Bool = !isinf(slice_width),
     Δθ::Real = 0,
+    tweak_zero::Real = 1e-7,
 )
 
-    wave = rf_sinc(α_rad, tRF_ms, Δt_ms, shape, nlobe) # RF waveform
+    shape == :sinc || throw(ArgumentError("shape $shape"))
+    wave = rf_sinc(α_rad, tRF_ms, Δt_ms, shape, nlobe; tweak_zero) # RF waveform
     gz = gz_sinc(tRF_ms, nlobe, slice_width) # gradient amplitude
 
     # RF pulse with constant slice-selection gradient:
@@ -116,9 +139,11 @@ function rf_slice(
     slice_width::Real = 1, # cm
     rephasing::Bool = !isinf(slice_width),
     Δθ::Real = 0,
+    tweak_zero::Real = 1e-7,
 )
 
-    wave = rf_sinc(α_rad, tRF_ms, Δt_ms, shape, nlobe) # RF waveform
+    shape == :sinc || throw(ArgumentError("shape $shape"))
+    wave = rf_sinc(α_rad, tRF_ms, Δt_ms, shape, nlobe; tweak_zero) # RF waveform
     nsamp = length(wave)
     gz = gz_sinc(tRF_ms, nlobe, slice_width) # gradient amplitude
 
