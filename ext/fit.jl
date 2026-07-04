@@ -15,7 +15,6 @@ so we include these helper functions.
 import BlochSim: fit_signal, optimize_multistart # extended here
 
 using ADTypes: AutoForwardDiff
-using LinearAlgebra: norm
 using Optim: optimize, LBFGS
 
 
@@ -71,8 +70,8 @@ end
 
 
 """
-    xmin = fit_signal(model::Function, x0::Array, y::Array)
-    xmin = fit_signal(model::Function, x0fun::Function, y::Array; ntry=10)
+    xmin = fit_signal(model::Function, x0::Array, y::Array; kwargs...)
+    xmin = fit_signal(model::Function, x0fun::Function, y::Array; ntry=10, kwargs...)
 
 Perform nonlinear LS fitting
 `xmin = argmin_x ‖ model(x) - y ‖²`.
@@ -80,13 +79,20 @@ Perform nonlinear LS fitting
 If input initial parameter vector guess `x0` is an `Array`,
 then perform a single optimization.
 Otherwise, use `optimize_multistart` to return the best of `ntry` runs.
+Extra `kwargs` are passed to `optimize_multistart`.
 """
-function fit_signal(model, x0fun, y::AbstractArray; ntry::Integer = 10)
-    cost(x) = abs2(norm(model(x) - y)) # LS cost
-    return optimize_multistart(cost, x0fun; ntry)
+function fit_signal(
+    model,
+    x0fun,
+    y::AbstractArray;
+    ntry::Integer = 10,
+    kwargs...,
+)
+    cost(x) = sum(abs2, model(x) - y) # LS cost
+    return optimize_multistart(cost, x0fun; ntry, kwargs...)
 end
 
-function fit_signal(model, x0::AbstractArray, y::AbstractArray; ntry::Integer = 1)
+function fit_signal(model, x0::AbstractArray, y::AbstractArray; ntry::Integer = 1, kwargs...)
     ntry > 1 && @warn("ntry > 1 pointless when x0 provided")
-    return fit_signal(model, i -> x0, y; ntry)
+    return fit_signal(model, i -> x0, y; ntry, kwargs...)
 end
