@@ -5,7 +5,7 @@ test/bssfp1.jl 1-pool case
 using BlochSim: bssfp, Spin, InstantaneousRF, duration, real_imag
 using BlochSim: bSSFPbloch, bSSFPbloch3, bSSFPellipse, rf_slice
 using ForwardDiff: ForwardDiff
-import ForwardDiff: derivative, gradient
+import ForwardDiff: derivative, gradient, jacobian
 using Test: @inferred, @test, @testset
 
 
@@ -42,12 +42,24 @@ end
     TR_ms, TE_ms, Δϕ_rad, α_rad, θ_rf_rad = 20, 10, 5f0, π/3, π/5, π/7 # scan
     xs = (; TR_ms, TE_ms, Δϕ_rad, α_rad, θ_rf_rad)
 
+    # long argument list with no structs
     sig1 = @inferred bssfp(xt..., xs...)
     @test sig1 isa Complex{<:AbstractFloat}
 
     sig2 = @inferred bssfp(xt, xs...) # tuple version
     @test sig1 == sig2
 
+    # jacobian thereof
+    fun(xt) = real_imag(bssfp(xt..., xs...))
+    jac = ForwardDiff.jacobian(fun, collect(xt))
+    @test jac isa Matrix{<:AbstractFloat}
+    @test !any(isnan, jac)
+
+    # short vs long form for InstantaneousRF
+    spin = Spin(Mz0, T1_ms, T2_ms, Δf_Hz)
+    rf = InstantaneousRF(α_rad, θ_rf_rad)
+    sig3 = @inferred bssfp(spin, TR_ms, TE_ms, Δϕ_rad, rf)
+    @test sig1 == sig3
 
     # ellipse formula
     sig7 = @inferred bssfp(bSSFPellipse, xt..., xs...)
@@ -56,18 +68,6 @@ end
     sig8 = @inferred bssfp(bSSFPellipse, xt, xs...)
     @test sig7 == sig8
 
-
-    # jacobian
-    fun(xt) = real_imag(bssfp(xt..., xs...))
-    grad = ForwardDiff.jacobian(fun, collect(xt))
-    @test grad isa Matrix{<:AbstractFloat}
-
-    # short vs long form
-    spin = Spin(Mz0, T1_ms, T2_ms, Δf_Hz)
-    rf = InstantaneousRF(α_rad, θ_rf_rad)
-    sig3 = @inferred bssfp(spin, TR_ms, TE_ms, Δϕ_rad, rf)
-    @test sig1 == sig3
-
     # helpers
     bpost = bssfp(spin, TR_ms, duration(rf)/2, 0, rf) # signal right after RF
     @test bpost == bssfp(spin, TR_ms, Val(:postRF), 0, rf)
@@ -75,8 +75,43 @@ end
     @test bmid == bssfp(spin, TR_ms, Val(:midTR), 0, rf)
 
     # slice-select version
-    rf, rephasing = rf_slice(1)
+    Δt_ms = 0.1 # coarse for testing
+    rf, rephasing = rf_slice(1; α_rad, Δt_ms)
     sig4 = @inferred bssfp(spin, TR_ms, TE_ms, Δϕ_rad, (rephasing, rf, rephasing))
+
+    # jacobian of slice-select version
+    funs(xt) = real_imag(bssfp(Spin(xt...),
+        TR_ms, TE_ms, Δϕ_rad, (rephasing, rf, rephasing)))
+    @test real_imag(sig4) == funs(xt)
+    jac = ForwardDiff.jacobian(funs, collect(xt))
+    @test jac isa Matrix{<:AbstractFloat}
+    @test !any(isnan, jac)
+
+    # test with RF constructed (kappa fixed to 1)
+    function _bssfp1(xt)
+        spin1 = Spin(xt...)
+        rf1, rephasing1 = rf_slice(1; α_rad = 1 * α_rad, Δt_ms) # kappa
+        tmp = (rephasing1, rf1, rephasing1)
+        return real_imag(bssfp(spin1, TR_ms, TE_ms, Δϕ_rad, tmp))
+    end
+    @test real_imag(sig4) ≈ _bssfp1(xt)
+    jac1 = ForwardDiff.jacobian(_bssfp1, collect(xt))
+    @test jac1 isa Matrix{<:AbstractFloat}
+    @test !any(isnan, jac1)
+
+    # test jacobian with kappa too
+    function _bssfp1(xk)
+        spin1 = Spin(xk[1:4]...)
+        rf1, rephasing1 = rf_slice(1; α_rad = xk[5] * α_rad, Δt_ms) # kappa
+        tmp = (rephasing1, rf1, rephasing1)
+        return real_imag(bssfp(spin1, TR_ms, TE_ms, Δϕ_rad, tmp))
+    end
+    @test real_imag(sig4) ≈ _bssfp1([xt...; 1])
+    kappa = 0.9
+    xk = [xt...; kappa]
+    jac = ForwardDiff.jacobian(_bssfp1, xk)
+    @test jac isa Matrix{<:AbstractFloat}
+    @test !any(isnan, jac)
 end
 
 
