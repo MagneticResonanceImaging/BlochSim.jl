@@ -78,6 +78,8 @@ end
 
 
 # waveform in Gauss, Δt in ms
+# caution: angle.(waveform) is not differentiable when waveform[i] == 0
+# which leads to NaN issues with ForwardDiff.jacobian
 RF(waveform, Δt, Δθ, grad) =
     RF(GAMMA .* abs.(waveform) .* (Δt / 1000), angle.(waveform), Δt, Δθ, grad)
 RF(waveform, Δt, Δθ::Real) = RF(waveform, Δt, Δθ, Gradient(0, 0, 0))
