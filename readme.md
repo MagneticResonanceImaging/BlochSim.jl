@@ -135,6 +135,19 @@ julia> signal(spinmc)
 Offers many mutating (in-place) methods for compute efficiency.
 
 
+## Limitations
+
+The RF waveform is stored in magnitude/angle format.
+Because `angle()` is not differentiable at `0`,
+`ForwardDiff` will return `NaN` if one tries to optimize
+the flip angle
+of any pulse with zero values.
+See
+[this issue](https://github.com/MagneticResonanceImaging/BlochSim.jl/issues/84)
+and
+[this PR](https://github.com/MagneticResonanceImaging/BlochSim.jl/pull/86).
+
+
 ## Related Julia package(s)
 
 * [MRIgeneralizedBloch.jl](https://github.com/JakobAsslaender/MRIgeneralizedBloch.jl)
