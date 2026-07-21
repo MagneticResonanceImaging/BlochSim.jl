@@ -37,6 +37,7 @@ if false
         "Optim"
         "Plots"
         "Random"
+        "Measures"
     ])
 end
 
@@ -56,6 +57,7 @@ using MRIPulses: dzrf
 using Plots: default, gui
 using Plots: plot, plot!, scatter!, scatter3d!, text
 using Random: seed!
+using Measures: mm
 
 default(titlefontsize = 10, markerstrokecolor = :auto, label="", linewidth = 2)
 seed!(0);
@@ -124,6 +126,12 @@ function rf_maker2!(kappa, α_rad)
     return work2.rf, work2.rephasing
 end
 @assert rf_maker2!(1, α_rad)[1].α == rf1.α
+
+function rf_maker2(kappa, α_rad)
+    rf, rephasing = rf_slice(tRF_ms ; α_rad=kappa*α_rad, nlobe, slice_width, Δt_ms)
+    return rf, rephasing
+end
+@assert rf_maker2(1, α_rad)[1].α == rf1.α
 
 
 #=
@@ -213,7 +221,7 @@ function plot_profile(spins, zpos::AbstractArray, slice_width::Real, rtype)
     return plot(pmag, ppha; layout = (2,1), plot_title)
 end
 
-zpos2 = range(-0.2, 0.2, 201) # z positions (cm) for 2D slice-select case
+zpos2 = range(-0.2, 0.2, 21) # z positions (cm) for 2D slice-select case
 spins = make_spins(Mz0, T1_ms, T2_ms, Δf_Hz, zpos2)
 do_excite!(spins, rf1, rephasing1)
 pp2 = plot_profile(spins, zpos2, slice_width, rtype2)
@@ -262,36 +270,35 @@ _bssfp0(x, Δϕ_rad, α_rad) =
 
 #=
 Helper for bSSFP model with slice-selective RF pulse.
-- Here we must sum across spins the effect of each (Δϕ_rad, α_rad) pair.
+- Here we must sum across spins the effect of each `(Δϕ_rad, α_rad)` pair.
 - This version models flip-angle dependent slice profile effects.
 =#
-function _bssfp1(x, Δϕ_rad, α_rad, scale, rf_maker!, zpos)
-    rf, rephasing = rf_maker!(x[5], α_rad) # kappa
+function _bssfp1(x, Δϕ_rad, α_rad, scale, rf_maker, zpos)
+    rf, rephasing = rf_maker(x[5], α_rad) # kappa
     spins = make_spins(x[1:4]..., zpos) # todo: mutable Spin would avoid alloc
     return scale * sum(spins) do spin
          bssfp(spin, TR_ms, TE_ms, Δϕ_rad, (rephasing, rf, rephasing))
     end
 end
 
-function signal_c0(x)
+function signal_c0(x) # signal model for `InstantaneousRF` bSSFP signal model
     _bssfp(Δϕ_rad, α_rad) = _bssfp0(x, Δϕ_rad, α_rad)
     return map(splat(_bssfp), design)
 end
 signal_ri0(x) = real_imag(vec(signal_c0(x)))
 
-function signal_c1(x, scale, rf_maker!, zpos)
-    _bssfp(Δϕ_rad, α_rad) = _bssfp1(x, Δϕ_rad, α_rad, scale, rf_maker!, zpos)
+function signal_c1(x, scale, rf_maker, zpos) # signal model with slice-selective RF pulse
+    _bssfp(Δϕ_rad, α_rad) = _bssfp1(x, Δϕ_rad, α_rad, scale, rf_maker, zpos)
     return map(splat(_bssfp), design)
 end;
-
 
 #=
 Scale factor since excited slice occupies a small fraction of z FOV:
 =#
 zfov2 = maximum(zpos2) - minimum(zpos2)
 scale2 = zfov2 / slice_width / length(zpos2)
-args2 = (scale2, rf_maker2!, zpos2)
-signal_ri2(x) = real_imag(vec(signal_c1(x, args2...)));
+args2 = (scale2, rf_maker2, zpos2)
+signal_ri1(x) = real_imag(vec(signal_c1(x, args2...)));
 
 
 #=
@@ -299,13 +306,12 @@ signal_ri2(x) = real_imag(vec(signal_c1(x, args2...)));
 The effect is quite significant.
 =#
 
-yb = signal_ri2(x) # noiseless data account for slice-profile effects
+yb = signal_ri1(x) # noiseless data account for slice-profile effects
 yb = reshape(yb, :, 2); yb = complex.(yb[:,1], yb[:,2]); # re-make complex!
 snr_db = 40
 σ = snr2sigma(snr_db, yb)
-y2 = yb + 1σ * randn(ComplexF64, size(yb));
-#src @show 20*log10(norm(yb) / norm(y2 - yb))
-
+y1 = yb + 1σ * randn(ComplexF64, size(yb));
+#src @show 20*log10(norm(yb) / norm(y1 - yb))
 
 #=
 ## Slice profile effects on bSSFP
@@ -317,7 +323,6 @@ function plot_bssfp(args, y)
      title = "SNR=$snr_db dB TR=$TR_ms TE=$TE_ms T1=$T1_ms T2=$T2_ms",
     )
     label = reshape(map(x -> "$(x)° noisy", α_degs), 1, :)
-    scatter!(Δϕ_rads, abs.(y); label)
     Δϕ_fine = range(-1, 1, 61) * π # phase-cycling factors for plot
     @time tmp0 = Base.Fix{1}(_bssfp0, x).(Δϕ_fine, α_rads')
     @time tmp1 = ((Δϕ, α) -> _bssfp1(x, Δϕ, α, args...)).(Δϕ_fine, α_rads')
@@ -329,18 +334,16 @@ function plot_bssfp(args, y)
     pmisa = plot( ; xaxis, widen = true, ylabel = "signal phase [rad]",
      title = "SNR=$snr_db dB TR=$TR_ms TE=$TE_ms T1=$T1_ms T2=$T2_ms",
     )
-    scatter!(Δϕ_rads, angle.(y); label)
     plot!(Δϕ_fine, angle.(tmp1); label="$tRF_ms ms sinc RF", color)
     @assert angle.(tmp0[:,1]) ≈ angle.(tmp0[:,2]) ≈ angle.(tmp0[:,3]) # same!
     plot!(Δϕ_fine, angle.(tmp0[:,1]); label="0 ms RF", line=:dash, color=:black)
 
     return plot(pmism, pmisa, layout=(2,1), size=(600, 800))
 end
-pb2 = plot_bssfp(args2, y2)
+pb1 = plot_bssfp(args2, y1)
 
 #
 prompt()
-
 
 #=
 ## Model fitting
@@ -373,6 +376,11 @@ may be quite significant.
 round2(x) = round(x; sigdigits=3)
 mean2(x) = sum(x, dims=2)[:,1] / nrep
 std2(x) = sqrt.(sum(abs2, x .- mean2(x), dims=2)[:,1] / nrep)
+
+crb0 = sqrt.(diag(crb(signal_ri0, x, σ)))
+crb1 = sqrt.(diag(crb(signal_ri1, x, σ)))
+
+## fit with inst RF
 if !@isdefined(xr0) || false
     nrep = 100
     @time xr0 = stack([do_fit(signal_ri0, i, yb, σ) for i in 1:nrep])
@@ -380,12 +388,100 @@ if !@isdefined(xr0) || false
     std0 = std2(xr0)
 end
 
-crb2 = sqrt.(diag(crb(signal_ri0, x, σ)))
-tab2 = [ # estimation results table
- :param :value :μ0 :σ0 :σcrb;
- collect(keys(xt)) collect(xt) round2.([mean0 std0 crb2]);
+## fit with slice profile, finite rf effects
+if !@isdefined(xr1)
+    nrep = 10
+    xr1_list = Vector{Any}(undef, nrep)
+    @time begin
+        Threads.@threads for i in 1:nrep
+            xr1_list[i] = do_fit(signal_ri1, i, yb, σ)
+            @show i
+        end
+        xr1 = stack(xr1_list)
+    end
+    mean1 = mean2(xr1)
+    std1 = std2(xr1)
+end
+
+tab2_0 = [ # estimation results table, inst RF
+ :param :value :μ0 :σ0 :σcrb0;
+ collect(keys(xt)) collect(xt) round2.([mean0 std0 crb0]);
 ]
 
+tab2_1 = [ # estimation results table, slice profile/finite RF
+ :param :value :μ1 :σ1 :σcrb1;
+ collect(keys(xt)) collect(xt) round2.([mean1 std1 crb1]);
+]
+
+#=
+## Plot simulated data and fits with/without slice profile/finite RF effects
+=#
+function plot_bssfp_finiterf_sp_data_fits()
+    
+    ## set some initializations
+    num_PCFs = length(Δϕ_rads)
+    num_flips = length(α_rads)
+    color = (1:length(α_degs))'
+    xaxis = ("Phase Cycling Increment Δϕ (rad)", (-π, π), ((-1:1).*π, ["-π", "0", "π"]))
+    Δϕ_fine = range(-1, 1, 61) * π  # finer phase-cycling factors for plot
+
+    ## raw (simulated) data
+    y1mat = reshape(y1, num_PCFs, num_flips)
+    label_raw = reshape(map(x -> "$(x)° noisy simulated data", α_degs), 1, :)
+
+    ## fit with model mismatch (inst RF)
+    signal_c0_fit_complex = signal_c0(xr0)
+    signal_c0_fit_complex_fine = Base.Fix{1}(_bssfp0, xr0).(Δϕ_fine, α_rads')
+    label_fit = reshape(map(x -> "$(x)° fit points", α_degs), 1, :)
+    label_fit_fine = reshape(map(x -> "$(x)° fit", α_degs), 1, :)
+
+    ## fit without model mismatch (finite RF/slice profile effects)
+    signal_c1_fit_complex = signal_c1(xr1, args2...)
+    f = (Δϕ, α) -> _bssfp1(xr1, Δϕ, α, args2...); signal_c1_fit_complex_fine = f.(Δϕ_fine, α_rads')
+
+    ## magnitude (inst RF)
+    pmism_inst = plot( ; xaxis, ylabel = "Signal Magnitude",widen = true,
+     title = "(a) Simulated Data with SP Effects: Fit with Inst RF", legend=:none)
+    scatter!(Δϕ_rads, abs.(y1mat); label=label_raw, markersize=3, color) # raw simulated data
+    scatter!(Δϕ_rads, abs.(signal_c0_fit_complex); label=label_fit, markershape=:x,markersize=3,
+     markerstrokewidth=1, color) # fitted points
+    plot!(Δϕ_fine, abs.(signal_c0_fit_complex_fine); label=label_fit_fine, color) # finer fit
+
+    ## phase (inst RF) 
+    pmisp_inst = plot( ; xaxis, widen = true, ylabel = "Signal Phase (rad)",legend=:none)
+    scatter!(Δϕ_rads, angle.(y1mat); label=label_raw, markersize=3, color)
+    scatter!(Δϕ_rads, angle.(signal_c0_fit_complex); label=label_fit, markershape=:x,markersize=3, markerstrokewidth=1, color)
+    plot!(Δϕ_fine, angle.(signal_c0_fit_complex_fine); label=label_fit_fine, color)
+
+    ## magnitude (finite RF/SP effects)
+    pmism_sp = plot( ; xaxis, ylabel = "Signal Magnitude",widen = true,
+     title = "(b) Simulated Data with SP Effects: Fit with SP Effects", legend=:none)
+    scatter!(Δϕ_rads, abs.(y1mat); label=label_raw, markersize=3, color) # raw simulated data
+    scatter!(Δϕ_rads, abs.(signal_c1_fit_complex); label=label_fit, markershape=:x,markersize=3,
+     markerstrokewidth=1, color) # fitted points
+    plot!(Δϕ_fine, abs.(signal_c1_fit_complex_fine); label=label_fit_fine, color) # finer fit
+
+    ## phase (finite RF/SP effects)
+    pmisp_sp = plot( ; xaxis, widen = true, ylabel = "Signal Phase (rad)",legend=:bottomright)
+    scatter!(Δϕ_rads, angle.(y1mat); label=label_raw, markersize=3, color)
+    scatter!(Δϕ_rads, angle.(signal_c1_fit_complex); label=label_fit, markershape=:x,markersize=3, markerstrokewidth=1, color)
+    plot!(Δϕ_fine, angle.(signal_c1_fit_complex_fine); label=label_fit_fine, color)
+
+    ## put all the plots on 1 grid
+    plot(pmism_inst, pmism_sp, pmisp_inst, pmisp_sp, 
+    layout=(2,2), 
+    size=(1400, 900),
+    margin=6mm,
+    left_margin=10mm,
+    bottom_margin=10mm,
+    top_margin=8mm)
+
+end
+
+plot_bssfp_finiterf_sp_data_fits()
+
+#
+prompt()
 
 #=
 ## 3D case
@@ -482,5 +578,5 @@ end
 
 tab3 = [ # estimation results table
  :param :value :μ0 :σ0 :σcrb;
- collect(keys(xt)) collect(xt) round2.([mean03 std03 crb2]);
+ collect(keys(xt)) collect(xt) round2.([mean03 std03 crb1]);
 ]
