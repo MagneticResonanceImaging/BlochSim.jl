@@ -219,9 +219,9 @@ function plot_profile(spins, zpos::AbstractArray, slice_width::Real, rtype)
 
     plot_title = "Slice profile for $rtype, α = $(α_deg)°, w=$(10slice_width) mm"
     return plot(pmag, ppha; layout = (2,1), plot_title)
-end
+end;
 
-# fine grid of z positions for "ground truth" plots
+# Fine grid of z positions for "ground truth" plots
 zpos2_fine = range(-0.2, 0.2, 401) # z positions (cm) for 2D slice-select case
 spins_fine = make_spins(Mz0, T1_ms, T2_ms, Δf_Hz, zpos2_fine)
 do_excite!(spins_fine, rf1, rephasing1)
@@ -294,7 +294,7 @@ function signal_c1(x, scale, rf_maker, zpos) # signal model with slice-selective
 end;
 
 #=
-Scale factor since excited slice occupies a small fraction of z FOV:
+Scale factor(s) because excited slice occupies a small fraction of z FOV:
 =#
 zpos2_sim = range(-0.1, 0.1, 41) # fewer z positions (cm) for speed
 zfov2_sim = maximum(zpos2_sim) - minimum(zpos2_sim)
@@ -303,7 +303,7 @@ scale2_sim = zfov2_sim / slice_width / length(zpos2_sim)
 scale2_fine = zfov2_fine / slice_width / length(zpos2_fine)
 args2_sim = (scale2_sim, rf_maker2, zpos2_sim)
 args2_fine = (scale2_fine, rf_maker2, zpos2_fine)
-signal_ri1(x; args=args2_sim) = real_imag(vec(signal_c1(x, args...)))
+signal_ri1(x; args=args2_sim) = real_imag(vec(signal_c1(x, args...)));
 
 
 #=
@@ -325,7 +325,9 @@ snr_db = 40
 The points show the noiseless data values
 that form the starting point for the fit simulations.
 =#
-function plot_bssfp(args, yb; ylims = (0.01, 0.08))
+function plot_bssfp(args, yb, do_fine::Bool=false;
+    ylims = (0.01, 0.08), rtype = "sinc",
+)
     ## Magnitude
     xaxis = ("phase cycling increment Δϕ (rad)", (-π, π), ((-1:1).*π, ["-π", "0", "π"]))
     pmism = plot( ; xaxis, ylims, widen = true,
@@ -336,10 +338,12 @@ function plot_bssfp(args, yb; ylims = (0.01, 0.08))
     @time tmp0 = Base.Fix{1}(_bssfp0, x).(Δϕ_plot, α_rads')
     tmp_fun(argt) = ((Δϕ, α) -> _bssfp1(x, Δϕ, α, argt...)).(Δϕ_plot, α_rads')
     @time tmp1 = tmp_fun(args); n1 = length(args[3])
-    @time tmp2 = tmp_fun(args2_fine); n2 = length(args2_fine[3])
     color = (1:length(α_degs))'
-    plot!(Δϕ_plot, abs.(tmp2); label="$tRF_ms ms sinc RF [$n2]", color)
-    plot!(Δϕ_plot, abs.(tmp1); label="$tRF_ms ms sinc RF [$n1]", line=:dot, color)
+    if do_fine
+        @time tmp2 = tmp_fun(args2_fine); n2 = length(args2_fine[3])
+        plot!(Δϕ_plot, abs.(tmp2); label="$tRF_ms ms $rtype RF [$n2]", color)
+    end
+    plot!(Δϕ_plot, abs.(tmp1); label="$tRF_ms ms $rtype RF [$n1]", line=:dot, color)
     plot!(Δϕ_plot, abs.(tmp0); label="0 ms RF", line=:dash, color)
     scatter!(Δϕ_rads, abs.(reshape(yb, length(Δϕ_rads), :)); color)
 
@@ -347,15 +351,17 @@ function plot_bssfp(args, yb; ylims = (0.01, 0.08))
     pmisa = plot( ; xaxis, widen = true, ylabel = "signal phase [rad]",
      title = "SNR=$snr_db dB TR=$TR_ms TE=$TE_ms T1=$T1_ms T2=$T2_ms",
     )
-    plot!(Δϕ_plot, angle.(tmp2); label="$tRF_ms ms sinc RF [$n2]", color)
-    plot!(Δϕ_plot, angle.(tmp1); label="$tRF_ms ms sinc RF [$n1]", line=:dot, color)
+    if do_fine
+        plot!(Δϕ_plot, angle.(tmp2); label="$tRF_ms ms $rtype RF [$n2]", color)
+    end
+    plot!(Δϕ_plot, angle.(tmp1); label="$tRF_ms ms $rtype RF [$n1]", line=:dot, color)
     @assert angle.(tmp0[:,1]) ≈ angle.(tmp0[:,2]) ≈ angle.(tmp0[:,3]) # same!
     plot!(Δϕ_plot, angle.(tmp0[:,1]); label="0 ms RF", line=:dash, color=:black)
     scatter!(Δϕ_rads, angle.(reshape(yb, length(Δϕ_rads), :)); color)
 
     return plot(pmism, pmisa, layout=(2,1), size=(600, 800))
 end
-pb1 = plot_bssfp(args2_sim, yb)
+pb1 = plot_bssfp(args2_sim, yb, true)
 
 #
 prompt()
@@ -570,7 +576,7 @@ The profile is quite flat,
 though again the value is a bit low
 due to T2 decay effects.
 =#
-zpos_slice = range(-0.05, 0.05, 21) # z positions (cm) # 1mm slice in a big slab
+zpos_slice = range(-0.05, 0.05, 11) # z positions (cm) # 1mm slice in a big slab
 spins = make_spins(Mz0, T1_ms, T2_ms, Δf_Hz, zpos_slice)
 do_excite!(spins, rf3, rephasing3)
 pp4 = plot_profile(spins, zpos_slice, slice_width, rtype3)
@@ -590,12 +596,12 @@ args3 = (scale3, rf_maker3!, zpos_slice)
 signal_ri3(x) = real_imag(vec(signal_c1(x, args3...)))
 
 yb3 = signal_ri3(x) # noiseless data account for slice-profile effects
-yb3 = reshape(yb3, :, 2); yb3 = complex.(yb3[:,1], yb3[:,2]); # re-make complex!
+yb3 = reshape(yb3, :, 2); yb3 = complex.(yb3[:,1], yb3[:,2]) # re-make complex!
 σ3 = snr2sigma(snr_db, yb3)
-y3 = yb3 + 1σ3 * randn(ComplexF64, size(yb3));
+#src y3 = yb3 + 1σ3 * randn(ComplexF64, size(yb3)) # not used
 #src @show 20*log10(norm(yb3) / norm(y3 - yb3))
 
-pb3 = plot_bssfp(args3, y3)
+pb3 = plot_bssfp(args3, yb3; rtype = "SLR")
 
 #
 prompt()
