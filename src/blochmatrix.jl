@@ -337,16 +337,17 @@ struct BlochMcConnellDynamicsMatrix{T<:Real,N,M} <: AbstractBlochMcConnellMatrix
     end
 end
 
-# return type depends on argument N, so not type-inferable
-function BlochMcConnellDynamicsMatrix{T}(N) where {T}
+function BlochMcConnellDynamicsMatrix{T}(::Val{N}) where {T, N}
 
     A = ntuple(i -> BlochDynamicsMatrix{T}(), N)
     E = ntuple(i -> ExchangeDynamicsMatrix{T}(), N * (N - 1))
     BlochMcConnellDynamicsMatrix(A, E)
 
 end
+BlochMcConnellDynamicsMatrix{T}(N) where {T} = BlochMcConnellDynamicsMatrix{T}(Val(N))
 
-BlochMcConnellDynamicsMatrix(N) = BlochMcConnellDynamicsMatrix{Float64}(N)
+BlochMcConnellDynamicsMatrix(N::Val) = BlochMcConnellDynamicsMatrix{Float64}(N)
+BlochMcConnellDynamicsMatrix(N) = BlochMcConnellDynamicsMatrix(Val(N))
 
 # N = 3
 #   [2,1]: (1-1)*3-1+2+(2<1) = 0-1+2+0 = 1 ✓
@@ -446,15 +447,16 @@ struct BlochMcConnellMatrix{T<:Real,N} <: AbstractBlochMcConnellMatrix{T,N}
     A::NTuple{N,NTuple{N,BlochMatrix{T}}}
 end
 
-# return type depends on argument N, so not type-inferable
-function BlochMcConnellMatrix{T}(N) where {T}
+function BlochMcConnellMatrix{T}(::Val{N}) where {T, N}
 
     A = ntuple(i -> ntuple(i -> BlochMatrix{T}(), N), N)
     return BlochMcConnellMatrix(A)::BlochMcConnellMatrix{T, N}
 
 end
+BlochMcConnellMatrix{T}(N) where {T} = BlochMcConnellMatrix{T}(Val(N))
 
-BlochMcConnellMatrix(N) = BlochMcConnellMatrix{Float64}(N)
+BlochMcConnellMatrix(N::Val) = BlochMcConnellMatrix{Float64}(N)
+BlochMcConnellMatrix(N) = BlochMcConnellMatrix(Val(N))
 
 function Base.show(io::IO, ::MIME"text/plain", A::BlochMcConnellMatrix{T,N}) where {T,N}
 
