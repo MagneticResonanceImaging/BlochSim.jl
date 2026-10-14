@@ -39,7 +39,7 @@ to avoid heap allocations.
 This is useful when using an array of `Spin`s
 to model slice profile effects.
 """
-function reuse_spins!(spins::AbstractVector{<:Spin}, M0, T1, T2, Δf)
+function reuse_spins!(spins::AbstractVector, M0, T1, T2, Δf)
      for (i, spin) in enumerate(spins)
          spins[i] = reuse_spin(spin, M0, T1, T2, Δf)
      end

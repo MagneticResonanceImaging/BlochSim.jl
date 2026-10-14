@@ -49,7 +49,7 @@ using ADTypes: AutoForwardDiff
 using Optim: optimize # must precede BlochSim for extension
 using BlochSim: GAMMA, Gradient, GradientSpoiling, Position, Spin, SpinMC
 using BlochSim: InstantaneousRF, RF, b1_gauss, rf_slice, rf_gauss, duration
-using BlochSim: excite!, spoil!
+using BlochSim: excite!, spoil! #, reuse_spins!
 using BlochSim: bssfp, real_imag, signal, snr2sigma, fit_signal, crb
 using LinearAlgebra: diag, dot, norm
 using MIRTjim: prompt
@@ -80,10 +80,10 @@ Using a short T2 for to myelin water.
 =#
 Mz0, T1_ms, T2_ms, Δf_Hz = 1, 400, 10, 9 # tissue parameters
 
-make_spins(Mz0, T1_ms, T2_ms, Δf_Hz, zpos) = map(zpos) do z
-    pos = Position(0, 0, z)
-    Spin(Mz0, T1_ms, T2_ms, Δf_Hz, pos)
-end;
+make_spins(Mz0, T1_ms, T2_ms, Δf_Hz, zpos::AbstractVector{<:Real}) =
+    [Spin(Mz0, T1_ms, T2_ms, Δf_Hz, Position(0, 0, z)) for z in zpos]
+make_spins(Mz0, T1_ms, T2_ms, Δf_Hz, spins::AbstractVector) =
+    [Spin(Mz0, T1_ms, T2_ms, Δf_Hz, spin.pos) for spin in spins];
 
 
 #=
@@ -126,6 +126,7 @@ function rf_maker2!(kappa, α_rad)
     return work2.rf, work2.rephasing
 end
 @assert rf_maker2!(1, α_rad)[1].α == rf1.α
+#src # todo: why do we not use rf_maker2! ?  probably something with dual type?
 
 function rf_maker2(kappa, α_rad)
     rf, rephasing = rf_slice(tRF_ms ; α_rad=kappa*α_rad, nlobe, slice_width, Δt_ms)
@@ -265,7 +266,7 @@ num_scans = length(design) # number of different scans
 
 
 # Helper for `InstantaneousRF` bSSFP signal model
-# todo: currently must allocate because InstantaneousRF is immutable
+#src does not allocate at call site because InstantaneousRF has concrete types
 _bssfp0(x, Δϕ_rad, α_rad) =
      bssfp(x[1:4]..., TR_ms, TE_ms, Δϕ_rad, InstantaneousRF(x[5] * α_rad));
 
@@ -274,22 +275,25 @@ Helper for bSSFP model with slice-selective RF pulse.
 - Here we must sum across spins the effect of each `(Δϕ_rad, α_rad)` pair.
 - This version models flip-angle dependent slice profile effects.
 =#
-function _bssfp1(x, Δϕ_rad, α_rad, scale, rf_maker, zpos)
+function _bssfp1!(x, Δϕ_rad, α_rad, scale, rf_maker, spins)
     rf, rephasing = rf_maker(x[5], α_rad) # kappa
-    spins = make_spins(x[1:4]..., zpos) # todo: mutable Spin would avoid alloc
+##  reuse_spins!(spins, x[1:4]...) # avoids allocation by mutating spins, but fails due to Dual types in optimization.  See issue #69
+    spins = make_spins(x[1:4]..., spins) # allocates, but handles Dual types
     return scale * sum(spins) do spin
          bssfp(spin, TR_ms, TE_ms, Δϕ_rad, (rephasing, rf, rephasing))
     end
 end
 
-function signal_c0(x) # signal model for `InstantaneousRF` bSSFP signal model
+# Signal model for `InstantaneousRF` bSSFP signal model:
+function signal_c0(x)
     _bssfp(Δϕ_rad, α_rad) = _bssfp0(x, Δϕ_rad, α_rad)
     return map(splat(_bssfp), design)
 end
 signal_ri0(x) = real_imag(vec(signal_c0(x)))
 
-function signal_c1(x, scale, rf_maker, zpos) # signal model with slice-selective RF pulse
-    _bssfp(Δϕ_rad, α_rad) = _bssfp1(x, Δϕ_rad, α_rad, scale, rf_maker, zpos)
+# Signal model with slice-selective RF pulse:
+function signal_c1!(x, scale, rf_maker, spins)
+    _bssfp(Δϕ_rad, α_rad) = _bssfp1!(x, Δϕ_rad, α_rad, scale, rf_maker, spins)
     return map(splat(_bssfp), design)
 end;
 
@@ -300,10 +304,12 @@ zpos2_sim = range(-0.1, 0.1, 41) # fewer z positions (cm) for speed
 zfov2_sim = maximum(zpos2_sim) - minimum(zpos2_sim)
 zfov2_fine = maximum(zpos2_fine) - minimum(zpos2_fine)
 scale2_sim = zfov2_sim / slice_width / length(zpos2_sim)
-scale2_fine = zfov2_fine / slice_width / length(zpos2_fine)
-args2_sim = (scale2_sim, rf_maker2, zpos2_sim)
-args2_fine = (scale2_fine, rf_maker2, zpos2_fine)
-signal_ri1(x; args=args2_sim) = real_imag(vec(signal_c1(x, args...)));
+scale2_fine = zfov2_fine / slice_width / length(zpos2_fine);
+
+# The next 2 lines essentially allocate the spin work buffers
+args2_sim = (scale2_sim, rf_maker2, make_spins(0, 0, 0, 0, zpos2_sim))
+args2_fine = (scale2_fine, rf_maker2, make_spins(0, 0, 0, 0, zpos2_fine))
+signal_ri1(x; args=args2_sim) = real_imag(vec(signal_c1!(x, args...)));
 
 
 #=
@@ -325,7 +331,8 @@ snr_db = 40
 The points show the noiseless data values
 that form the starting point for the fit simulations.
 =#
-function plot_bssfp(args, yb, do_fine::Bool=false;
+function plot_bssfp!(args, # args.spins is mutated
+    yb, do_fine::Bool=false;
     ylims = (0.01, 0.08), rtype = "sinc",
 )
     ## Magnitude
@@ -336,7 +343,7 @@ function plot_bssfp(args, yb, do_fine::Bool=false;
     label = reshape(map(x -> "$(x)° noisy", α_degs), 1, :)
     Δϕ_plot = range(-1, 1, 61) * π # phase-cycling factors for plot
     @time tmp0 = Base.Fix{1}(_bssfp0, x).(Δϕ_plot, α_rads')
-    tmp_fun(argt) = ((Δϕ, α) -> _bssfp1(x, Δϕ, α, argt...)).(Δϕ_plot, α_rads')
+    tmp_fun(argt) = ((Δϕ, α) -> _bssfp1!(x, Δϕ, α, argt...)).(Δϕ_plot, α_rads')
     @time tmp1 = tmp_fun(args); n1 = length(args[3])
     color = (1:length(α_degs))'
     if do_fine
@@ -361,7 +368,7 @@ function plot_bssfp(args, yb, do_fine::Bool=false;
 
     return plot(pmism, pmisa, layout=(2,1), size=(600, 800))
 end
-pb1 = plot_bssfp(args2_sim, yb, true)
+pb1 = plot_bssfp!(args2_sim, yb, true)
 
 #
 prompt()
@@ -457,7 +464,7 @@ but the ground truth is based on 401 z samples.
 
 todo: also show the ground truth signal
 =#
-function plot_bssfp_finite_rf_sp_data_fits(args::Tuple)
+function plot_bssfp_finite_rf_sp_data_fits!(args::Tuple) # args.spins is mutated
 
     ## set some initializations
     num_PCFs = length(Δϕ_rads)
@@ -477,8 +484,8 @@ function plot_bssfp_finite_rf_sp_data_fits(args::Tuple)
     label_fit_fine = reshape(map(x -> "$(x)° fit", α_degs), 1, :)
 
     ## fit without model mismatch (finite RF/slice profile effects)
-    signal_c1_fit_complex = signal_c1(xr1, args...)
-    f = (Δϕ, α) -> _bssfp1(xr1, Δϕ, α, args...)
+    signal_c1_fit_complex = signal_c1!(xr1, args...)
+    f = (Δϕ, α) -> _bssfp1!(xr1, Δϕ, α, args...)
     signal_c1_fit_complex_fine = f.(Δϕ_plot, α_rads')
 
     ## magnitude (inst RF)
@@ -520,7 +527,7 @@ function plot_bssfp_finite_rf_sp_data_fits(args::Tuple)
     )
 end
 
-pc = plot_bssfp_finite_rf_sp_data_fits(args2_sim)
+pc = plot_bssfp_finite_rf_sp_data_fits!(args2_sim)
 
 #
 prompt()
@@ -562,9 +569,9 @@ Using a large array of spins here:
 =#
 # z positions (cm) for 3D slab-select plot:
 zpos3_plot = range(-1, 1, 201) * slab_width
-spins = make_spins(Mz0, T1_ms, T2_ms, Δf_Hz, zpos3_plot)
-do_excite!(spins, rf3, rephasing3)
-pp3 = plot_profile(spins, zpos3_plot, slice_width, rtype3)
+spins3_plot = make_spins(Mz0, T1_ms, T2_ms, Δf_Hz, zpos3_plot)
+do_excite!(spins3_plot, rf3, rephasing3)
+pp3 = plot_profile(spins3_plot, zpos3_plot, slice_width, rtype3)
 
 #
 prompt()
@@ -577,9 +584,9 @@ though again the value is a bit low
 due to T2 decay effects.
 =#
 zpos_slice = range(-0.05, 0.05, 11) # z positions (cm) # 1mm slice in a big slab
-spins = make_spins(Mz0, T1_ms, T2_ms, Δf_Hz, zpos_slice)
-do_excite!(spins, rf3, rephasing3)
-pp4 = plot_profile(spins, zpos_slice, slice_width, rtype3)
+spins_slice = make_spins(Mz0, T1_ms, T2_ms, Δf_Hz, zpos_slice)
+do_excite!(spins_slice, rf3, rephasing3)
+pp4 = plot_profile(spins_slice, zpos_slice, slice_width, rtype3)
 
 
 #=
@@ -593,7 +600,7 @@ Scale factor since excited slice occupies a small fraction of z FOV:
 =#
 scale3 = 1 / length(zpos_slice)
 args3 = (scale3, rf_maker3!, zpos_slice)
-signal_ri3(x) = real_imag(vec(signal_c1(x, args3...)))
+signal_ri3(x) = real_imag(vec(signal_c1!(x, args3...)))
 
 yb3 = signal_ri3(x) # noiseless data account for slice-profile effects
 yb3 = reshape(yb3, :, 2); yb3 = complex.(yb3[:,1], yb3[:,2]) # re-make complex!
@@ -601,7 +608,7 @@ yb3 = reshape(yb3, :, 2); yb3 = complex.(yb3[:,1], yb3[:,2]) # re-make complex!
 #src y3 = yb3 + 1σ3 * randn(ComplexF64, size(yb3)) # not used
 #src @show 20*log10(norm(yb3) / norm(y3 - yb3))
 
-pb3 = plot_bssfp(args3, yb3; rtype = "SLR")
+pb3 = plot_bssfp!(args3, yb3; rtype = "SLR")
 
 #
 prompt()
