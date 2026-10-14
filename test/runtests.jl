@@ -23,6 +23,7 @@ end
     include("spgr.jl")
     include("crb.jl")
     include("slice.jl")
+    include("reuse.jl")
 
     include("ext0.jl") # extension - before "fit.jl"
     include("fit.jl") # extension - should be last
