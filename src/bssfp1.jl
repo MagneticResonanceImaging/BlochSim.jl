@@ -133,7 +133,7 @@ function bssfp(
     rf::AbstractRF,
     pos::Position = Position(0.0, 0.0, 0.0),
 )
-    spin = Spin(Mz0, T1_ms, T2_ms, Δf_Hz, pos)
+    spin = Spin(Mz0, T1_ms, T2_ms, Δf_Hz, pos) # warning: this allocates!
     return bssfp(spin, TR_ms, TE_ms, Δϕ_rad, rf)
 end
 
