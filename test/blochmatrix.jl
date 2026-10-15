@@ -54,7 +54,11 @@ function make_identity1()
     BlochSim.make_identity!(A)
     @test Matrix(A) == I(3)
 
-    B = BlochMcConnellMatrix{Int}(2) # todo fails @inferred
+    # @inferred works either with constant propagation or passing Val directly.
+    make_2_compartments = () -> BlochMcConnellMatrix{Int}(2)
+    B = @inferred make_2_compartments()
+    Bval = @inferred BlochMcConnellMatrix{Int}(Val(2))
+    @test B == Bval
     for i = 1:2, j = 1:2
         B.A[i][j].a11 = 1
         B.A[i][j].a21 = 2
@@ -217,7 +221,11 @@ end
 function times9()
 
     A = ExcitationMatrix(BlochMatrix(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
-    B = BlochMcConnellMatrix(3) # todo @inferred
+    # @inferred works either with constant propagation or passing Val directly.
+    make_3_compartments = () -> BlochMcConnellMatrix(3)
+    B = @inferred make_3_compartments()
+    Bval = @inferred BlochMcConnellMatrix(Val(3))
+    @test B == Bval
     for i = 1:3, j = 1:3
         B.A[i][j].a11 = 1
         B.A[i][j].a21 = 2
@@ -373,7 +381,11 @@ function mul4()
     τ12 = 0.05
     τ21 = 0.1
 
-    A = BlochSim.BlochMcConnellDynamicsMatrix(2) # todo @inferred
+    # @inferred works either with constant propagation or passing Val directly.
+    make_2_compartments = () -> BlochSim.BlochMcConnellDynamicsMatrix(2)
+    A = @inferred make_2_compartments()
+    Aval = @inferred BlochSim.BlochMcConnellDynamicsMatrix(Val(2))
+    @test A == Aval
     A.A[1].R2 = -1 / T21 - 1 / τ12
     A.A[1].Δω = 2π
     A.A[1].R1 = -1 / T11 - 1 / τ12
